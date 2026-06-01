@@ -8,12 +8,15 @@ import type { Proceso, ProcesoControlFinal, EstadoPaso } from '../proceso';
 
 describe('Proceso - crearProceso', () => {
   it('Debe crear un proceso válido con los campos obligatorios', () => {
-    const proceso = crearProceso({
-      id: 'P1',
-      tiempoLlegada: 0,
-      tiempoCPU: 5,
-      color: '#FF0000',
-    });
+    const proceso = crearProceso(
+      {
+        id: 'P1',
+        tiempoLlegada: 0,
+        tiempoCPU: 5,
+        color: '#FF0000',
+      },
+      []
+    );
 
     expect(proceso.id).toBe('P1');
     expect(proceso.tiempoLlegada).toBe(0);
@@ -22,11 +25,14 @@ describe('Proceso - crearProceso', () => {
   });
 
   it('Debe asignar un color por defecto si no se proporciona', () => {
-    const proceso = crearProceso({
-      id: 'P2',
-      tiempoLlegada: 2,
-      tiempoCPU: 3,
-    });
+    const proceso = crearProceso(
+      {
+        id: 'P2',
+        tiempoLlegada: 2,
+        tiempoCPU: 3,
+      },
+      []
+    );
 
     expect(proceso.color).toBeDefined();
     expect(typeof proceso.color).toBe('string');
@@ -35,51 +41,87 @@ describe('Proceso - crearProceso', () => {
 
   it('Debe lanzar error si tiempoCPU es negativo', () => {
     expect(() => {
-      crearProceso({
-        id: 'P3',
-        tiempoLlegada: 0,
-        tiempoCPU: -5,
-        color: '#FF0000',
-      });
+      crearProceso(
+        {
+          id: 'P3',
+          tiempoLlegada: 0,
+          tiempoCPU: -5,
+          color: '#FF0000',
+        },
+        []
+      );
     }).toThrow();
   });
 
   it('Debe lanzar error si tiempoLlegada es negativo', () => {
     expect(() => {
-      crearProceso({
-        id: 'P4',
-        tiempoLlegada: -1,
-        tiempoCPU: 5,
-        color: '#FF0000',
-      });
+      crearProceso(
+        {
+          id: 'P4',
+          tiempoLlegada: -1,
+          tiempoCPU: 5,
+          color: '#FF0000',
+        },
+        []
+      );
     }).toThrow();
   });
 
   it('Debe aceptar y guardar correctamente los campos opcionales (prioridad, E/S)', () => {
-    const proceso = crearProceso({
-      id: 'P5',
-      tiempoLlegada: 1,
-      tiempoCPU: 4,
-      color: '#00FF00',
-      prioridad: 2,
-      tiempoLlegadaES: 2,
-      tiempoES: 1,
-    });
+    const proceso = crearProceso(
+      {
+        id: 'P5',
+        tiempoLlegada: 1,
+        tiempoCPU: 4,
+        color: '#00FF00',
+        prioridad: 2,
+        tiempoLlegadaES: 2,
+        tiempoES: 1,
+      },
+      []
+    );
 
     expect(proceso.prioridad).toBe(2);
     expect(proceso.tiempoLlegadaES).toBe(2);
     expect(proceso.tiempoES).toBe(1);
   });
+
+  it('Debe lanzar error si el ID ya existe en procesos existentes', () => {
+    const procesoExistente = crearProceso(
+      {
+        id: 'P1',
+        tiempoLlegada: 0,
+        tiempoCPU: 5,
+        color: '#FF0000',
+      },
+      []
+    );
+
+    expect(() => {
+      crearProceso(
+        {
+          id: 'P1',
+          tiempoLlegada: 2,
+          tiempoCPU: 3,
+          color: '#00FF00',
+        },
+        [procesoExistente]
+      );
+    }).toThrow(/ya existe/);
+  });
 });
 
 describe('ProcesoControlFinal - inicializarControlProceso', () => {
   it('Debe inicializar tiempoRestante igual a tiempoCPU', () => {
-    const proceso = crearProceso({
-      id: 'P1',
-      tiempoLlegada: 0,
-      tiempoCPU: 8,
-      color: '#FF0000',
-    });
+    const proceso = crearProceso(
+      {
+        id: 'P1',
+        tiempoLlegada: 0,
+        tiempoCPU: 8,
+        color: '#FF0000',
+      },
+      []
+    );
 
     const control = inicializarControlProceso(proceso);
 
@@ -88,12 +130,15 @@ describe('ProcesoControlFinal - inicializarControlProceso', () => {
   });
 
   it('Los tiempos de fin, retorno y espera deben inicializarse como undefined', () => {
-    const proceso = crearProceso({
-      id: 'P2',
-      tiempoLlegada: 1,
-      tiempoCPU: 5,
-      color: '#00FF00',
-    });
+    const proceso = crearProceso(
+      {
+        id: 'P2',
+        tiempoLlegada: 1,
+        tiempoCPU: 5,
+        color: '#00FF00',
+      },
+      []
+    );
 
     const control = inicializarControlProceso(proceso);
 
@@ -103,12 +148,15 @@ describe('ProcesoControlFinal - inicializarControlProceso', () => {
   });
 
   it('Debe heredar correctamente el id y color del proceso original', () => {
-    const proceso = crearProceso({
-      id: 'P3',
-      tiempoLlegada: 2,
-      tiempoCPU: 6,
-      color: '#0000FF',
-    });
+    const proceso = crearProceso(
+      {
+        id: 'P3',
+        tiempoLlegada: 2,
+        tiempoCPU: 6,
+        color: '#0000FF',
+      },
+      []
+    );
 
     const control = inicializarControlProceso(proceso);
 
@@ -117,12 +165,15 @@ describe('ProcesoControlFinal - inicializarControlProceso', () => {
   });
 
   it('Al simular un tick (restar 1 a tiempoRestante), el objeto debe reflejar el cambio sin alterar el tiempoCPU original', () => {
-    const proceso = crearProceso({
-      id: 'P4',
-      tiempoLlegada: 0,
-      tiempoCPU: 10,
-      color: '#FFFF00',
-    });
+    const proceso = crearProceso(
+      {
+        id: 'P4',
+        tiempoLlegada: 0,
+        tiempoCPU: 10,
+        color: '#FFFF00',
+      },
+      []
+    );
 
     const control = inicializarControlProceso(proceso);
     const tiempoCPUOriginal = control.tiempoCPU;
@@ -138,18 +189,24 @@ describe('ProcesoControlFinal - inicializarControlProceso', () => {
 describe('EstadoPaso - crearPasoInicial', () => {
   it('El paso inicial en tiempoActual = 0 debe tener procesoEnEjecucion = null', () => {
     const procesos = [
-      crearProceso({
-        id: 'P1',
-        tiempoLlegada: 0,
-        tiempoCPU: 5,
-        color: '#FF0000',
-      }),
-      crearProceso({
-        id: 'P2',
-        tiempoLlegada: 2,
-        tiempoCPU: 3,
-        color: '#00FF00',
-      }),
+      crearProceso(
+        {
+          id: 'P1',
+          tiempoLlegada: 0,
+          tiempoCPU: 5,
+          color: '#FF0000',
+        },
+        []
+      ),
+      crearProceso(
+        {
+          id: 'P2',
+          tiempoLlegada: 2,
+          tiempoCPU: 3,
+          color: '#00FF00',
+        },
+        []
+      ),
     ];
 
     const paso = crearPasoInicial(procesos);
@@ -160,24 +217,33 @@ describe('EstadoPaso - crearPasoInicial', () => {
 
   it('Todos los procesos cuyo tiempoLlegada > 0 deben estar en estado not-arrived', () => {
     const procesos = [
-      crearProceso({
-        id: 'P1',
-        tiempoLlegada: 0,
-        tiempoCPU: 5,
-        color: '#FF0000',
-      }),
-      crearProceso({
-        id: 'P2',
-        tiempoLlegada: 3,
-        tiempoCPU: 4,
-        color: '#00FF00',
-      }),
-      crearProceso({
-        id: 'P3',
-        tiempoLlegada: 5,
-        tiempoCPU: 2,
-        color: '#0000FF',
-      }),
+      crearProceso(
+        {
+          id: 'P1',
+          tiempoLlegada: 0,
+          tiempoCPU: 5,
+          color: '#FF0000',
+        },
+        []
+      ),
+      crearProceso(
+        {
+          id: 'P2',
+          tiempoLlegada: 3,
+          tiempoCPU: 4,
+          color: '#00FF00',
+        },
+        []
+      ),
+      crearProceso(
+        {
+          id: 'P3',
+          tiempoLlegada: 5,
+          tiempoCPU: 2,
+          color: '#0000FF',
+        },
+        []
+      ),
     ];
 
     const paso = crearPasoInicial(procesos);
@@ -191,12 +257,15 @@ describe('EstadoPaso - crearPasoInicial', () => {
 
   it('El array de gantt debe inicializarse vacío', () => {
     const procesos = [
-      crearProceso({
-        id: 'P1',
-        tiempoLlegada: 0,
-        tiempoCPU: 5,
-        color: '#FF0000',
-      }),
+      crearProceso(
+        {
+          id: 'P1',
+          tiempoLlegada: 0,
+          tiempoCPU: 5,
+          color: '#FF0000',
+        },
+        []
+      ),
     ];
 
     const paso = crearPasoInicial(procesos);
@@ -208,24 +277,33 @@ describe('EstadoPaso - crearPasoInicial', () => {
 
   it('La colaListos debe incluir solo los IDs de los procesos que tienen tiempoLlegada === 0', () => {
     const procesos = [
-      crearProceso({
-        id: 'P1',
-        tiempoLlegada: 0,
-        tiempoCPU: 5,
-        color: '#FF0000',
-      }),
-      crearProceso({
-        id: 'P2',
-        tiempoLlegada: 0,
-        tiempoCPU: 3,
-        color: '#00FF00',
-      }),
-      crearProceso({
-        id: 'P3',
-        tiempoLlegada: 2,
-        tiempoCPU: 4,
-        color: '#0000FF',
-      }),
+      crearProceso(
+        {
+          id: 'P1',
+          tiempoLlegada: 0,
+          tiempoCPU: 5,
+          color: '#FF0000',
+        },
+        []
+      ),
+      crearProceso(
+        {
+          id: 'P2',
+          tiempoLlegada: 0,
+          tiempoCPU: 3,
+          color: '#00FF00',
+        },
+        []
+      ),
+      crearProceso(
+        {
+          id: 'P3',
+          tiempoLlegada: 2,
+          tiempoCPU: 4,
+          color: '#0000FF',
+        },
+        []
+      ),
     ];
 
     const paso = crearPasoInicial(procesos);
@@ -236,3 +314,4 @@ describe('EstadoPaso - crearPasoInicial', () => {
     expect(paso.colaListos.length).toBe(2);
   });
 });
+

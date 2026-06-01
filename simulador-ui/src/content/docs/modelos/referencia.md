@@ -224,17 +224,40 @@ const procesos: Proceso[] = [
 
 ## Funciones Utilitarias
 
-### crearProceso(datos: Partial<Proceso>): Proceso
+### crearProceso(datos: Partial<Proceso>, procesosExistentes: Proceso[]): Proceso
 
-Crea y valida un proceso. Asigna color por defecto si no se proporciona.
+Crea y valida un proceso. Asigna color por defecto si no se proporciona. Valida que el ID no sea duplicado.
+
+**Parámetros:**
+- `datos`: Objeto con los datos del nuevo proceso
+- `procesosExistentes`: Array de procesos ya creados para validar IDs duplicados
 
 **Validación:**
 - Lanza error si `tiempoLlegada` es negativo
 - Lanza error si `tiempoCPU` es negativo
+- Lanza error si el `id` ya existe en `procesosExistentes`
 - Valida que `id`, `tiempoLlegada` y `tiempoCPU` sean proporcionados
 
 **Comportamiento:**
 - Si `color` no se proporciona, asigna uno de una paleta predefinida
+
+**Ejemplo:**
+```typescript
+const p1 = crearProceso({
+  id: 'P1',
+  tiempoLlegada: 0,
+  tiempoCPU: 5,
+  color: '#FF6B6B'
+}, []);
+
+// Esto lanzará error: ID duplicado
+const p1Duplicado = crearProceso({
+  id: 'P1',
+  tiempoLlegada: 2,
+  tiempoCPU: 3,
+  color: '#4ECDC4'
+}, [p1]);
+```
 
 ### inicializarControlProceso(p: Proceso): ProcesoControlFinal
 

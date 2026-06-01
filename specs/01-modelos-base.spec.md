@@ -6,13 +6,13 @@ Definir las interfaces y tipos de datos (TypeScript) fundamentales que represent
 ## 2. Modelos de Datos Requeridos
 Generar un archivo `src/types/proceso.ts` que incluya y exporte estrictamente las siguientes estructuras:
 
-- **ConfiguracionSimulador:** Define el comportamiento global del algoritmo.
+- **ConfiguracionSimulador:** Define el comportamiento global del algoritmo en concreto de planificación de CPU (FCFS, SJF, LJF, PRIO-N, RR, SRTF, LRTF, PRIO_P)
   - `expropiativo`: boolean (true si el algoritmo puede expulsar a un proceso de la CPU antes de que termine).
   - `usaPrioridades`: boolean (true si el algoritmo toma decisiones basadas en el campo prioridad).
-  - `5`?: number (Opcional. Representa el "Quantum" de tiempo. Límite máximo de ticks que un proceso puede usar la CPU de forma ininterrumpida).
+  - `tiempoMaximoTurno`?: number (Opcional. Representa el "Quantum" de tiempo. Límite máximo de ticks que un proceso puede usar la CPU de forma ininterrumpida).
 
-- **Proceso:** Interfaz de entrada del usuario.
-  - `id`: string
+- **Proceso:** Interfaz de entrada del usuario del proceso 
+  - `id`: string 
   - `tiempoLlegada`: number
   - `tiempoCPU`: number (Burst time)
   - `tiempoLlegadaES`?: number (Instante en el que solicita E/S)
@@ -20,20 +20,20 @@ Generar un archivo `src/types/proceso.ts` que incluya y exporte estrictamente la
   - `prioridad`?: number
   - `color`: string (Para el diagrama de Gantt)
 
-- **ProcesoControlFinal:** Extiende `Proceso` para el seguimiento durante la simulación.
+- **ProcesoControlFinal:** Extiende `Proceso` para el seguimiento durante la simulación cuando finaliza el algoritmo
   - `tiempoRestante`: number
   - `tiempoFin`?: number
   - `tiempoRetorno`?: number
   - `tiempoEspera`?: number
 
-- **EstadoProcesoEnTiempo:**
+- **EstadoProcesoEnTiempo:** Historial de proceso en que estado se encuentra
   - `id`: string
   - `estado`: 'ejecutando' | 'esperando' | 'bloqueado' | 'not-arrived' | 'terminado'
   - `tiempoEjecutado`?: number
 
 - **EstadoPaso:** Representa el "snapshot" en un instante `t` exacto.
   - `tiempoActual`: number
-  - `procesoEnEjecucion`: string | null
+  - `procesoEnEjecucion`: string | null (proceso existente en interfaz de proceso)
   - `estadosProcesos`: EstadoProcesoEnTiempo[]
   - `colaListos`: string[]
   - `colaBloqueados`?: string[]
@@ -41,10 +41,16 @@ Generar un archivo `src/types/proceso.ts` que incluya y exporte estrictamente la
   - `gantt`: string[] (Historial acumulado de IDs para el gráfico)
 
 ## 3. Lógica de Funciones de Apoyo (Factoría)
-Como las interfaces en TypeScript desaparecen en tiempo de ejecución, genera también funciones puras (factorías) en `src/utils/procesoUtils.ts` para crear y validar estos objetos:
-1. `crearProceso(datos: Partial<Proceso>): Proceso`
-2. `inicializarControlProceso(p: Proceso): ProcesoControlFinal`
-3. `crearPasoInicial(procesos: Proceso[]): EstadoPaso`
+Como las interfaces en TypeScript desaparecen en tiempo de ejecución, genera también funciones puras (factorías) en `src/utils/procesoUtils.ts` para crear y validar estos objetos.
+
+**Explicación de las Funciones:**
+Estas funciones actúan como "constructores seguros". No puedes instanciar una interfaz directamente en TypeScript con validaciones complejas. Estas funciones toman los datos básicos, verifican que sean correctos (ej. que no haya IDs duplicados, que los tiempos no sean negativos), y devuelven el objeto completo listo para ser usado por el simulador.
+
+- `crearProceso(datos: Partial<Proceso>, procesosExistentes: Proceso[])`: Proceso: Valida los datos y crea un nuevo proceso. Debe lanzar un error si el id ya existe en procesosExistentes.
+
+- `inicializarControlProceso(p: Proceso)`: ProcesoControlFinal: Convierte un Proceso básico en un objeto preparado para el seguimiento durante la simulación (inicializando tiempoRestante, etc.).
+
+- `crearPasoInicial(procesos: Proceso[])`: EstadoPaso: Crea el primer "snapshot" del simulador en el instante t=0.
 
 ## 4. Interfaz de Usuario y Restricciones Técnicas
 - **Lenguaje:** TypeScript puro. No incluir dependencias de React en estos archivos.

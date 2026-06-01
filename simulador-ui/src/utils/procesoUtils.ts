@@ -39,16 +39,25 @@ function validarTiempos(tiempoLlegada: number, tiempoCPU: number): void {
 /**
  * Crea un proceso válido con los datos proporcionados.
  * Asigna un color por defecto si no se proporciona uno.
+ * Valida que el ID no exista ya en procesos existentes.
  *
  * @param datos - Datos parciales del proceso
+ * @param procesosExistentes - Array de procesos ya creados para validar ID duplicado
  * @returns Proceso validado y completo
- * @throws Error si los tiempos son negativos o datos requeridos están faltando
+ * @throws Error si los tiempos son negativos, datos requeridos están faltando, o el ID ya existe
  */
-export function crearProceso(datos: Partial<Proceso>): Proceso {
+export function crearProceso(
+  datos: Partial<Proceso>,
+  procesosExistentes: Proceso[]
+): Proceso {
   const { id, tiempoLlegada, tiempoCPU, color, ...resto } = datos;
 
   if (!id || tiempoLlegada === undefined || tiempoCPU === undefined) {
     throw new Error('id, tiempoLlegada y tiempoCPU son requeridos');
+  }
+
+  if (procesosExistentes.some((p) => p.id === id)) {
+    throw new Error(`El id "${id}" ya existe en los procesos existentes`);
   }
 
   validarTiempos(tiempoLlegada, tiempoCPU);
