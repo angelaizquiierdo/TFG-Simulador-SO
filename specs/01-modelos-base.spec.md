@@ -94,4 +94,4 @@ Generar el archivo `src/content/docs/modelos/referencia.md` para el entorno de A
      - Prioridad Expropiativa.
    - **Expropiativos por Turno (Usan tiempoMaximoTurno, `tiempoMaximoTurno` definido):**
      - Round Robin (RR).
-4. **Ejemplo Práctico:** Un ejemplo en JSON de cómo se instanciaría la configuración para un FCFS vs. un Round Robin.
+4. **Ejecutarlas pruebas unitarias y coverage** Quiero que se pueda realizar de 2 maneras con la descripcion del package.json o comandos `npm run vitest`, `npm run vitest --ui` y `npm run vitest run --coverage` asimismo sus definiciónes de lo que realizan.

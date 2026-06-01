@@ -281,13 +281,14 @@ Crea el `EstadoPaso` inicial en `tiempoActual = 0`.
 
 ## Pruebas Unitarias
 
-Se proporciona un conjunto de 12 pruebas unitarias (`vitest`) que validan:
+Se proporciona un conjunto de 13+ pruebas unitarias (`vitest`) que validan:
 
-1. **Proceso (crearProceso) - 4 pruebas**:
+1. **Proceso (crearProceso) - 5 pruebas**:
    - Creación válida con campos obligatorios
    - Asignación de color por defecto
    - Validación de tiempos negativos
    - Aceptación de campos opcionales (prioridad, E/S)
+   - Validación de ID duplicado
 
 2. **ProcesoControlFinal (inicializarControlProceso) - 4 pruebas**:
    - Inicialización de `tiempoRestante` igual a `tiempoCPU`
@@ -301,20 +302,67 @@ Se proporciona un conjunto de 12 pruebas unitarias (`vitest`) que validan:
    - Inicialización de `gantt` como array vacío
    - Construcción correcta de `colaListos` con solo procesos de `tiempoLlegada === 0`
 
-Para ejecutar las pruebas:
+### Ejecución de Pruebas
+
+Las pruebas se pueden ejecutar de **dos formas**:
+
+#### **Forma 1: Usando scripts de npm (recomendado)**
+
+Desde el `package.json`:
 
 ```bash
+# Ejecutar todas las pruebas (modo normal)
+npm run test
+
+# Equivalente a:
 npm test
-```
 
-Para visualizar cobertura:
-
-```bash
-npm test -- --coverage
-```
-
-Para interfaz UI (opcional):
-
-```bash
+# Ejecutar pruebas con interfaz visual interactiva
 npm run test:ui
+
+# Ver cobertura de código
+npm run coverage
 ```
+
+#### **Forma 2: Usando vitest directamente**
+
+Si tienes vitest instalado globalmente:
+
+```bash
+# Ejecutar todas las pruebas
+vitest
+
+# Ejecutar pruebas con interfaz visual
+vitest --ui
+
+# Ejecutar pruebas y generar reporte de cobertura
+vitest run --coverage
+```
+
+### Descripción de Comandos
+
+| Comando | Alias | Descripción | Función |
+|---------|-------|-------------|---------|
+| `npm run test` | `npm test` | Ejecuta todas las pruebas en modo watch | Valida que el código pase todas las pruebas unitarias |
+| `npm run test:ui` | — | Abre interfaz visual en navegador | Interfaz interactiva para ver resultados de pruebas en tiempo real |
+| `npm run coverage` | — | Genera reporte de cobertura | Muestra qué porcentaje del código está cubierto por pruebas |
+
+### Interpretación de Resultados
+
+**Pruebas exitosas:**
+```
+✓ Debe crear un proceso válido con los campos obligatorios
+✓ Debe asignar un color por defecto si no se proporciona
+✓ Debe lanzar error si tiempoCPU es negativo
+...
+```
+
+**Cobertura de código (coverage):**
+```
+Statements   : XX.XX%
+Branches     : XX.XX%
+Functions    : XX.XX%
+Lines        : XX.XX%
+```
+
+Idealmente, buscar una cobertura mayor al 80% para garantizar que la mayoría del código está siendo probado.
