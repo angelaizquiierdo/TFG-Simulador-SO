@@ -58,147 +58,102 @@ Cuando `expropiativo: true`:
   1. **Expropiativos por evento** (sin `tiempoMaximoTurno`): Se expulsa cuando llega un proceso de mayor prioridad o cuando termina una E/S.
   2. **Expropiativos por turno** (con `tiempoMaximoTurno`): Se expulsa cuando se agota el quantum de tiempo asignado.
 
-## Arquitectura del Backend y Patrones de Diseño
+## Arquitectura del Backend: Motor Único + Strategy
 
-### Visión General de la Estructura
+### Visión General
 
-El simulador implementa el **patrón Strategy** para permitir múltiples algoritmos de planificación sin duplicar código. La estructura se organiza en tres capas:
+El simulador implementa todos los **8 algoritmos clásicos de planificación** mediante un **motor único parametrizado** que recibe una **política de dos ejes** (selección + expropiación). Esto evita duplicar el bucle de tiempo y genera un único `EstadoPaso[]` reutilizable para todas las estrategias.
 
-1. **Motor Central** (`motorNoExpropiativo.ts`): Lógica de simulación reutilizable
-2. **Estrategias de Ordenación** (`estrategiasOrdenacion.ts`): Reglas específicas de cada algoritmo
-3. **Funciones Wrapper** (`index.ts`): Interfaz pública simplificada
+### Los Dos Ejes de Decisión
 
-### 1. Patrón Strategy: El Motor y las Reglas
+Toda decisión de planificación se reduce a dos preguntas ortogonales por tick:
 
-#### `src/utils/algoritmos/motorNoExpropiativo.ts`
+1. **Eje 1 — Selección** (`comparar`)
+   - Pregunta: Si la CPU está libre, ¿a quién se le asigna?
+   - Solución: Función de comparación que ordena la `colaListos`
+   - Criterios: tiempoLlegada (FCFS), tiempoCPU (SJF), tiempoRestante (SRTF), prioridad, etc.
 
-**Responsabilidad**: Actúa como el motor central que maneja el bucle de simulación tiempo a tiempo (`t=0, 1, 2...`).
+2. **Eje 2 — Expropiación** (`debeExpropiar`)
+   - Pregunta: Si la CPU está ocupada, ¿hay que expulsar al proceso actual ahora mismo?
+   - Solución: Función booleana que evalúa el contexto del tick actual
+   - Criterios: Siempre false (no expropiativo), o evalúa `cola.some(...)` (expropiativo), o `ticksEnCPU >= quantum` (RR)
 
-**Características clave**:
-- Implementa el flujo general de la simulación no expropiativa
-- Recibe una **función de ordenación inyectable** como parámetro
-- Mantiene control de la CPU, estado de procesos y generación del historial paso a paso (`EstadoPaso`)
-- **Evita duplicación de código**: Sin este motor, habría que copiar toda la lógica 4 veces (una por cada algoritmo)
+**Ejemplo**: SJF y SRTF comparten el mismo comparador (ráfaga) pero difieren en `debeExpropiar`:
+- **SJF**: `comparar = compararSJF()`, `debeExpropiar = false` (no expropia)
+- **SRTF**: `comparar = compararSRTF()`, `debeExpropiar = verdadero si hay más corto en cola`
 
-**Firma**:
+### Archivos de la Arquitectura
+
+#### `src/utils/algoritmos/motorPlanificacion.ts`
+**Responsabilidad**: Motor único de simulación tick-a-tick para todos los algoritmos.
+
+**Características**:
+- Bucle de tiempo `t = 0, 1, 2…` que gestiona CPU, colas, idle y generación del historial
+- Recibe una **política inyectable** (`PoliticaPlanificacion`)
+- Genera un único `EstadoPaso[]` idéntico en estructura para todos los algoritmos
+- Evita duplicación del bucle de tiempo
+
+**Convención temporal**:
+- Tick `t` representa el intervalo `[t, t+1)`
+- Un proceso que agota su última unidad en tick `t` finaliza en `t + 1`
+- Gantt incluye `"IDLE"` cuando la CPU está ociosa
+
+#### `src/utils/algoritmos/comparadores.ts`
+**Responsabilidad**: Funciones de comparación para el eje de selección.
+
+**Implementa 7 comparadores**:
+- `compararFCFS` → menor `tiempoLlegada`
+- `compararSJF` → menor `tiempoCPU`
+- `compararLJF` → mayor `tiempoCPU`
+- `compararPrioridad` → menor `prioridad` (0 = máxima; `undefined` = mínima)
+- `compararSRTF` → menor `tiempoRestante`
+- `compararLRTF` → mayor `tiempoRestante`
+- `compararFIFO` → no reordena (preserva orden para Round Robin)
+
+**Desempate determinista automático**:
+- Criterio principal + `tiempoLlegada` + `id` alfabético
+- Garantiza reproducibilidad
+
+#### `src/utils/algoritmos/politicas.ts`
+**Responsabilidad**: Ensamblar comparador + `debeExpropiar` para los 8 algoritmos.
+
+| Algoritmo | Comparador | `debeExpropiar` |
+|-----------|-----------|-----------------|
+| FCFS | `compararFCFS` | Siempre `false` |
+| SJF | `compararSJF` | Siempre `false` |
+| LJF | `compararLJF` | Siempre `false` |
+| Prioridad No Exp. | `compararPrioridad` | Siempre `false` |
+| SRTF | `compararSRTF` | `cola.some(q => q.tiempoRestante < actual)` |
+| LRTF | `compararLRTF` | `cola.some(q => q.tiempoRestante > actual)` |
+| Prioridad Exp. | `compararPrioridad` | `cola.some(q => prio(q) < prio(actual))` |
+| Round Robin | `compararFIFO` | `ticksEnCPU >= tiempoMaximoTurno` |
+
+#### `src/utils/algoritmos/index.ts` (Patrón Barril)
+**Responsabilidad**: Funciones wrapper públicas.
+
+**8 Funciones wrapper**:
 ```typescript
-function simularNoExpropiativo(
-  procesos: Proceso[],
-  ordenarColaListos: (a: ProcesoControlFinal, b: ProcesoControlFinal) => number
-): { historial: EstadoPaso[]; resultados: ProcesoControlFinal[] }
+simularFCFS(procesos)
+simularSJF(procesos)
+simularLJF(procesos)
+simularPrioridadNoExpropiativa(procesos)
+simularSRTF(procesos)
+simularLRTF(procesos)
+simularPrioridadExpropiativa(procesos)
+simularRoundRobin(procesos, quantum = 4)
 ```
 
-**Flujo tick a tick**:
-1. Identificar procesos listos (llegaron y no han terminado)
-2. Aplicar función de ordenación inyectada
-3. Si hay CPU libre, ejecutar el primero de la cola
-4. Generar snapshot (`EstadoPaso`) del sistema en este instante
-5. Si un proceso termina, calcular métricas y liberarlo
-6. Repetir hasta que todos terminen
-
-#### `src/utils/algoritmos/estrategiasOrdenacion.ts`
-
-**Responsabilidad**: Contiene únicamente las funciones matemáticas de comparación para ordenar la `colaListos`.
-
-**Implementa**:
-```typescript
-export const ordenarFCFS = (a: ProcesoControlFinal, b: ProcesoControlFinal) => number
-export const ordenarSJF = (a: ProcesoControlFinal, b: ProcesoControlFinal) => number
-export const ordenarLJF = (a: ProcesoControlFinal, b: ProcesoControlFinal) => number
-export const ordenarPrioridad = (a: ProcesoControlFinal, b: ProcesoControlFinal) => number
-```
-
-**Cada función**:
-- Define regla principal: FCFS por `tiempoLlegada`, SJF por `tiempoCPU`, etc.
-- Incluye desempate secundario: `tiempoLlegada` (quien llegó antes, va primero)
-- Retorna número negativo (a primero), positivo (b primero) o cero (igual)
-
-**Ventaja**: Las estrategias son puras y aisladas. Cambiar la lógica de SJF no afecta a FCFS.
-
-### 2. Patrón Barril / Funciones Envolventes (El Índice)
-
-#### `src/utils/algoritmos/index.ts`
-
-**Responsabilidad**: Actúa como un "recepcionista" que oculta la complejidad interna y exporta funciones públicas listas para usar.
-
-**Propósito**:
-- **Simplicidad para el consumidor**: Los componentes React solo ven `simularFCFS(procesos)`, no detalles internos
-- **Flexibilidad**: Si la implementación interna cambia (ej. pasar de Strategy a otra cosa), el exterior no se ve afectado
-- **Reutilización**: Evita código repetido inyectando estrategias distintas en el motor
-
-**Funciones públicas**:
-```typescript
-export function simularFCFS(procesos: Proceso[]): ResultadoSimulacion
-export function simularSJF(procesos: Proceso[]): ResultadoSimulacion
-export function simularLJF(procesos: Proceso[]): ResultadoSimulacion
-export function simularPrioridad(procesos: Proceso[]): ResultadoSimulacion
-```
-
-Cada función es un wrapper que simplemente llama:
-```typescript
-return simularNoExpropiativo(procesos, ordenarFCFS);
-// return simularNoExpropiativo(procesos, ordenarSJF);
-// etc.
-```
-
-**Cómo lo consume React**:
-```typescript
-// SimuladorBase.tsx (ejemplo)
-import { simularFCFS } from '@/utils/algoritmos';
-
-const resultado = simularFCFS(procesosDelUsuario);
-mostrarHistorial(resultado.historial);
-mostrarResultados(resultado.resultados);
-```
-
-El componente React nunca necesita saber cómo funciona el motor ni las estrategias.
-
-### Ventajas de Esta Arquitectura
+### Ventajas de la Arquitectura
 
 | Aspecto | Ventaja |
 |--------|---------|
-| **Reutilización** | Un motor para 4 algoritmos (+ futuros) |
-| **Mantenimiento** | Cambios al motor benefician todos los algoritmos |
-| **Testabilidad** | Motor, estrategias y wrappers se pueden probar independientemente |
-| **Extensibilidad** | Agregar nuevo algoritmo = crear nueva estrategia de ordenación |
-| **Claridad** | Cada archivo tiene una responsabilidad clara |
+| **Un motor para 8 algoritmos** | Lógica de tick-a-tick centralizada |
+| **Políticas reutilizables** | SJF y SRTF comparten comparador |
+| **Testabilidad** | Cada componente se prueba independientemente |
+| **Extensibilidad** | Agregar algoritmo = crear nueva política |
+| **Determinismo** | Desempate automático garantiza reproducibilidad |
 
-### Diagrama de Flujo
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  React Component (SimuladorBase)                            │
-│  "Necesito simular FCFS"                                    │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│  index.ts (Wrapper)                                         │
-│  simularFCFS(procesos) → simularNoExpropiativo(...)         │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-        ┌────────────┴────────────┐
-        │                         │
-        ▼                         ▼
-┌──────────────────────┐  ┌──────────────────────┐
-│ motorNoExpropiativo  │  │ estrategiasOrdenacion│
-│                      │  │                      │
-│ - Bucle t=0..tMax    │  │ - ordenarFCFS()      │
-│ - CPU idle/busy      │  │ - ordenarSJF()       │
-│ - Generar EstadoPaso │  │ - ordenarLJF()       │
-│ - Calcular métricas  │  │ - ordenarPrioridad() │
-└──────────────────────┘  └──────────────────────┘
-        │                         ▲
-        │     inyecta estrategia  │
-        └─────────────────────────┘
-
-        ▼
-┌──────────────────────────────────────┐
-│  Retorna:                            │
-│  - historial: EstadoPaso[]           │
-│  - resultados: ProcesoControlFinal[] │
-└──────────────────────────────────────┘
-```
 
 
 

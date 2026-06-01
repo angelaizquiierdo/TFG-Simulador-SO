@@ -1,44 +1,65 @@
 import type { Proceso, ProcesoControlFinal, EstadoPaso } from '../../types/proceso';
-import { simularNoExpropiativo } from './motorNoExpropiativo';
+import { simular } from './motorPlanificacion';
 import {
-  ordenarFCFS,
-  ordenarSJF,
-  ordenarLJF,
-  ordenarPrioridad,
-} from './estrategiasOrdenacion';
+  politicaFCFS,
+  politicaSJF,
+  politicaLJF,
+  politicaPrioridadNoExpropiativa,
+  politicaSRTF,
+  politicaLRTF,
+  politicaPrioridadExpropiativa,
+  crearPoliticaRoundRobin,
+} from './politicas';
 
 export interface ResultadoSimulacion {
   historial: EstadoPaso[];
   resultados: ProcesoControlFinal[];
 }
 
-/**
- * Simula FCFS (First-Come, First-Served) - Orden de llegada
- */
+// NO EXPROPIATIVOS
 export function simularFCFS(procesos: Proceso[]): ResultadoSimulacion {
-  return simularNoExpropiativo(procesos, ordenarFCFS);
+  return simular(procesos, politicaFCFS);
 }
 
-/**
- * Simula SJF (Shortest Job First) - Ráfaga más corta primero
- */
 export function simularSJF(procesos: Proceso[]): ResultadoSimulacion {
-  return simularNoExpropiativo(procesos, ordenarSJF);
+  return simular(procesos, politicaSJF);
 }
 
-/**
- * Simula LJF (Longest Job First) - Ráfaga más larga primero
- */
 export function simularLJF(procesos: Proceso[]): ResultadoSimulacion {
-  return simularNoExpropiativo(procesos, ordenarLJF);
+  return simular(procesos, politicaLJF);
 }
 
-/**
- * Simula Prioridad No Expropiativa - Prioridad más alta primero
- */
-export function simularPrioridad(procesos: Proceso[]): ResultadoSimulacion {
-  return simularNoExpropiativo(procesos, ordenarPrioridad);
+export function simularPrioridadNoExpropiativa(
+  procesos: Proceso[]
+): ResultadoSimulacion {
+  return simular(procesos, politicaPrioridadNoExpropiativa);
 }
 
-export * from './motorNoExpropiativo';
-export * from './estrategiasOrdenacion';
+// EXPROPIATIVOS
+export function simularSRTF(procesos: Proceso[]): ResultadoSimulacion {
+  return simular(procesos, politicaSRTF);
+}
+
+export function simularLRTF(procesos: Proceso[]): ResultadoSimulacion {
+  return simular(procesos, politicaLRTF);
+}
+
+export function simularPrioridadExpropiativa(
+  procesos: Proceso[]
+): ResultadoSimulacion {
+  return simular(procesos, politicaPrioridadExpropiativa);
+}
+
+// ROUND ROBIN
+export function simularRoundRobin(
+  procesos: Proceso[],
+  quantum: number = 4
+): ResultadoSimulacion {
+  return simular(procesos, crearPoliticaRoundRobin(quantum));
+}
+
+// Re-exportar motor, políticas y tipos para acceso directo si es necesario
+export * from './motorPlanificacion';
+export * from './politicas';
+export * from './comparadores';
+
