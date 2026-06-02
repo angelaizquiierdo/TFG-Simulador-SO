@@ -1,80 +1,104 @@
 /**
- * Configuración global del simulador.
- * Define el comportamiento del algoritmo de planificación.
+ * @file proceso.ts
+ * @description Modelos de datos base del Simulador de Sistema Operativo.
+ * Define las interfaces, enums y tipos fundamentales que representan los
+ * procesos, el control de tiempos y el historial de pasos del S.O.
+ * Estos modelos son la base estructural para los algoritmos de planificación
+ * (FCFS, SJF, Round Robin, Prioridades), expropiativos y no expropiativos.
+ *
+ * TypeScript puro: este archivo NO depende de React ni de ningún framework de UI.
+ */
+
+/**
+ * @description Configuración global que define el comportamiento del algoritmo de planificación activo.
  */
 export interface ConfiguracionSimulador {
-  /** true si el algoritmo puede expulsar a un proceso de la CPU antes de que termine */
+  /** @description Determina si el algoritmo puede expulsar activamente a un proceso de la CPU (true) o si debe esperar a que termine (false). */
   expropiativo: boolean;
-  /** true si el algoritmo toma decisiones basadas en el campo prioridad */
+  /** @description Indica si el mecanismo de selección debe evaluar el nivel de prioridad de los procesos. */
   usaPrioridades: boolean;
-  /** Límite máximo de ticks que un proceso puede usar la CPU de forma ininterrumpida (Quantum). Opcional. */
+  /** @description Quantum de tiempo máximo asignado a un proceso antes de ser expropiado (obligatorio en Round Robin). */
   tiempoMaximoTurno?: number;
 }
 
 /**
- * Proceso de entrada - datos iniciales proporcionados por el usuario.
+ * @description Datos puros de entrada del proceso configurados por el usuario. Inmutables durante la simulación.
  */
 export interface Proceso {
-  /** Identificador único del proceso */
+  /** @description Identificador único y alfabético del proceso (ej. "P1"). Sirve para su indexación en las colas. */
   id: string;
-  /** Instante en el que el proceso llega al sistema (tiempo de llegada) */
+  /** @description Instante de tiempo (tick) en el que el proceso entra al sistema. */
   tiempoLlegada: number;
-  /** Tiempo de ejecución en CPU (burst time) */
+  /** @description Duración total (burst time) que el proceso requiere en la CPU para completarse. */
   tiempoCPU: number;
-  /** Instante en el que el proceso solicita E/S (opcional) */
+  /** @description Tick en el que el proceso detiene su ejecución para solicitar una operación de Entrada/Salida. */
   tiempoLlegadaES?: number;
-  /** Duración de la operación de E/S (opcional) */
+  /** @description Duración total del bloqueo en la cola de Entrada/Salida antes de volver a estar listo. */
   tiempoES?: number;
-  /** Prioridad del proceso (menor número = mayor prioridad, opcional) */
+  /** @description Nivel de importancia asignado (menor número implica mayor prioridad). */
   prioridad?: number;
-  /** Color para el diagrama de Gantt */
+  /** @description Código hexadecimal utilizado para pintar las celdas del proceso en el diagrama de Gantt. */
   color: string;
 }
 
 /**
- * Proceso extendido con campos de control durante la simulación.
- * Extiende Proceso para mantener el seguimiento del estado de ejecución.
+ * @description Enumerado numérico estricto para mapear los estados del ciclo de vida de un proceso en el S.O.
+ */
+export enum NombreEstadoProceso {
+  /** @description (not-arrived) El proceso aún no ha llegado al sistema; su tiempoLlegada es mayor que el reloj actual. */
+  NotArrived = 1,
+  /** @description (esperando) El proceso ha llegado y aguarda turno en la cola de listos sin usar la CPU. */
+  Esperando = 2,
+  /** @description (ejecutando) El proceso ocupa la CPU en el tick actual. */
+  Ejecutando = 3,
+  /** @description (bloqueado) El proceso está retenido realizando una operación de Entrada/Salida. */
+  Bloqueado = 4,
+  /** @description (terminado) El proceso ha completado toda su ráfaga de CPU y abandona el sistema. */
+  Terminado = 5,
+}
+
+/**
+ * @description Extensión de la interfaz Proceso que añade campos mutables para el seguimiento vivo y cálculo de métricas en el motor.
  */
 export interface ProcesoControlFinal extends Proceso {
-  /** Tiempo restante de ejecución */
+  /** @description Unidades de ráfaga de CPU que le faltan al proceso para terminar (inicialmente igual a tiempoCPU). */
   tiempoRestante: number;
-  /** Momento en el que terminó la ejecución (undefined si no ha terminado) */
+  /** @description Instante exacto en el que el proceso termina su ejecución. */
   tiempoFin?: number;
-  /** Tiempo de retorno = tiempoFin - tiempoLlegada (undefined si no ha terminado) */
+  /** @description Tiempo total desde que llegó hasta que terminó (tiempoFin - tiempoLlegada). */
   tiempoRetorno?: number;
-  /** Tiempo de espera = tiempoRetorno - tiempoCPU (undefined si no ha terminado) */
+  /** @description Tiempo total que pasó en la cola de listos sin usar la CPU (tiempoRetorno - tiempoCPU). */
   tiempoEspera?: number;
 }
 
 /**
- * Estado de un proceso en un momento específico del tiempo.
+ * @description Snapshot del estado de un proceso individual en un instante de tiempo específico.
  */
 export interface EstadoProcesoEnTiempo {
-  /** ID del proceso */
+  /** @description ID del proceso al que pertenece el estado. */
   id: string;
-  /** Estado actual del proceso */
-  estado: 'ejecutando' | 'esperando' | 'bloqueado' | 'not-arrived' | 'terminado';
-  /** Tiempo acumulado que el proceso ha estado en ejecución (opcional) */
+  /** @description Estado actual del proceso mapeado mediante el enum NombreEstadoProceso. */
+  estado: NombreEstadoProceso;
+  /** @description Cantidad de ticks acumulados que el proceso ha consumido de CPU hasta este instante. */
   tiempoEjecutado?: number;
 }
 
 /**
- * Representa el estado completo del sistema en un instante específico.
- * Es el "snapshot" en un tiempo t exacto.
+ * @description Snapshot completo del estado del sistema operativo en un tick específico, usado para renderizar la línea de tiempo y el Gantt.
  */
 export interface EstadoPaso {
-  /** Tiempo actual de la simulación */
+  /** @description Instante de tiempo (reloj t) que representa este paso. */
   tiempoActual: number;
-  /** ID del proceso que está en ejecución en este instante (null si ninguno) */
+  /** @description ID del proceso que ocupa la CPU en este tick (null si la CPU está IDLE). */
   procesoEnEjecucion: string | null;
-  /** Estados de todos los procesos en este instante */
+  /** @description Lista con la situación de todos los procesos del sistema en este instante. */
   estadosProcesos: EstadoProcesoEnTiempo[];
-  /** IDs de los procesos listos para ejecutar */
+  /** @description IDs de los procesos que se encuentran esperando turno en la cola de listos. */
   colaListos: string[];
-  /** IDs de los procesos bloqueados en E/S (opcional) */
+  /** @description IDs de los procesos que se encuentran retenidos en la cola de Entrada/Salida. */
   colaBloqueados?: string[];
-  /** Mensaje descriptivo de lo que sucedió en este instante */
+  /** @description Cadena explicativa de los eventos ocurridos en este tick (ej. cambios de contexto o terminaciones). */
   mensaje: string;
-  /** Historial acumulado de IDs de procesos ejecutados (para el diagrama de Gantt) */
+  /** @description Array acumulado de IDs de ejecución históricos hasta el tiempoActual. */
   gantt: string[];
 }

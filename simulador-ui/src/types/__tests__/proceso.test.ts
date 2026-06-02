@@ -1,317 +1,183 @@
+/**
+ * @file proceso.test.ts
+ * @description Suite de pruebas unitarias (TDD) para las utilidades de los modelos
+ * de datos base. Cubre los caminos felices y todas las ramas de validación/error.
+ */
+
 import { describe, it, expect } from 'vitest';
+import {
+  type Proceso,
+  type ProcesoControlFinal,
+  NombreEstadoProceso,
+} from '../proceso';
 import {
   crearProceso,
   inicializarControlProceso,
   crearPasoInicial,
 } from '../../utils/procesoUtils';
-import type { Proceso, ProcesoControlFinal, EstadoPaso } from '../proceso';
 
-describe('Proceso - crearProceso', () => {
-  it('Debe crear un proceso válido con los campos obligatorios', () => {
-    const proceso = crearProceso(
-      {
-        id: 'P1',
-        tiempoLlegada: 0,
-        tiempoCPU: 5,
-        color: '#FF0000',
-      },
-      []
-    );
-
-    expect(proceso.id).toBe('P1');
-    expect(proceso.tiempoLlegada).toBe(0);
-    expect(proceso.tiempoCPU).toBe(5);
-    expect(proceso.color).toBe('#FF0000');
+// ---------------------------------------------------------------------------
+// Pruebas para Proceso (crearProceso)
+// ---------------------------------------------------------------------------
+describe('crearProceso (Proceso)', () => {
+  it('1. crea un proceso válido con los campos obligatorios', () => {
+    const p = crearProceso({ id: 'P1', tiempoLlegada: 0, tiempoCPU: 5 }, []);
+    expect(p.id).toBe('P1');
+    expect(p.tiempoLlegada).toBe(0);
+    expect(p.tiempoCPU).toBe(5);
+    expect(typeof p.color).toBe('string');
+    expect(p.color.length).toBeGreaterThan(0);
   });
 
-  it('Debe asignar un color por defecto si no se proporciona', () => {
-    const proceso = crearProceso(
+  it('2. asigna un color por defecto si no se proporciona', () => {
+    const sinColor = crearProceso({ id: 'P1', tiempoLlegada: 0, tiempoCPU: 3 }, []);
+    expect(sinColor.color).toMatch(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+
+    const conColor = crearProceso(
+      { id: 'P2', tiempoLlegada: 0, tiempoCPU: 3, color: '#123456' },
+      [sinColor],
+    );
+    expect(conColor.color).toBe('#123456');
+  });
+
+  it('3. lanza error si tiempoLlegada es -1', () => {
+    expect(() => crearProceso({ id: 'P1', tiempoLlegada: -1, tiempoCPU: 5 }, [])).toThrow();
+  });
+
+  it('4. lanza error si tiempoCPU es 0', () => {
+    expect(() => crearProceso({ id: 'P1', tiempoLlegada: 0, tiempoCPU: 0 }, [])).toThrow();
+  });
+
+  it('5. acepta y guarda correctamente los campos opcionales (prioridad, E/S)', () => {
+    const p = crearProceso(
       {
-        id: 'P2',
+        id: 'P1',
         tiempoLlegada: 2,
-        tiempoCPU: 3,
-      },
-      []
-    );
-
-    expect(proceso.color).toBeDefined();
-    expect(typeof proceso.color).toBe('string');
-    expect(proceso.color).toMatch(/^#[0-9A-F]{6}$/i);
-  });
-
-  it('Debe lanzar error si tiempoCPU es negativo', () => {
-    expect(() => {
-      crearProceso(
-        {
-          id: 'P3',
-          tiempoLlegada: 0,
-          tiempoCPU: -5,
-          color: '#FF0000',
-        },
-        []
-      );
-    }).toThrow();
-  });
-
-  it('Debe lanzar error si tiempoLlegada es negativo', () => {
-    expect(() => {
-      crearProceso(
-        {
-          id: 'P4',
-          tiempoLlegada: -1,
-          tiempoCPU: 5,
-          color: '#FF0000',
-        },
-        []
-      );
-    }).toThrow();
-  });
-
-  it('Debe aceptar y guardar correctamente los campos opcionales (prioridad, E/S)', () => {
-    const proceso = crearProceso(
-      {
-        id: 'P5',
-        tiempoLlegada: 1,
-        tiempoCPU: 4,
-        color: '#00FF00',
-        prioridad: 2,
-        tiempoLlegadaES: 2,
-        tiempoES: 1,
-      },
-      []
-    );
-
-    expect(proceso.prioridad).toBe(2);
-    expect(proceso.tiempoLlegadaES).toBe(2);
-    expect(proceso.tiempoES).toBe(1);
-  });
-
-  it('Debe lanzar error si el ID ya existe en procesos existentes', () => {
-    const procesoExistente = crearProceso(
-      {
-        id: 'P1',
-        tiempoLlegada: 0,
-        tiempoCPU: 5,
-        color: '#FF0000',
-      },
-      []
-    );
-
-    expect(() => {
-      crearProceso(
-        {
-          id: 'P1',
-          tiempoLlegada: 2,
-          tiempoCPU: 3,
-          color: '#00FF00',
-        },
-        [procesoExistente]
-      );
-    }).toThrow(/ya existe/);
-  });
-});
-
-describe('ProcesoControlFinal - inicializarControlProceso', () => {
-  it('Debe inicializar tiempoRestante igual a tiempoCPU', () => {
-    const proceso = crearProceso(
-      {
-        id: 'P1',
-        tiempoLlegada: 0,
         tiempoCPU: 8,
-        color: '#FF0000',
+        prioridad: 1,
+        tiempoLlegadaES: 3,
+        tiempoES: 4,
       },
-      []
+      [],
     );
-
-    const control = inicializarControlProceso(proceso);
-
-    expect(control.tiempoRestante).toBe(8);
-    expect(control.tiempoRestante).toBe(control.tiempoCPU);
+    expect(p.prioridad).toBe(1);
+    expect(p.tiempoLlegadaES).toBe(3);
+    expect(p.tiempoES).toBe(4);
   });
 
-  it('Los tiempos de fin, retorno y espera deben inicializarse como undefined', () => {
-    const proceso = crearProceso(
-      {
-        id: 'P2',
-        tiempoLlegada: 1,
-        tiempoCPU: 5,
-        color: '#00FF00',
-      },
-      []
-    );
-
-    const control = inicializarControlProceso(proceso);
-
-    expect(control.tiempoFin).toBeUndefined();
-    expect(control.tiempoRetorno).toBeUndefined();
-    expect(control.tiempoEspera).toBeUndefined();
+  it('6. lanza error al asignar un id vacío, con solo espacios o ya existente', () => {
+    // id vacío
+    expect(() => crearProceso({ id: '', tiempoLlegada: 0, tiempoCPU: 5 }, [])).toThrow();
+    // id con solo espacios
+    expect(() => crearProceso({ id: '   ', tiempoLlegada: 0, tiempoCPU: 5 }, [])).toThrow();
+    // id ya existente en procesosExistentes
+    const existente = crearProceso({ id: 'P1', tiempoLlegada: 0, tiempoCPU: 5 }, []);
+    expect(() => crearProceso({ id: 'P1', tiempoLlegada: 0, tiempoCPU: 2 }, [existente])).toThrow();
   });
 
-  it('Debe heredar correctamente el id y color del proceso original', () => {
-    const proceso = crearProceso(
-      {
-        id: 'P3',
-        tiempoLlegada: 2,
-        tiempoCPU: 6,
-        color: '#0000FF',
-      },
-      []
-    );
-
-    const control = inicializarControlProceso(proceso);
-
-    expect(control.id).toBe('P3');
-    expect(control.color).toBe('#0000FF');
-  });
-
-  it('Al simular un tick (restar 1 a tiempoRestante), el objeto debe reflejar el cambio sin alterar el tiempoCPU original', () => {
-    const proceso = crearProceso(
-      {
-        id: 'P4',
-        tiempoLlegada: 0,
-        tiempoCPU: 10,
-        color: '#FFFF00',
-      },
-      []
-    );
-
-    const control = inicializarControlProceso(proceso);
-    const tiempoCPUOriginal = control.tiempoCPU;
-
-    control.tiempoRestante -= 1;
-
-    expect(control.tiempoRestante).toBe(9);
-    expect(control.tiempoCPU).toBe(tiempoCPUOriginal);
-    expect(control.tiempoCPU).toBe(10);
+  it('7. recurre al color de reserva cuando la paleta automática se agota', () => {
+    // Se generan suficientes procesos (sin color) para consumir toda la paleta.
+    const existentes: Proceso[] = [];
+    for (let i = 0; i < 12; i++) {
+      existentes.push(
+        crearProceso({ id: `P${i}`, tiempoLlegada: 0, tiempoCPU: 1 }, existentes),
+      );
+    }
+    // El siguiente proceso ya no encuentra color libre y usa el de reserva.
+    const extra = crearProceso({ id: 'PX', tiempoLlegada: 0, tiempoCPU: 1 }, existentes);
+    expect(extra.color).toMatch(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
   });
 });
 
-describe('EstadoPaso - crearPasoInicial', () => {
-  it('El paso inicial en tiempoActual = 0 debe tener procesoEnEjecucion = null', () => {
-    const procesos = [
-      crearProceso(
-        {
-          id: 'P1',
-          tiempoLlegada: 0,
-          tiempoCPU: 5,
-          color: '#FF0000',
-        },
-        []
-      ),
-      crearProceso(
-        {
-          id: 'P2',
-          tiempoLlegada: 2,
-          tiempoCPU: 3,
-          color: '#00FF00',
-        },
-        []
-      ),
-    ];
+// ---------------------------------------------------------------------------
+// Pruebas para ProcesoControlFinal (inicializarControlProceso)
+// ---------------------------------------------------------------------------
+describe('inicializarControlProceso (ProcesoControlFinal)', () => {
+  const base: Proceso = {
+    id: 'P1',
+    tiempoLlegada: 0,
+    tiempoCPU: 6,
+    color: '#ef4444',
+  };
 
+  it('1. inicializa tiempoRestante igual a tiempoCPU', () => {
+    const c = inicializarControlProceso(base);
+    expect(c.tiempoRestante).toBe(base.tiempoCPU);
+  });
+
+  it('2. inicializa tiempoFin, tiempoRetorno y tiempoEspera como undefined', () => {
+    const c = inicializarControlProceso(base);
+    expect(c.tiempoFin).toBeUndefined();
+    expect(c.tiempoRetorno).toBeUndefined();
+    expect(c.tiempoEspera).toBeUndefined();
+  });
+
+  it('3. hereda correctamente el id y color del proceso original', () => {
+    const c = inicializarControlProceso(base);
+    expect(c.id).toBe(base.id);
+    expect(c.color).toBe(base.color);
+  });
+
+  it('4. al simular un tick (restar 1 a tiempoRestante) refleja el cambio sin alterar tiempoCPU', () => {
+    const c: ProcesoControlFinal = inicializarControlProceso(base);
+    c.tiempoRestante -= 1;
+    expect(c.tiempoRestante).toBe(5);
+    expect(c.tiempoCPU).toBe(6); // tiempoCPU original intacto
+    expect(base.tiempoCPU).toBe(6); // el objeto de origen no se muta
+  });
+
+  it('5. lanza error si el proceso de origen tiene id o tiempos incoherentes', () => {
+    // id inválido (vacío)
+    expect(() =>
+      inicializarControlProceso({ id: '', tiempoLlegada: 0, tiempoCPU: 5, color: '#fff' }),
+    ).toThrow();
+    // tiempoCPU incoherente (< 1)
+    expect(() =>
+      inicializarControlProceso({ id: 'P1', tiempoLlegada: 0, tiempoCPU: 0, color: '#fff' }),
+    ).toThrow();
+    // tiempoLlegada negativo
+    expect(() =>
+      inicializarControlProceso({ id: 'P1', tiempoLlegada: -1, tiempoCPU: 5, color: '#fff' }),
+    ).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pruebas para EstadoPaso (crearPasoInicial / transiciones)
+// ---------------------------------------------------------------------------
+describe('crearPasoInicial (EstadoPaso)', () => {
+  const procesos: Proceso[] = [
+    { id: 'P1', tiempoLlegada: 0, tiempoCPU: 4, color: '#ef4444' },
+    { id: 'P2', tiempoLlegada: 2, tiempoCPU: 3, color: '#3b82f6' },
+    { id: 'P3', tiempoLlegada: 0, tiempoCPU: 5, color: '#10b981' },
+  ];
+
+  it('1. el paso inicial en tiempoActual = 0 tiene procesoEnEjecucion = null', () => {
     const paso = crearPasoInicial(procesos);
-
     expect(paso.tiempoActual).toBe(0);
     expect(paso.procesoEnEjecucion).toBeNull();
   });
 
-  it('Todos los procesos cuyo tiempoLlegada > 0 deben estar en estado not-arrived', () => {
-    const procesos = [
-      crearProceso(
-        {
-          id: 'P1',
-          tiempoLlegada: 0,
-          tiempoCPU: 5,
-          color: '#FF0000',
-        },
-        []
-      ),
-      crearProceso(
-        {
-          id: 'P2',
-          tiempoLlegada: 3,
-          tiempoCPU: 4,
-          color: '#00FF00',
-        },
-        []
-      ),
-      crearProceso(
-        {
-          id: 'P3',
-          tiempoLlegada: 5,
-          tiempoCPU: 2,
-          color: '#0000FF',
-        },
-        []
-      ),
-    ];
-
+  it('2. todos los procesos con tiempoLlegada > 0 tienen estado NotArrived', () => {
     const paso = crearPasoInicial(procesos);
-
-    const p2Estado = paso.estadosProcesos.find((e) => e.id === 'P2');
-    const p3Estado = paso.estadosProcesos.find((e) => e.id === 'P3');
-
-    expect(p2Estado?.estado).toBe('not-arrived');
-    expect(p3Estado?.estado).toBe('not-arrived');
+    const p2 = paso.estadosProcesos.find((e) => e.id === 'P2');
+    expect(p2?.estado).toBe(NombreEstadoProceso.NotArrived);
   });
 
-  it('El array de gantt debe inicializarse vacío', () => {
-    const procesos = [
-      crearProceso(
-        {
-          id: 'P1',
-          tiempoLlegada: 0,
-          tiempoCPU: 5,
-          color: '#FF0000',
-        },
-        []
-      ),
-    ];
-
+  it('3. el array de gantt se inicializa vacío', () => {
     const paso = crearPasoInicial(procesos);
-
-    expect(paso.gantt).toEqual([]);
     expect(Array.isArray(paso.gantt)).toBe(true);
-    expect(paso.gantt.length).toBe(0);
+    expect(paso.gantt).toHaveLength(0);
   });
 
-  it('La colaListos debe incluir solo los IDs de los procesos que tienen tiempoLlegada === 0', () => {
-    const procesos = [
-      crearProceso(
-        {
-          id: 'P1',
-          tiempoLlegada: 0,
-          tiempoCPU: 5,
-          color: '#FF0000',
-        },
-        []
-      ),
-      crearProceso(
-        {
-          id: 'P2',
-          tiempoLlegada: 0,
-          tiempoCPU: 3,
-          color: '#00FF00',
-        },
-        []
-      ),
-      crearProceso(
-        {
-          id: 'P3',
-          tiempoLlegada: 2,
-          tiempoCPU: 4,
-          color: '#0000FF',
-        },
-        []
-      ),
-    ];
-
+  it('4. colaListos incluye solo los IDs con tiempoLlegada === 0 y su estado es Esperando', () => {
     const paso = crearPasoInicial(procesos);
+    expect(paso.colaListos).toEqual(['P1', 'P3']);
+    expect(paso.colaListos).not.toContain('P2');
 
-    expect(paso.colaListos).toContain('P1');
-    expect(paso.colaListos).toContain('P2');
-    expect(paso.colaListos).not.toContain('P3');
-    expect(paso.colaListos.length).toBe(2);
+    const p1 = paso.estadosProcesos.find((e) => e.id === 'P1');
+    const p3 = paso.estadosProcesos.find((e) => e.id === 'P3');
+    expect(p1?.estado).toBe(NombreEstadoProceso.Esperando);
+    expect(p3?.estado).toBe(NombreEstadoProceso.Esperando);
   });
 });
-

@@ -1,13 +1,5 @@
 # Especificación: Motor Único de Planificación de CPU (Patrón Strategy)
 
-> Este documento **reemplaza** a `02-logica-algoritmos-no-expropiativo.spec.md`.
-> Motivo: el enfoque anterior expresaba la estrategia como una simple función de
-> ordenación de la `colaListos`. Eso solo modela el eje de *selección* y obliga a
-> escribir un motor distinto por familia (no expropiativo, expropiativo, por turno),
-> duplicando la generación del `EstadoPaso[]`. Aquí se unifica todo en **un único
-> motor** parametrizado por una **política de dos ejes** (selección + expropiación),
-> de modo que el historial se genera en un solo punto y es idéntico para los 8 algoritmos.
-
 ## 1. Contexto y Objetivo
 Implementar la lógica matemática de los 8 algoritmos clásicos de planificación de CPU
 (FCFS, SJF, LJF, Prioridad No Expropiativa, SRTF, LRTF, Prioridad Expropiativa y Round Robin)
@@ -19,21 +11,14 @@ para la interfaz y el diagrama de Gantt) y `resultados: ProcesoControlFinal[]` (
 finales por proceso). La lógica específica de cada algoritmo se inyecta como un objeto
 `PoliticaPlanificacion`.
 
-## 2. Antecedentes (contrato existente que NO se redefine aquí)
-Se importan **sin modificar** las interfaces de `src/types/proceso.ts`
-(`ConfiguracionSimulador`, `Proceso`, `ProcesoControlFinal`, `EstadoProcesoEnTiempo`,
-`EstadoPaso`) y las factorías de `src/utils/procesoUtils.ts`
-(`crearProceso`, `inicializarControlProceso`, `crearPasoInicial`).
+## 2. Dependencias y Contexto Existente 
+El código a generar debe integrarse con la arquitectura actual del proyecto. **NO debes generar ni modificar** las interfaces base. 
 
-Recordatorio de los campos relevantes:
-- `Proceso`: `id`, `tiempoLlegada`, `tiempoCPU`, `tiempoLlegadaES?`, `tiempoES?`, `prioridad?`, `color`.
-- `ProcesoControlFinal` (extiende `Proceso`): `tiempoRestante`, `tiempoFin?`, `tiempoRetorno?`, `tiempoEspera?`.
-- `EstadoPaso`: `tiempoActual`, `procesoEnEjecucion`, `estadosProcesos`, `colaListos`, `colaBloqueados?`, `mensaje`, `gantt`.
-- `ConfiguracionSimulador`: `expropiativo`, `usaPrioridades`, `tiempoMaximoTurno?` (el quantum de RR).
+Debes importar y utilizar estrictamente los tipos `Proceso`, `EstadoPaso` y `ProcesoControlFinal` que **ya existen** en el archivo:
+- `src/types/proceso.ts`
 
-**Prohibido inventar campos nuevos en las interfaces.** Si un algoritmo necesita un dato que no
-existe en el contrato (p. ej. tiempo de respuesta), se anota como pendiente y se actualiza primero
-`01-modelos-base.spec.md`; no se añade aquí por la vía rápida.
+Cualquier lógica matemática que escribas debe respetar la estructura exacta de esas interfaces existentes.
+
 
 ## 3. Alcance y Exclusiones
 - **DENTRO de alcance (v1):** los 8 algoritmos de planificación de CPU sobre ráfaga continua.
