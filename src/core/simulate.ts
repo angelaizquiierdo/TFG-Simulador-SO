@@ -40,12 +40,12 @@ function tieBreakSort(processes: ReadyProcess[]): ReadyProcess[] {
 }
 
 export function deriveIntervals(history: History): Interval[] {
-  const intervals: Interval[] = [];
+  interface MutableInterval { pid: string | null; start: number; end: number }
+  const intervals: MutableInterval[] = [];
   for (const event of history) {
     const last = intervals[intervals.length - 1];
-    if (last !== undefined && last.pid === event.onCPU) {
-      // Extender el intervalo actual (mutamos el objeto mutable que acabamos de crear)
-      (intervals[intervals.length - 1] as { end: number }).end = event.tick + 1;
+    if (last?.pid === event.onCPU) {
+      last.end = event.tick + 1;
     } else {
       intervals.push({ pid: event.onCPU, start: event.tick, end: event.tick + 1 });
     }
@@ -86,7 +86,9 @@ export function deriveMetrics(
     const prevCompleted = prevEvent !== undefined ? prevEvent.completed : [];
     for (const pid of event.completed) {
       if (!prevCompleted.includes(pid) && !completionTick.has(pid)) {
-        completionTick.set(pid, event.tick + 1);
+        // El proceso aparece en completed por primera vez en este tick,
+        // lo que significa que finalizó al final del tick anterior (tiempo = event.tick)
+        completionTick.set(pid, event.tick);
       }
     }
   }
@@ -158,6 +160,7 @@ export function run(
 
   let onCPU: string | null = null;
   let quantumLeft = 0;
+  let requeueAfterArrivals: string | null = null; // proceso a reencolar tras llegadas
   const readyQueue: string[] = [];
   const pendingSet = new Set<string>(processes.map(p => p.id));
   const completedSet = new Set<string>();
@@ -168,12 +171,18 @@ export function run(
   let workDone = 0;
 
   while (workDone < totalWork) {
-    // 1. Llegan procesos en este tick
+    // 1. Llegan procesos en este tick (ANTES de reencolados del quantum)
     for (const p of processes) {
       if (p.arrival_time === tick && pendingSet.has(p.id)) {
         pendingSet.delete(p.id);
         readyQueue.push(p.id);
       }
+    }
+
+    // 1b. Reencolado diferido del quantum agotado (va después de los que llegaron)
+    if (requeueAfterArrivals !== null) {
+      readyQueue.push(requeueAfterArrivals);
+      requeueAfterArrivals = null;
     }
 
     // 2. Seleccionar proceso según preemptionMode
@@ -206,11 +215,10 @@ export function run(
         }
       }
     } else {
-      // 'on-quantum' — Round Robin
+      // 'on-quantum' — Round Robin: el orden FIFO de la cola no se reordena
       if (onCPU === null && readyQueue.length > 0) {
         const readyProcesses = readyQueue.map(id => buildReady(id, processMap, remaining));
-        const sorted = tieBreakSort(readyProcesses);
-        const selected = algorithm.select(sorted);
+        const selected = algorithm.select(readyProcesses);
         onCPU = selected.id;
         readyQueue.splice(readyQueue.indexOf(onCPU), 1);
         quantumLeft = quantum;
@@ -240,7 +248,8 @@ export function run(
         onCPU = null;
         quantumLeft = 0;
       } else if (algorithm.preemptionMode === 'on-quantum' && quantumLeft === 0) {
-        readyQueue.push(onCPU);
+        // Diferir el reencolo al inicio del siguiente tick (después de llegadas)
+        requeueAfterArrivals = onCPU;
         onCPU = null;
       }
     }
