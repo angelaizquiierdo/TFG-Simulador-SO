@@ -1,8 +1,36 @@
 ---
 title: LJF — Longest Job First
-description: Algoritmo de planificación no expropiativo LJF.
+description: Algoritmo de planificación no expropiativo LJF — primero el trabajo más largo.
 ---
+
+import { Simulator } from 'cpu-scheduler';
 
 # LJF — Longest Job First
 
-Página en construcción.
+**Longest Job First** selecciona el proceso con la ráfaga más larga cuando la CPU queda libre.
+
+## Características
+
+- **Modo**: no expropiativo
+- **Criterio de selección**: mayor `burst_time`
+- **Nota**: maximiza el tiempo de retorno medio; útil en escenarios donde se priorizan las tareas largas
+
+## Escenario de ejemplo
+
+| Proceso | Llegada | Ráfaga |
+|---------|---------|--------|
+| P1      | 0       | 2      |
+| P2      | 0       | 4      |
+| P3      | 0       | 3      |
+
+Diagrama de Gantt esperado: P2[0–4], P3[4–7], P1[7–9]
+
+<Simulator
+  algorithm="ljf"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 2 },
+    { id: 'P2', arrival_time: 0, burst_time: 4 },
+    { id: 'P3', arrival_time: 0, burst_time: 3 },
+  ]}
+  client:visible
+/>

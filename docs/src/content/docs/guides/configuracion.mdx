@@ -1,0 +1,54 @@
+---
+title: Configuración del componente Simulator
+description: Referencia de todas las props del componente Simulator.
+---
+
+# Configuración del componente `<Simulator>`
+
+## Props completas
+
+```tsx
+<Simulator
+  algorithm="round-robin"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 4 },
+    { id: 'P2', arrival_time: 0, burst_time: 3 },
+  ]}
+  params={{ quantum: 2 }}
+  metrics={['waiting', 'turnaround']}
+/>
+```
+
+## Referencia de props
+
+### `algorithm: string`
+
+Nombre del algoritmo a usar. Debe estar registrado en el registry antes de renderizar el componente.
+
+Algoritmos integrados: `fcfs`, `sjf`, `ljf`, `priority-np`, `srtf`, `priority-p`, `round-robin`.
+
+### `processes: Process[]`
+
+Array de procesos con la siguiente forma:
+
+```ts
+interface Process {
+  id: string;          // identificador único, p. ej. "P1"
+  arrival_time: number; // tiempo de llegada (≥ 0)
+  burst_time: number;   // duración de la ráfaga (> 0)
+  priority?: number;    // prioridad (obligatoria para algoritmos de prioridad)
+}
+```
+
+### `params?: { quantum?: number }`
+
+Parámetros opcionales de configuración. El campo `quantum` es un entero mayor que 0
+y es obligatorio para el algoritmo Round Robin.
+
+### `metrics?: string[]`
+
+Lista de columnas de métricas a mostrar en la tabla al finalizar el recorrido.
+Columnas disponibles: `waiting`, `turnaround`, `response`, `completion`.
+
+Si se pasa un array vacío, no se muestra ninguna columna de métricas.
+Si se omite, se muestran todas las columnas.

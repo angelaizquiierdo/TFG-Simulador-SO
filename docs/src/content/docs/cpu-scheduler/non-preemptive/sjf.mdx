@@ -1,8 +1,38 @@
 ---
 title: SJF — Shortest Job First
-description: Algoritmo de planificación no expropiativo SJF.
+description: Algoritmo de planificación no expropiativo SJF — primero el trabajo más corto.
 ---
+
+import { Simulator } from 'cpu-scheduler';
 
 # SJF — Shortest Job First
 
-Página en construcción.
+**Shortest Job First** selecciona el proceso con la ráfaga más corta cuando la CPU queda libre.
+
+## Características
+
+- **Modo**: no expropiativo
+- **Criterio de selección**: menor `burst_time`
+- **Starvation**: posible en procesos con ráfagas largas
+
+## Escenario de ejemplo
+
+| Proceso | Llegada | Ráfaga |
+|---------|---------|--------|
+| P1      | 0       | 5      |
+| P2      | 1       | 2      |
+| P3      | 2       | 4      |
+| P4      | 3       | 1      |
+
+Diagrama de Gantt esperado: P1[0–5], P4[5–6], P2[6–8], P3[8–12]
+
+<Simulator
+  algorithm="sjf"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 5 },
+    { id: 'P2', arrival_time: 1, burst_time: 2 },
+    { id: 'P3', arrival_time: 2, burst_time: 4 },
+    { id: 'P4', arrival_time: 3, burst_time: 1 },
+  ]}
+  client:visible
+/>
