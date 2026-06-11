@@ -1,39 +1,6 @@
 ---
 title: SRTF — Shortest Remaining Time First
-description: Algoritmo de planificación expropiativo SRTF — versión expropiativa de SJF.
+description: Algoritmo de planificación expropiativo SRTF.
 ---
 
-import { Simulator } from 'cpu-scheduler';
-
-# SRTF — Shortest Remaining Time First
-
-**Shortest Remaining Time First** es la versión expropiativa de SJF. En cada tick,
-selecciona el proceso con menor tiempo restante; si llega un proceso más corto, expropia al actual.
-
-## Características
-
-- **Modo**: expropiativo (`on-better`)
-- **Criterio de selección**: menor `remaining`
-- **Starvation**: posible
-
-## Escenario de ejemplo
-
-| Proceso | Llegada | Ráfaga |
-|---------|---------|--------|
-| P1      | 0       | 8      |
-| P2      | 1       | 4      |
-| P3      | 2       | 2      |
-| P4      | 4       | 1      |
-
-Diagrama de Gantt esperado: P1[0–1], P2[1–2], P3[2–4], P4[4–5], P2[5–8], P1[8–15]
-
-<Simulator
-  algorithm="srtf"
-  processes={[
-    { id: 'P1', arrival_time: 0, burst_time: 8 },
-    { id: 'P2', arrival_time: 1, burst_time: 4 },
-    { id: 'P3', arrival_time: 2, burst_time: 2 },
-    { id: 'P4', arrival_time: 4, burst_time: 1 },
-  ]}
-  client:visible
-/>
+Página en construcción.
