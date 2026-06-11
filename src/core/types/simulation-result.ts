@@ -1,5 +1,6 @@
 import type { History, Interval } from './history.js';
 
+// Métricas individuales por proceso
 export interface ProcessMetrics {
   readonly id: string;
   readonly completion: number;
@@ -8,6 +9,7 @@ export interface ProcessMetrics {
   readonly response: number;
 }
 
+// Métricas agregadas de la simulación
 export interface AggregateMetrics {
   readonly avgWaiting: number;
   readonly avgTurnaround: number;
@@ -15,11 +17,12 @@ export interface AggregateMetrics {
   readonly throughput: number;
 }
 
+// Resultado completo devuelto por run() — intervals y metrics se derivan del history
 export interface SimulationResult {
   readonly history: History;
   readonly intervals: Interval[];
   readonly metrics: {
-    readonly perProcess: ProcessMetrics[];
+    readonly processes: ProcessMetrics[];
     readonly aggregate: AggregateMetrics;
   };
 }

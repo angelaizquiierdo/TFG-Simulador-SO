@@ -1,6 +1,7 @@
+// Proceso tal como lo introduce el usuario — datos de entrada del simulador
 export interface Process {
-  readonly id: string;
-  readonly arrival_time: number;
-  readonly burst_time: number;
-  readonly priority?: number;
+  id: string;
+  arrival_time: number; // >= 0
+  burst_time: number;   // > 0
+  priority?: number;
 }
