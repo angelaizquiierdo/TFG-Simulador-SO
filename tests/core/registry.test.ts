@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { register, get } from '../../src/core/registry.js';
 import type { IAlgorithm, ReadyProcess } from '../../src/core/types/algorithm.js';
 
@@ -8,7 +8,9 @@ const minimalAlgo: IAlgorithm = {
   preemptionMode: 'none',
   requires: {},
   select(ready: readonly ReadyProcess[]): ReadyProcess {
-    return ready[0]!;
+    const first = ready[0];
+    if (first === undefined) throw new Error('cola vacía');
+    return first;
   },
 };
 

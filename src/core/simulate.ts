@@ -1,270 +1,339 @@
-import type { Process } from './types/process.js';
 import type { IAlgorithm, ReadyProcess } from './types/algorithm.js';
 import type { History, HistoryEvent, Interval } from './types/history.js';
+import type { Process } from './types/process.js';
 import type {
-  SimulationResult,
-  ProcessMetrics,
   AggregateMetrics,
+  ProcessMetrics,
+  SimulationResult,
 } from './types/simulation-result.js';
 
+// Configuración de ejecución de la simulación
 export interface SimulationConfig {
   quantum?: number;
 }
 
-// Convierte datos de proceso a ReadyProcess para el algoritmo
-function toReady(
-  id: string,
-  arrival_time: number,
-  burst_time: number,
-  remaining: number,
-  priority: number | undefined,
-): ReadyProcess {
-  if (priority !== undefined) {
-    return { id, arrival_time, burst_time, remaining, priority };
-  }
-  return { id, arrival_time, burst_time, remaining };
+// Extrae el número al final de un id (p.ej. "P10" → 10) para desempate numérico
+function idToNumber(id: string): number {
+  const match = /\d+$/.exec(id);
+  return match?.[0] !== undefined ? parseInt(match[0], 10) : 0;
 }
 
-// Extrae el número de un id como "P1", "P10" para desempate numérico
-function idNumber(id: string): number {
-  const n = parseInt(id.replace(/\D/g, ''), 10);
-  return isNaN(n) ? 0 : n;
-}
-
-// Desempate global: ordena por arrival_time, luego por id numérico
-function tieBreakSort(processes: ReadyProcess[]): ReadyProcess[] {
-  return [...processes].sort((a, b) => {
+// Ordena un conjunto de procesos para desempate: menor arrival_time → menor id numérico
+function sortByTiebreak(queue: ReadyProcess[]): ReadyProcess[] {
+  return [...queue].sort((a, b) => {
     if (a.arrival_time !== b.arrival_time) return a.arrival_time - b.arrival_time;
-    return idNumber(a.id) - idNumber(b.id);
+    return idToNumber(a.id) - idToNumber(b.id);
   });
 }
 
+// Construye un ReadyProcess desde Process + remaining actual
+function toReady(proc: Process, remaining: number): ReadyProcess {
+  const base = {
+    id: proc.id,
+    arrival_time: proc.arrival_time,
+    burst_time: proc.burst_time,
+    remaining,
+  };
+  return proc.priority !== undefined ? { ...base, priority: proc.priority } : base;
+}
+
+// Prefijo de mensaje para el primer tick de cada nuevo turno en CPU (incluso re-selección RR)
+const MSG_SELECCIONADO = 'Seleccionado:';
+
+// Colapsa ticks consecutivos del mismo onCPU en intervalos.
+// Rompe el intervalo cuando el mensaje indica "Seleccionado:" (nueva selección, p.ej. RR
+// que reencola y vuelve a seleccionar el mismo proceso al agotar el quantum).
 export function deriveIntervals(history: History): Interval[] {
-  interface MutableInterval { pid: string | null; start: number; end: number }
-  const intervals: MutableInterval[] = [];
-  for (const event of history) {
-    const last = intervals[intervals.length - 1];
-    if (last?.pid === event.onCPU) {
-      last.end = event.tick + 1;
-    } else {
-      intervals.push({ pid: event.onCPU, start: event.tick, end: event.tick + 1 });
+  const intervals: Interval[] = [];
+  let i = 0;
+  while (i < history.length) {
+    const event = history[i];
+    if (event === undefined) break;
+    const pid = event.onCPU;
+    const start = event.tick;
+    let end = start + 1;
+    let j = i + 1;
+    while (j < history.length) {
+      const next = history[j];
+      if (next === undefined) break;
+      // Romper si cambia el pid O si el siguiente es una nueva selección del mismo pid
+      if (next.onCPU !== pid) break;
+      if (next.message.startsWith(MSG_SELECCIONADO)) break;
+      end = next.tick + 1;
+      j++;
     }
+    intervals.push({ pid, start, end });
+    i = j;
   }
   return intervals;
 }
 
+// Calcula métricas por proceso y agregadas a partir del historial
 export function deriveMetrics(
   history: History,
-  processes: readonly Process[],
-): { perProcess: ProcessMetrics[]; aggregate: AggregateMetrics } {
-  if (history.length === 0 || processes.length === 0) {
-    return {
-      perProcess: [],
-      aggregate: { avgWaiting: 0, avgTurnaround: 0, cpuUtilization: 0, throughput: 0 },
-    };
-  }
+  processes: Process[],
+): SimulationResult['metrics'] {
+  const totalTicks = history.length;
 
-  const lastEvent = history[history.length - 1];
-  const totalTicks = lastEvent !== undefined ? lastEvent.tick + 1 : 0;
-
-  const perProcess: ProcessMetrics[] = [];
-  let totalWaiting = 0;
-  let totalTurnaround = 0;
-  let cpuBusyTicks = 0;
-
-  const firstOnCpu = new Map<string, number>();
+  // Primer tick en CPU (para response time) y tick de finalización
+  const firstOnCPU = new Map<string, number>();
   const completionTick = new Map<string, number>();
 
   for (const event of history) {
-    if (event.onCPU !== null) {
-      cpuBusyTicks++;
-      if (!firstOnCpu.has(event.onCPU)) {
-        firstOnCpu.set(event.onCPU, event.tick);
-      }
+    if (event.onCPU !== null && !firstOnCPU.has(event.onCPU)) {
+      firstOnCPU.set(event.onCPU, event.tick);
     }
-    const prevEvent = history[event.tick - 1];
-    const prevCompleted = prevEvent !== undefined ? prevEvent.completed : [];
-    for (const pid of event.completed) {
-      if (!prevCompleted.includes(pid) && !completionTick.has(pid)) {
-        // El proceso aparece en completed por primera vez en este tick,
-        // lo que significa que finalizó al final del tick anterior (tiempo = event.tick)
-        completionTick.set(pid, event.tick);
+    for (const id of event.completed) {
+      if (!completionTick.has(id)) {
+        completionTick.set(id, event.tick);
       }
     }
   }
 
-  for (const proc of processes) {
-    const completion = completionTick.get(proc.id) ?? totalTicks;
-    const turnaround = completion - proc.arrival_time;
-    const waiting = turnaround - proc.burst_time;
-    const firstCpu = firstOnCpu.get(proc.id) ?? completion;
-    const response = firstCpu - proc.arrival_time;
-    perProcess.push({ id: proc.id, completion, turnaround, waiting, response });
-    totalWaiting += waiting;
-    totalTurnaround += turnaround;
-  }
+  const activeTicks = history.filter((e) => e.onCPU !== null).length;
+
+  const processMetrics: ProcessMetrics[] = processes.map((p) => {
+    const completion = (completionTick.get(p.id) ?? 0) + 1;
+    const turnaround = completion - p.arrival_time;
+    const waiting = turnaround - p.burst_time;
+    const response = (firstOnCPU.get(p.id) ?? 0) - p.arrival_time;
+    return { id: p.id, completion, turnaround, waiting, response };
+  });
 
   const n = processes.length;
-  return {
-    perProcess,
-    aggregate: {
-      avgWaiting: totalWaiting / n,
-      avgTurnaround: totalTurnaround / n,
-      cpuUtilization: totalTicks > 0 ? cpuBusyTicks / totalTicks : 0,
-      throughput: totalTicks > 0 ? n / totalTicks : 0,
-    },
+  const avgWaiting =
+    n === 0
+      ? 0
+      : Math.round((processMetrics.reduce((s, m) => s + m.waiting, 0) / n) * 100) / 100;
+  const avgTurnaround =
+    n === 0
+      ? 0
+      : Math.round(
+          (processMetrics.reduce((s, m) => s + m.turnaround, 0) / n) * 100,
+        ) / 100;
+  const cpuUtilization =
+    totalTicks === 0 ? 0 : Math.round((activeTicks / totalTicks) * 10000) / 10000;
+  const throughput =
+    totalTicks === 0 ? 0 : Math.round((n / totalTicks) * 10000) / 10000;
+
+  const aggregate: AggregateMetrics = {
+    avgWaiting,
+    avgTurnaround,
+    cpuUtilization,
+    throughput,
   };
+
+  return { processes: processMetrics, aggregate };
 }
 
-// Construye un ReadyProcess desde el mapa de procesos
-function buildReady(
-  id: string,
-  processMap: Map<string, Process>,
-  remaining: Map<string, number>,
-): ReadyProcess {
-  const proc = processMap.get(id);
-  const rem = remaining.get(id) ?? 0;
-  if (proc === undefined) {
-    throw new Error(`Proceso no encontrado: ${id}`);
-  }
-  return toReady(id, proc.arrival_time, proc.burst_time, rem, proc.priority);
-}
-
+// Motor principal del simulador — determinista, sin Math.random ni Date.now
 export function run(
-  processes: readonly Process[],
+  processes: Process[],
   algorithm: IAlgorithm,
   config: SimulationConfig = {},
 ): SimulationResult {
-  // Validar burst_time
+  // Validación: ráfaga debe ser mayor que 0
   for (const p of processes) {
     if (p.burst_time <= 0) {
       throw new Error('La ráfaga debe ser mayor que 0');
     }
   }
 
+  // Sin procesos → resultado vacío
   if (processes.length === 0) {
-    return {
-      history: [],
-      intervals: [],
-      metrics: {
-        perProcess: [],
-        aggregate: { avgWaiting: 0, avgTurnaround: 0, cpuUtilization: 0, throughput: 0 },
-      },
+    const emptyMetrics: SimulationResult['metrics'] = {
+      processes: [],
+      aggregate: { avgWaiting: 0, avgTurnaround: 0, cpuUtilization: 0, throughput: 0 },
     };
+    return { history: [], intervals: [], metrics: emptyMetrics };
   }
 
   const quantum = config.quantum ?? 1;
+  const isRR = algorithm.preemptionMode === 'on-quantum';
+  const isPreemptive = algorithm.preemptionMode === 'on-better';
 
-  const processMap = new Map<string, Process>(processes.map(p => [p.id, p]));
-  const remaining = new Map<string, number>(processes.map(p => [p.id, p.burst_time]));
-
-  let onCPU: string | null = null;
-  let quantumLeft = 0;
-  let requeueAfterArrivals: string | null = null; // proceso a reencolar tras llegadas
-  const readyQueue: string[] = [];
-  const pendingSet = new Set<string>(processes.map(p => p.id));
+  // Estado mutable
+  const remaining = new Map<string, number>(processes.map((p) => [p.id, p.burst_time]));
   const completedSet = new Set<string>();
-  const history: HistoryEvent[] = [];
+  // Procesos aún no llegados (ordenados por arrival_time para eficiencia)
+  let pending = [...processes].sort((a, b) => a.arrival_time - b.arrival_time);
+  // Cola de listos: FIFO para RR, se reordena antes de select() para otros modos
+  let readyQueue: ReadyProcess[] = [];
+  let onCPU: string | null = null;
+  let quantumUsed = 0;
+  // Indica si el proceso en CPU es una nueva selección en este tick (para el mensaje)
+  let newSelection = false;
 
-  const totalWork = processes.reduce((s, p) => s + p.burst_time, 0);
+  const historyEvents: HistoryEvent[] = [];
   let tick = 0;
-  let workDone = 0;
 
-  while (workDone < totalWork) {
-    // 1. Llegan procesos en este tick (ANTES de reencolados del quantum)
-    for (const p of processes) {
-      if (p.arrival_time === tick && pendingSet.has(p.id)) {
-        pendingSet.delete(p.id);
-        readyQueue.push(p.id);
+  const procMap = new Map<string, Process>(processes.map((p) => [p.id, p]));
+
+  while (completedSet.size < processes.length) {
+    newSelection = false;
+
+    // 1. Recoger llegadas en este tick
+    const arrivedNow: Process[] = [];
+    const stillPending: Process[] = [];
+    for (const p of pending) {
+      if (p.arrival_time <= tick) {
+        arrivedNow.push(p);
+      } else {
+        stillPending.push(p);
       }
     }
+    pending = stillPending;
 
-    // 1b. Reencolado diferido del quantum agotado (va después de los que llegaron)
-    if (requeueAfterArrivals !== null) {
-      readyQueue.push(requeueAfterArrivals);
-      requeueAfterArrivals = null;
-    }
+    // Ordenar llegadas del mismo tick por id numérico (para consistencia)
+    const sortedArrivals = sortByTiebreak(
+      arrivedNow.map((p) => toReady(p, remaining.get(p.id) ?? p.burst_time)),
+    );
 
-    // 2. Seleccionar proceso según preemptionMode
-    if (algorithm.preemptionMode === 'none') {
+    if (isRR) {
+      // 2a. Modo on-quantum (Round Robin)
+
+      // Quantum expirado: añadir llegadas PRIMERO, luego reencolar el proceso actual
+      if (onCPU !== null && quantumUsed >= quantum) {
+        // Añadir llegadas al final de la cola
+        for (const rp of sortedArrivals) {
+          readyQueue.push(rp);
+        }
+        // Reencolar el proceso actual AL FINAL
+        const curProc = procMap.get(onCPU);
+        const curRem = remaining.get(onCPU) ?? 0;
+        if (curProc !== undefined && curRem > 0) {
+          readyQueue.push(toReady(curProc, curRem));
+        }
+        onCPU = null;
+        quantumUsed = 0;
+      } else {
+        // Añadir llegadas al final de la cola normalmente
+        for (const rp of sortedArrivals) {
+          readyQueue.push(rp);
+        }
+      }
+
+      // Seleccionar si CPU libre
       if (onCPU === null && readyQueue.length > 0) {
-        const readyProcesses = readyQueue.map(id => buildReady(id, processMap, remaining));
-        const sorted = tieBreakSort(readyProcesses);
-        const selected = algorithm.select(sorted);
-        onCPU = selected.id;
-        readyQueue.splice(readyQueue.indexOf(onCPU), 1);
+        const selected = readyQueue.shift();
+        if (selected !== undefined) {
+          onCPU = selected.id;
+          quantumUsed = 0;
+          newSelection = true;
+        }
       }
-    } else if (algorithm.preemptionMode === 'on-better') {
-      if (readyQueue.length > 0 || onCPU !== null) {
-        const candidates: ReadyProcess[] = [];
-        if (onCPU !== null) {
-          candidates.push(buildReady(onCPU, processMap, remaining));
+    } else if (isPreemptive) {
+      // 2b. Modo on-better (SRTF, Prioridad expropiativa)
+
+      // Añadir llegadas a la cola
+      for (const rp of sortedArrivals) {
+        readyQueue.push(rp);
+      }
+
+      // Construir candidatos: proceso en CPU (si hay) + cola de listos
+      const candidates: ReadyProcess[] = [];
+      if (onCPU !== null) {
+        const curProc = procMap.get(onCPU);
+        const curRem = remaining.get(onCPU) ?? 0;
+        if (curProc !== undefined) {
+          candidates.push(toReady(curProc, curRem));
         }
-        for (const id of readyQueue) {
-          candidates.push(buildReady(id, processMap, remaining));
-        }
-        const sorted = tieBreakSort(candidates);
+      }
+      for (const rp of readyQueue) {
+        const curRem = remaining.get(rp.id) ?? rp.remaining;
+        candidates.push({ ...rp, remaining: curRem });
+      }
+
+      if (candidates.length > 0) {
+        const sorted = sortByTiebreak(candidates);
         const selected = algorithm.select(sorted);
         if (selected.id !== onCPU) {
+          // Expropiar: devolver el actual a la cola
           if (onCPU !== null) {
-            readyQueue.unshift(onCPU);
+            const curProc = procMap.get(onCPU);
+            const curRem = remaining.get(onCPU) ?? 0;
+            if (curProc !== undefined) {
+              readyQueue.push(toReady(curProc, curRem));
+            }
           }
-          readyQueue.splice(readyQueue.indexOf(selected.id), 1);
           onCPU = selected.id;
-          quantumLeft = quantum;
+          readyQueue = readyQueue.filter((r) => r.id !== onCPU);
+          newSelection = true;
         }
       }
     } else {
-      // 'on-quantum' — Round Robin: el orden FIFO de la cola no se reordena
+      // 2c. Modo none (no expropiativo)
+
+      // Añadir llegadas a la cola
+      for (const rp of sortedArrivals) {
+        readyQueue.push(rp);
+      }
+
+      // Seleccionar solo si CPU libre
       if (onCPU === null && readyQueue.length > 0) {
-        const readyProcesses = readyQueue.map(id => buildReady(id, processMap, remaining));
-        const selected = algorithm.select(readyProcesses);
+        const sorted = sortByTiebreak(readyQueue);
+        const selected = algorithm.select(sorted);
         onCPU = selected.id;
-        readyQueue.splice(readyQueue.indexOf(onCPU), 1);
-        quantumLeft = quantum;
+        readyQueue = readyQueue.filter((r) => r.id !== onCPU);
+        newSelection = true;
       }
     }
 
-    // 3. Registrar el evento de este tick
-    const message = buildMessage(onCPU, tick);
-    history.push({
-      tick,
-      onCPU,
-      ready: [...readyQueue],
-      pending: [...pendingSet],
-      completed: [...completedSet],
-      message,
-    });
+    // 3. Ejecutar un tick
+    let message: string;
 
-    // 4. Ejecutar un tick de CPU
-    if (onCPU !== null) {
-      const rem = (remaining.get(onCPU) ?? 0) - 1;
-      remaining.set(onCPU, rem);
-      workDone++;
-      quantumLeft--;
+    if (onCPU === null) {
+      message = 'CPU inactiva';
+      historyEvents.push({
+        tick,
+        onCPU: null,
+        ready: readyQueue.map((r) => r.id),
+        pending: pending.map((p) => p.id),
+        completed: [...completedSet],
+        message,
+      });
+    } else {
+      const rem = remaining.get(onCPU) ?? 0;
+      remaining.set(onCPU, rem - 1);
+      quantumUsed++;
 
-      if (rem === 0) {
+      const newRem = remaining.get(onCPU) ?? 0;
+      if (newRem <= 0) {
+        // Proceso completado
         completedSet.add(onCPU);
+        // Si es nueva selección (p.ej. re-encola RR), prefijamos MSG_SELECCIONADO para que
+        // deriveIntervals pueda romper el intervalo aunque el proceso complete en el mismo tick.
+        const completionMsg = `${onCPU} completa en tick ${tick.toString()}`;
+        message = newSelection ? `${MSG_SELECCIONADO} ${completionMsg}` : completionMsg;
+        historyEvents.push({
+          tick,
+          onCPU,
+          ready: readyQueue.map((r) => r.id),
+          pending: pending.map((p) => p.id),
+          completed: [...completedSet],
+          message,
+        });
         onCPU = null;
-        quantumLeft = 0;
-      } else if (algorithm.preemptionMode === 'on-quantum' && quantumLeft === 0) {
-        // Diferir el reencolo al inicio del siguiente tick (después de llegadas)
-        requeueAfterArrivals = onCPU;
-        onCPU = null;
+        quantumUsed = 0;
+      } else {
+        message = newSelection ? `${MSG_SELECCIONADO} ${onCPU}` : `Ejecutando ${onCPU}`;
+        historyEvents.push({
+          tick,
+          onCPU,
+          ready: readyQueue.map((r) => r.id),
+          pending: pending.map((p) => p.id),
+          completed: [...completedSet],
+          message,
+        });
       }
     }
 
     tick++;
   }
 
-  const history_: History = history;
-  const intervals = deriveIntervals(history_);
-  const metrics = deriveMetrics(history_, processes);
+  const history: History = historyEvents;
+  const intervals = deriveIntervals(history);
+  const metrics = deriveMetrics(history, processes);
 
-  return { history: history_, intervals, metrics };
-}
-
-function buildMessage(onCPU: string | null, tick: number): string {
-  if (onCPU === null) return `Tick ${tick.toString()}: CPU inactiva`;
-  return `Tick ${tick.toString()}: ${onCPU} en CPU`;
+  return { history, intervals, metrics };
 }
