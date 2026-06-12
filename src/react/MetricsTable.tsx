@@ -1,60 +1,72 @@
 import React from 'react';
-import type { ProcessMetrics, AggregateMetrics } from '../core/types/simulation-result.js';
+import { useSimulation } from './SimulationContext.js';
 
-export interface MetricsTableProps {
-  perProcess: ProcessMetrics[];
-  aggregate: AggregateMetrics;
-  /** Lista de columnas a mostrar. Vacío o undefined → no mostrar ninguna. */
-  metrics?: string[];
-  /** Solo se muestran si atEnd es verdadero */
-  atEnd: boolean;
-}
+export function MetricsTable(): React.ReactElement {
+  const { result, atEnd } = useSimulation();
 
-const ALL_COLUMNS = ['waiting', 'turnaround', 'response', 'completion'] as const;
-type Column = (typeof ALL_COLUMNS)[number];
-
-export function MetricsTable({ perProcess, aggregate, metrics, atEnd }: MetricsTableProps): React.JSX.Element {
-  if (!atEnd) {
-    return <></>;
+  // Solo visible en el último tick y cuando hay resultado
+  if (!atEnd || result === null) {
+    return <div />;
   }
 
-  // Si metrics es array vacío, no mostrar nada
-  // metrics vacío → sin columnas; undefined → todas
-  if (metrics?.length === 0) {
-    return <div data-testid="metrics-table-empty" />;
-  }
+  const { processes, aggregate } = result.metrics;
 
-  const showColumns: Column[] =
-    metrics !== undefined
-      ? ALL_COLUMNS.filter(c => metrics.includes(c))
-      : [...ALL_COLUMNS];
+  const thStyle: React.CSSProperties = {
+    border: '1px solid #ccc',
+    padding: '4px 8px',
+    textAlign: 'left',
+    background: '#f0f0f0',
+  };
+  const tdStyle: React.CSSProperties = {
+    border: '1px solid #ccc',
+    padding: '4px 8px',
+  };
 
   return (
-    <div data-testid="metrics-table">
-      <table>
+    <div>
+      <h3>Métricas por proceso</h3>
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
         <thead>
           <tr>
-            <th>Proceso</th>
-            {showColumns.map(c => <th key={c}>{c}</th>)}
+            <th style={thStyle}>id</th>
+            <th style={thStyle}>completion</th>
+            <th style={thStyle}>turnaround</th>
+            <th style={thStyle}>waiting</th>
+            <th style={thStyle}>response</th>
           </tr>
         </thead>
         <tbody>
-          {perProcess.map(m => (
-            <tr key={m.id} data-testid={`metrics-row-${m.id}`}>
-              <td>{m.id}</td>
-              {showColumns.map(c => (
-                <td key={c} data-testid={`metrics-${m.id}-${c}`}>{m[c]}</td>
-              ))}
+          {processes.map((m) => (
+            <tr key={m.id}>
+              <td style={tdStyle}>{m.id}</td>
+              <td style={tdStyle}>{m.completion}</td>
+              <td style={tdStyle}>{m.turnaround}</td>
+              <td style={tdStyle}>{m.waiting}</td>
+              <td style={tdStyle}>{m.response}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div data-testid="aggregate-metrics">
-        <span data-testid="avg-waiting">{aggregate.avgWaiting.toFixed(2)}</span>
-        <span data-testid="avg-turnaround">{aggregate.avgTurnaround.toFixed(2)}</span>
-        <span data-testid="cpu-utilization">{(aggregate.cpuUtilization * 100).toFixed(1)}%</span>
-        <span data-testid="throughput">{aggregate.throughput.toFixed(2)}</span>
-      </div>
+
+      <h3>Métricas agregadas</h3>
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <thead>
+          <tr>
+            <th style={thStyle}>avgWaiting</th>
+            <th style={thStyle}>avgTurnaround</th>
+            <th style={thStyle}>cpuUtilization</th>
+            <th style={thStyle}>throughput</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={tdStyle}>{aggregate.avgWaiting}</td>
+            <td style={tdStyle}>{aggregate.avgTurnaround}</td>
+            <td style={tdStyle}>{aggregate.cpuUtilization}</td>
+            <td style={tdStyle}>{aggregate.throughput}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

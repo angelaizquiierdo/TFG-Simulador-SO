@@ -1,134 +1,128 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSimulation } from './SimulationContext.js';
 
-export interface PlaybackControlsProps {
-  tick: number;
-  maxTick: number;
-  onTickChange: (tick: number) => void;
-}
+export function PlaybackControls(): React.ReactElement {
+  const { result, tick, atStart, atEnd, stepForward, stepBackward, goTo } = useSimulation();
 
-// Velocidad de reproducción: ms por tick
-const MS_PER_TICK = 500;
+  const totalTicks = result ? result.history.length : 0;
 
-export function PlaybackControls({ tick, maxTick, onTickChange }: PlaybackControlsProps): React.JSX.Element {
-  const playingRef = useRef<'forward' | 'backward' | null>(null);
+  // Estado de reproducción automática
+  const [playing, setPlaying] = useState(false);
+
+  // requestAnimationFrame y deltaTime viven exclusivamente aquí
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
-  const accRef = useRef<number>(0);
-  const tickRef = useRef<number>(tick);
+  const TICK_INTERVAL_MS = 500; // ms por tick en reproducción automática
 
-  // Mantener tickRef sincronizado con el prop
-  tickRef.current = tick;
-
-  const stopPlayback = (): void => {
-    playingRef.current = null;
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    lastTimeRef.current = null;
-    accRef.current = 0;
-  };
-
-  const startPlayback = (direction: 'forward' | 'backward'): void => {
-    stopPlayback();
-    playingRef.current = direction;
-
-    const loop = (timestamp: number): void => {
-      if (playingRef.current === null) return;
-
-      lastTimeRef.current ??= timestamp;
-      const deltaTime = timestamp - lastTimeRef.current;
-      lastTimeRef.current = timestamp;
-      accRef.current += deltaTime;
-
-      if (accRef.current >= MS_PER_TICK) {
-        accRef.current -= MS_PER_TICK;
-        const current = tickRef.current;
-        if (direction === 'forward') {
-          if (current >= maxTick) {
-            stopPlayback();
-            return;
-          }
-          onTickChange(current + 1);
-        } else {
-          if (current <= 0) {
-            stopPlayback();
-            return;
-          }
-          onTickChange(current - 1);
-        }
+  useEffect(() => {
+    if (!playing) {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
+      lastTimeRef.current = null;
+      return;
+    }
 
-      rafRef.current = requestAnimationFrame(loop);
+    const animate = (now: number): void => {
+      const last = lastTimeRef.current;
+      const deltaTime = last !== null ? now - last : TICK_INTERVAL_MS;
+
+      if (deltaTime >= TICK_INTERVAL_MS) {
+        lastTimeRef.current = now;
+        if (atEnd) {
+          setPlaying(false);
+          return;
+        }
+        stepForward();
+      }
+      rafRef.current = requestAnimationFrame(animate);
     };
 
-    rafRef.current = requestAnimationFrame(loop);
+    rafRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [playing, atEnd, stepForward]);
+
+  const handlePlayForward = (): void => {
+    setPlaying((prev) => !prev);
   };
 
-  // Limpiar al desmontar
-  useEffect(() => {
-    return () => { stopPlayback(); };
-  }, []);
-
-  // Detener reproducción si se llega al límite
-  useEffect(() => {
-    if (playingRef.current === 'forward' && tick >= maxTick) {
-      stopPlayback();
-    } else if (playingRef.current === 'backward' && tick <= 0) {
-      stopPlayback();
-    }
-  }, [tick, maxTick]);
-
-  const isPlaying = playingRef.current !== null;
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    opacity: disabled ? 0.4 : 1,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    padding: '4px 10px',
+    marginRight: 4,
+    fontSize: 16,
+  });
 
   return (
-    <div data-testid="playback-controls">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+      {/* ⏮ ir al inicio */}
       <button
-        data-testid="btn-play-forward"
-        onClick={() => { startPlayback('forward'); }}
-        aria-label="Reproducir hacia delante"
-      >
-        ▶
-      </button>
-      <button
-        data-testid="btn-play-backward"
-        onClick={() => { startPlayback('backward'); }}
-        aria-label="Reproducir hacia atrás"
-      >
-        ◀
-      </button>
-      <button
-        data-testid="btn-pause"
-        onClick={() => { stopPlayback(); }}
-        aria-label="Pausar"
-      >
-        ⏸
-      </button>
-      <button
-        data-testid="btn-step-forward"
-        onClick={() => { onTickChange(Math.min(maxTick, tick + 1)); }}
-        aria-label="Paso adelante"
-      >
-        ⏭
-      </button>
-      <button
-        data-testid="btn-step-backward"
-        onClick={() => { onTickChange(Math.max(0, tick - 1)); }}
-        aria-label="Paso atrás"
+        aria-label="ir al inicio"
+        disabled={atStart}
+        style={btnStyle(atStart)}
+        onClick={() => { goTo(0); setPlaying(false); }}
       >
         ⏮
       </button>
+
+      {/* ◀ paso atrás */}
+      <button
+        aria-label="paso atrás"
+        disabled={atStart}
+        style={btnStyle(atStart)}
+        onClick={() => { stepBackward(); setPlaying(false); }}
+      >
+        ◀
+      </button>
+
+      {/* ▶/⏸ reproducir/pausar */}
+      <button
+        aria-label={playing ? 'pausar' : 'reproducir'}
+        style={btnStyle(false)}
+        onClick={handlePlayForward}
+      >
+        {playing ? '⏸' : '▶'}
+      </button>
+
+      {/* ▶| paso adelante */}
+      <button
+        aria-label="paso adelante"
+        disabled={atEnd}
+        style={btnStyle(atEnd)}
+        onClick={() => { stepForward(); setPlaying(false); }}
+      >
+        ▶|
+      </button>
+
+      {/* ⏭ ir al final */}
+      <button
+        aria-label="ir al final"
+        disabled={atEnd}
+        style={btnStyle(atEnd)}
+        onClick={() => { goTo(totalTicks - 1); setPlaying(false); }}
+      >
+        ⏭
+      </button>
+
+      {/* Barra de desplazamiento */}
       <input
         type="range"
-        data-testid="seek-bar"
         min={0}
-        max={maxTick}
+        max={totalTicks > 0 ? totalTicks - 1 : 0}
         value={tick}
-        onChange={e => { onTickChange(Number(e.target.value)); }}
-        aria-label="Barra de tiempo"
+        onChange={(e) => { goTo(Number(e.target.value)); setPlaying(false); }}
+        style={{ margin: '0 8px', flexGrow: 1 }}
+        aria-label="barra de progreso"
       />
-      <span data-testid="tick-display">{tick}</span>
-      {isPlaying && <span data-testid="playing-indicator">Reproduciendo</span>}
+
+      {/* Indicador de tick */}
+      <span aria-label="tick actual" style={{ fontSize: 14 }}>
+        Tick: {tick} / {totalTicks > 0 ? totalTicks - 1 : 0}
+      </span>
     </div>
   );
 }

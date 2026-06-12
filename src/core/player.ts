@@ -2,7 +2,7 @@ import type { History } from './types/history.js';
 
 // Cursor de solo lectura sobre un History calculado.
 export class Player {
-  private _tick: number = 0;
+  private _tick = 0;
   private readonly _history: History;
 
   constructor(history: History) {

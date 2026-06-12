@@ -12,7 +12,7 @@ function makeHistory(length: number): History {
       ready: [],
       pending: [],
       completed: [],
-      message: `tick ${i}`,
+      message: `tick ${i.toString()}`,
     });
   }
   return events;
