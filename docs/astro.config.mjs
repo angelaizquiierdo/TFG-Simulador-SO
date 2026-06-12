@@ -15,6 +15,14 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/angelaizquiierdo/TFG-Simulador-SO' }],
       sidebar: [
         {
+          label: 'Guías',
+          items: [
+            { label: 'Cómo usar el componente', link: '/guides/uso-componente' },
+            { label: 'Configuración',           link: '/guides/configuracion' },
+            { label: 'Crear un algoritmo',      link: '/guides/crear-algoritmo' },
+          ],
+        },
+        {
           label: 'No expropiativos',
           items: [
             { label: 'FCFS',          link: '/cpu-scheduler/non-preemptive/fcfs' },

@@ -1,54 +1,95 @@
 ---
-title: Configuración del componente Simulator
-description: Referencia de todas las props del componente Simulator.
+title: Configuración del componente
+description: Referencia de las props de SimulationProvider y sus valores válidos.
 ---
 
-# Configuración del componente `<Simulator>`
+`SimulationProvider` acepta las siguientes props:
 
-## Props completas
+## Props
+
+### `algorithm` (obligatorio)
+
+Nombre del algoritmo registrado. Debe coincidir con el valor de `IAlgorithm.name`.
 
 ```tsx
-<Simulator
-  algorithm="round-robin"
-  processes={[
-    { id: 'P1', arrival_time: 0, burst_time: 4 },
-    { id: 'P2', arrival_time: 0, burst_time: 3 },
-  ]}
-  params={{ quantum: 2 }}
-  metrics={['waiting', 'turnaround']}
-/>
+<SimulationProvider algorithm="fcfs" processes={[...]}>
 ```
 
-## Referencia de props
+Algoritmos disponibles:
 
-### `algorithm: string`
+| Nombre | Descripción |
+|---|---|
+| `"fcfs"` | First Come, First Served |
+| `"sjf"` | Shortest Job First (no expropiativo) |
+| `"ljf"` | Longest Job First (no expropiativo) |
+| `"priority-np"` | Prioridad no expropiativa |
+| `"srtf"` | Shortest Remaining Time First |
+| `"priority-p"` | Prioridad expropiativa |
+| `"round-robin"` | Round Robin |
 
-Nombre del algoritmo a usar. Debe estar registrado en el registry antes de renderizar el componente.
+### `processes` (obligatorio)
 
-Algoritmos integrados: `fcfs`, `sjf`, `ljf`, `priority-np`, `srtf`, `priority-p`, `round-robin`.
-
-### `processes: Process[]`
-
-Array de procesos con la siguiente forma:
+Array de objetos con la descripción de los procesos:
 
 ```ts
 interface Process {
-  id: string;          // identificador único, p. ej. "P1"
-  arrival_time: number; // tiempo de llegada (≥ 0)
-  burst_time: number;   // duración de la ráfaga (> 0)
-  priority?: number;    // prioridad (obligatoria para algoritmos de prioridad)
+  id: string;           // identificador único, p.ej. "P1"
+  arrival_time: number; // tiempo de llegada ≥ 0
+  burst_time: number;   // duración de la ráfaga > 0
+  priority?: number;    // prioridad (obligatorio para algoritmos de prioridad)
 }
 ```
 
-### `params?: { quantum?: number }`
+Si el array está vacío, el componente muestra un estado vacío sin error.
 
-Parámetros opcionales de configuración. El campo `quantum` es un entero mayor que 0
-y es obligatorio para el algoritmo Round Robin.
+Si algún proceso tiene `burst_time = 0`, el componente muestra el error:
+> "La ráfaga debe ser mayor que 0"
 
-### `metrics?: string[]`
+### `params` (opcional)
 
-Lista de columnas de métricas a mostrar en la tabla al finalizar el recorrido.
-Columnas disponibles: `waiting`, `turnaround`, `response`, `completion`.
+Parámetros adicionales del algoritmo:
 
-Si se pasa un array vacío, no se muestra ninguna columna de métricas.
-Si se omite, se muestran todas las columnas.
+```tsx
+<SimulationProvider
+  algorithm="round-robin"
+  processes={[...]}
+  params={{ quantum: 2 }}
+>
+```
+
+| Parámetro | Tipo | Descripción |
+|---|---|---|
+| `quantum` | `number` | Quantum de tiempo para Round Robin (entero > 0) |
+
+## Ejemplo completo
+
+```tsx
+import {
+  SimulationProvider,
+  ProcessTable,
+  GanttChart,
+  PlaybackControls,
+  MetricsTable,
+} from 'cpu-scheduler';
+
+const processes = [
+  { id: 'P1', arrival_time: 0, burst_time: 5 },
+  { id: 'P2', arrival_time: 1, burst_time: 4 },
+  { id: 'P3', arrival_time: 2, burst_time: 2 },
+];
+
+export default function RoundRobinDemo() {
+  return (
+    <SimulationProvider
+      algorithm="round-robin"
+      processes={processes}
+      params={{ quantum: 2 }}
+    >
+      <ProcessTable />
+      <GanttChart />
+      <PlaybackControls />
+      <MetricsTable />
+    </SimulationProvider>
+  );
+}
+```

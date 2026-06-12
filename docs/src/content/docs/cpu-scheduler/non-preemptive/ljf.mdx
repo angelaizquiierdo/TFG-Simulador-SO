@@ -3,4 +3,27 @@ title: LJF — Longest Job First
 description: Algoritmo de planificación no expropiativo LJF.
 ---
 
-Página en construcción.
+import { SimulatorDemo } from '../../../../components/SimulatorDemo';
+
+## Descripción
+
+**LJF** (Longest Job First) selecciona siempre el proceso con la **ráfaga más larga** de entre los procesos listos. Es **no expropiativo**.
+
+- **Ventaja:** favorece procesos de larga duración.
+- **Desventaja:** causa inanición de procesos cortos; aumenta el tiempo de espera promedio.
+
+## Escenario de ejemplo
+
+Procesos: P1 (llegada 0, ráfaga 2), P2 (llegada 0, ráfaga 4), P3 (llegada 0, ráfaga 3).
+
+Diagrama de Gantt esperado: P2[0–4], P3[4–7], P1[7–9]
+
+<SimulatorDemo
+  algorithm="ljf"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 2 },
+    { id: 'P2', arrival_time: 0, burst_time: 4 },
+    { id: 'P3', arrival_time: 0, burst_time: 3 },
+  ]}
+  client:only="react"
+/>

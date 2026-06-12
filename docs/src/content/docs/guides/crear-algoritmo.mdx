@@ -1,71 +1,107 @@
 ---
-title: Cómo crear un algoritmo personalizado
-description: Guía para implementar IAlgorithm y registrarlo en el simulador.
+title: Cómo crear un algoritmo propio
+description: Guía para implementar IAlgorithm y registrar un algoritmo personalizado.
 ---
 
-# Cómo crear un algoritmo personalizado
+El simulador es extensible: puedes añadir tu propio algoritmo de planificación implementando la interfaz `IAlgorithm` y registrándolo con `register()`.
 
-El simulador acepta cualquier algoritmo que implemente la interfaz `IAlgorithm`.
-No necesitas modificar el motor ni los algoritmos existentes.
-
-## 1. Implementar `IAlgorithm`
+## Interfaz `IAlgorithm`
 
 ```ts
 import type { IAlgorithm, ReadyProcess } from 'cpu-scheduler';
 
-export class MiAlgoritmo implements IAlgorithm {
+class MiAlgoritmo implements IAlgorithm {
   readonly name = 'mi-algoritmo';
-  readonly preemptionMode = 'none' as const; // 'none' | 'on-better' | 'on-quantum'
-  readonly requires = {};  // { priority?: boolean; quantum?: boolean }
+  readonly preemptionMode = 'none'; // 'none' | 'on-better' | 'on-quantum'
+  readonly requires = {};           // { priority?: true, quantum?: true }
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
-    // Devuelve el proceso elegido para ejecutarse en CPU.
-    // El array `ready` ya está ordenado por el desempate global del motor.
+    // Devuelve el proceso que debe ejecutarse a continuación.
+    // El array `ready` nunca está vacío cuando el motor llama a select().
     const first = ready[0];
-    if (first === undefined) throw new Error('Sin procesos en cola');
+    if (first === undefined) throw new Error('ready vacío');
     return first;
   }
 }
 ```
 
-### Modos de expropiación
+### Modos de expropación (`preemptionMode`)
 
-| `preemptionMode` | Comportamiento |
-|-----------------|----------------|
-| `'none'` | No expropiativo: `select()` solo se llama cuando la CPU queda libre |
-| `'on-better'` | Expropiativo: `select()` se evalúa cada tick; si elige otro proceso, expropia |
-| `'on-quantum'` | Round Robin: expropia al agotar el quantum |
+| Valor | Comportamiento |
+|---|---|
+| `'none'` | No expropiativo. El motor llama a `select()` solo cuando la CPU queda libre. |
+| `'on-better'` | Expropiativo por mejor proceso. El motor reevalúa cada tick. |
+| `'on-quantum'` | Round Robin. El motor expropia al agotar el quantum y reencola el proceso. |
 
-### El campo `requires`
+### Campo `requires`
 
-- `requires.priority = true` → el componente muestra el campo de prioridad en la UI.
-- `requires.quantum = true` → el componente muestra el campo quantum (entero > 0).
+Declara qué parámetros necesita el algoritmo:
 
-## 2. Registrarlo
+```ts
+readonly requires = { priority: true };  // necesita priority en los procesos
+readonly requires = { quantum: true };   // necesita quantum en params
+readonly requires = {};                  // sin requisitos adicionales
+```
+
+Los componentes visuales usan `requires` para mostrar u ocultar columnas (p.ej. `priority`).
+
+## Registrar el algoritmo
+
+Llama a `register()` antes de montar el componente:
 
 ```ts
 import { register } from 'cpu-scheduler';
-import { MiAlgoritmo } from './mi-algoritmo';
 
 register(new MiAlgoritmo());
 ```
 
-## 3. Usarlo en el componente
+## Usar el algoritmo registrado
+
+Una vez registrado, pasa su `name` a `SimulationProvider`:
 
 ```tsx
-import { Simulator } from 'cpu-scheduler';
+import {
+  register,
+  SimulationProvider,
+  GanttChart,
+  PlaybackControls,
+} from 'cpu-scheduler';
 
-<Simulator
-  algorithm="mi-algoritmo"
-  processes={[
-    { id: 'P1', arrival_time: 0, burst_time: 3 },
-  ]}
-/>
+register(new MiAlgoritmo());
+
+const processes = [
+  { id: 'P1', arrival_time: 0, burst_time: 4 },
+  { id: 'P2', arrival_time: 1, burst_time: 2 },
+];
+
+export default function MiDemo() {
+  return (
+    <SimulationProvider algorithm="mi-algoritmo" processes={processes}>
+      <GanttChart />
+      <PlaybackControls />
+    </SimulationProvider>
+  );
+}
 ```
 
-## Restricciones del algoritmo
+## Ejemplo completo: algoritmo aleatorio (solo para pruebas)
 
-- La función `select()` solo implementa la lógica de selección. No debe acumular historial,
-  calcular métricas ni acceder al DOM.
-- No usar `Math.random()` ni `Date.now()`: el simulador debe ser determinista.
-- Solo puede importar desde `cpu-scheduler` (no desde `src/core/` internamente).
+```ts
+import type { IAlgorithm, ReadyProcess } from 'cpu-scheduler';
+
+// ADVERTENCIA: el simulador es determinista por diseño.
+// Este ejemplo es puramente ilustrativo — no uses Math.random() en producción.
+class UltimoEnLlegar implements IAlgorithm {
+  readonly name = 'lcfs';
+  readonly preemptionMode = 'none' as const;
+  readonly requires = {};
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    const last = ready[ready.length - 1];
+    if (last === undefined) throw new Error('ready vacío');
+    return last;
+  }
+}
+```
+
+El motor se encarga del historial, las métricas y la navegación — el algoritmo solo implementa `select()`.

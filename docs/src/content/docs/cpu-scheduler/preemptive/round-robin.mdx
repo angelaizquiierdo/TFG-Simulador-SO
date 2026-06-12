@@ -3,4 +3,28 @@ title: Round Robin
 description: Algoritmo de planificación expropiativo Round Robin.
 ---
 
-Página en construcción.
+import { SimulatorDemo } from '../../../../components/SimulatorDemo';
+
+## Descripción
+
+**Round Robin** asigna a cada proceso un intervalo de tiempo fijo llamado **quantum**. Cuando el quantum expira, el proceso regresa al final de la cola de listos y se selecciona el siguiente proceso. Es **expropiativo por quantum**.
+
+- **Ventaja:** equitativo, sin inanición, bueno para sistemas de tiempo compartido.
+- **Desventaja:** rendimiento depende del valor del quantum; overhead de cambio de contexto.
+
+## Escenario de ejemplo
+
+Procesos: P1 (llegada 0, ráfaga 5), P2 (llegada 1, ráfaga 4), P3 (llegada 2, ráfaga 2). Quantum: 2.
+
+Diagrama de Gantt esperado: P1[0–2], P2[2–4], P3[4–6], P1[6–8], P2[8–10], P1[10–11]
+
+<SimulatorDemo
+  algorithm="round-robin"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 5 },
+    { id: 'P2', arrival_time: 1, burst_time: 4 },
+    { id: 'P3', arrival_time: 2, burst_time: 2 },
+  ]}
+  params={{ quantum: 2 }}
+  client:only="react"
+/>
