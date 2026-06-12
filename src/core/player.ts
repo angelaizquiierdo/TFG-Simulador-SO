@@ -1,12 +1,12 @@
-import type { History, HistoryEvent } from './types/history.js';
+import type { History } from './types/history.js';
 
+// Cursor de solo lectura sobre un History calculado.
 export class Player {
+  private _tick: number = 0;
   private readonly _history: History;
-  private _tick: number;
 
   constructor(history: History) {
     this._history = history;
-    this._tick = 0;
   }
 
   get tick(): number {
@@ -18,27 +18,26 @@ export class Player {
   }
 
   get atEnd(): boolean {
-    return this._history.length === 0 || this._tick === this._history.length - 1;
-  }
-
-  get current(): HistoryEvent | undefined {
-    return this._history[this._tick];
+    return this._tick === this._history.length - 1;
   }
 
   stepForward(): void {
-    if (!this.atEnd) {
+    if (this._tick < this._history.length - 1) {
       this._tick++;
     }
   }
 
   stepBackward(): void {
-    if (!this.atStart) {
+    if (this._tick > 0) {
       this._tick--;
     }
   }
 
   goTo(n: number): void {
-    const max = this._history.length > 0 ? this._history.length - 1 : 0;
-    this._tick = Math.max(0, Math.min(n, max));
+    this._tick = n;
+  }
+
+  get current() {
+    return this._history[this._tick];
   }
 }
