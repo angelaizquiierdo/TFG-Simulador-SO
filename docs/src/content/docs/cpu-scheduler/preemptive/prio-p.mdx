@@ -1,24 +1,19 @@
 ---
-title: Prioridad (Expropiativo)
+title: Prioridad (expropiativa)
 description: Algoritmo de planificación por prioridad expropiativo.
 ---
 
-import { SimulatorDemo } from '../../../../components/SimulatorDemo';
+import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
 
 ## Descripción
 
-**Prioridad expropiativa** selecciona el proceso con la **prioridad más baja** (número menor = mayor prioridad). A diferencia de la versión no expropiativa, si llega un proceso con mayor prioridad que el proceso en CPU, expropia la CPU inmediatamente.
-
-- **Ventaja:** respuesta rápida a procesos urgentes.
-- **Desventaja:** puede causar inanición de procesos con baja prioridad.
+**Prioridad (expropiativa)** selecciona siempre el proceso con mayor prioridad. Si
+llega un proceso con mayor prioridad que el que está en CPU, lo expropía de
+inmediato. Menor número de prioridad significa mayor urgencia.
 
 ## Escenario de ejemplo
 
-Procesos: P1 (llegada 0, ráfaga 4, prioridad 2), P2 (llegada 1, ráfaga 2, prioridad 2), P3 (llegada 2, ráfaga 2, prioridad 1).
-
-Diagrama de Gantt esperado: P1[0–2], P3[2–4], P1[4–6], P2[6–8]
-
-<SimulatorDemo
+<SimulationProvider
   algorithm="priority-p"
   processes={[
     { id: 'P1', arrival_time: 0, burst_time: 4, priority: 2 },
@@ -26,4 +21,9 @@ Diagrama de Gantt esperado: P1[0–2], P3[2–4], P1[4–6], P2[6–8]
     { id: 'P3', arrival_time: 2, burst_time: 2, priority: 1 },
   ]}
   client:only="react"
-/>
+>
+  <ProcessTable />
+  <GanttChart />
+  <PlaybackControls />
+  <MetricsTable />
+</SimulationProvider>

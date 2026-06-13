@@ -1,24 +1,19 @@
 ---
 title: Round Robin
-description: Algoritmo de planificación expropiativo Round Robin.
+description: Algoritmo de planificación Round Robin expropiativo con quantum de tiempo.
 ---
 
-import { SimulatorDemo } from '../../../../components/SimulatorDemo';
+import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
 
 ## Descripción
 
-**Round Robin** asigna a cada proceso un intervalo de tiempo fijo llamado **quantum**. Cuando el quantum expira, el proceso regresa al final de la cola de listos y se selecciona el siguiente proceso. Es **expropiativo por quantum**.
-
-- **Ventaja:** equitativo, sin inanición, bueno para sistemas de tiempo compartido.
-- **Desventaja:** rendimiento depende del valor del quantum; overhead de cambio de contexto.
+**Round Robin** asigna la CPU a cada proceso durante un intervalo fijo llamado
+quantum. Si el proceso no termina en su quantum, vuelve al final de la cola de
+listos y el siguiente proceso recibe la CPU.
 
 ## Escenario de ejemplo
 
-Procesos: P1 (llegada 0, ráfaga 5), P2 (llegada 1, ráfaga 4), P3 (llegada 2, ráfaga 2). Quantum: 2.
-
-Diagrama de Gantt esperado: P1[0–2], P2[2–4], P3[4–6], P1[6–8], P2[8–10], P1[10–11]
-
-<SimulatorDemo
+<SimulationProvider
   algorithm="round-robin"
   processes={[
     { id: 'P1', arrival_time: 0, burst_time: 5 },
@@ -27,4 +22,9 @@ Diagrama de Gantt esperado: P1[0–2], P2[2–4], P3[4–6], P1[6–8], P2[8–1
   ]}
   params={{ quantum: 2 }}
   client:only="react"
-/>
+>
+  <ProcessTable />
+  <GanttChart />
+  <PlaybackControls />
+  <MetricsTable />
+</SimulationProvider>

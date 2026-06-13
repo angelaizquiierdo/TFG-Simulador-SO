@@ -1,24 +1,19 @@
 ---
-title: SRTF — Shortest Remaining Time First
-description: Algoritmo de planificación expropiativo SRTF.
+title: SRTF (Shortest Remaining Time First)
+description: Algoritmo de planificación SRTF expropiativo.
 ---
 
-import { SimulatorDemo } from '../../../../components/SimulatorDemo';
+import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
 
 ## Descripción
 
-**SRTF** (Shortest Remaining Time First) es la versión expropiativa de SJF. En cada tick, selecciona el proceso con el **menor tiempo restante**. Si llega un proceso con menor tiempo restante que el proceso en CPU, expropia la CPU.
-
-- **Ventaja:** minimiza el tiempo de espera promedio (óptimo entre algoritmos expropiativos).
-- **Desventaja:** puede causar inanición; requiere conocer el burst_time a priori.
+**SRTF** es la versión expropiativa de SJF. En cada tick selecciona el proceso con
+el menor tiempo restante. Si llega un proceso con ráfaga más corta que el tiempo
+restante del proceso en CPU, el nuevo proceso expropía la CPU.
 
 ## Escenario de ejemplo
 
-Procesos: P1 (llegada 0, ráfaga 8), P2 (llegada 1, ráfaga 4), P3 (llegada 2, ráfaga 2), P4 (llegada 4, ráfaga 1).
-
-Diagrama de Gantt esperado: P1[0–1], P2[1–2], P3[2–4], P4[4–5], P2[5–8], P1[8–15]
-
-<SimulatorDemo
+<SimulationProvider
   algorithm="srtf"
   processes={[
     { id: 'P1', arrival_time: 0, burst_time: 8 },
@@ -27,4 +22,9 @@ Diagrama de Gantt esperado: P1[0–1], P2[1–2], P3[2–4], P4[4–5], P2[5–8
     { id: 'P4', arrival_time: 4, burst_time: 1 },
   ]}
   client:only="react"
-/>
+>
+  <ProcessTable />
+  <GanttChart />
+  <PlaybackControls />
+  <MetricsTable />
+</SimulationProvider>
