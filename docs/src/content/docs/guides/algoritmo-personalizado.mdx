@@ -1,0 +1,90 @@
+---
+title: Crear un algoritmo personalizado
+description: Como implementar IAlgorithm y registrarlo en el simulador.
+---
+
+El simulador esta disenado para ser extensible: puedes anadir tu propio algoritmo de
+planificacion sin modificar el motor ni los algoritmos incluidos.
+
+## Contrato IAlgorithm
+
+Todo algoritmo debe implementar la interfaz `IAlgorithm`:
+
+```ts
+import type { IAlgorithm, ReadyProcess, PreemptionMode } from 'cpu-scheduler';
+
+interface IAlgorithm {
+  name: string;                            // Identificador unico del algoritmo
+  preemptionMode: PreemptionMode;          // 'none' | 'on-better' | 'on-quantum'
+  requires: { priority?: boolean; quantum?: boolean };
+  select(ready: readonly ReadyProcess[]): ReadyProcess;
+}
+```
+
+### Modos de expropiacion
+
+| Modo | Comportamiento |
+|---|---|
+| `'none'` | El motor llama a `select()` solo cuando la CPU queda libre (no expropiativo) |
+| `'on-better'` | El motor reevalua en cada tick; expropia si `select()` devuelve otro proceso |
+| `'on-quantum'` | El motor expropia al agotar el quantum y reencola el proceso actual |
+
+### ReadyProcess
+
+El parametro `ready` de `select()` contiene los procesos en cola lista:
+
+```ts
+interface ReadyProcess {
+  readonly id: string;
+  readonly arrival_time: number;
+  readonly burst_time: number;
+  readonly remaining: number;   // Rafaga restante (util para SRTF, etc.)
+  readonly priority?: number;
+}
+```
+
+## Ejemplo: algoritmo LIFO
+
+```ts
+import { register } from 'cpu-scheduler';
+import type { IAlgorithm, ReadyProcess } from 'cpu-scheduler';
+
+class LIFO implements IAlgorithm {
+  name = 'lifo';
+  preemptionMode = 'none' as const;
+  requires = {};
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    // El ultimo proceso en llegar (mayor arrival_time)
+    return [...ready].sort((a, b) => b.arrival_time - a.arrival_time)[0]!;
+  }
+}
+
+register(new LIFO());
+```
+
+## Registrar y usar el algoritmo
+
+Una vez registrado, el algoritmo esta disponible por su `name`:
+
+```mdx
+import { SimulationProvider } from 'cpu-scheduler';
+import './mi-algoritmo';  // asegura que register() se ejecuta
+
+<SimulationProvider
+  algorithm="lifo"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 3 },
+    { id: 'P2', arrival_time: 1, burst_time: 2 },
+  ]}
+  client:only="react"
+/>
+```
+
+## Reglas que debe respetar el algoritmo
+
+- `select()` recibe siempre al menos un proceso (el motor no la llama con array vacio).
+- `select()` debe devolver uno de los elementos del array `ready`; no puede fabricar un proceso nuevo.
+- El algoritmo no debe acumular estado entre llamadas si quiere ser determinista.
+- Prohibido usar `Math.random()`, `Date.now()` o cualquier fuente de no determinismo.
+- La logica del motor (historial, mensajes, metricas) no pertenece al algoritmo: solo implementa `select()`.

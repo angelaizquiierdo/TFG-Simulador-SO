@@ -1,0 +1,66 @@
+---
+title: Como usar el simulador
+description: Guia de uso basico del componente SimulationProvider.
+---
+
+import { SimulationProvider } from 'cpu-scheduler';
+
+El simulador se expone como una libreria React. El componente principal es
+`SimulationProvider`, que orquesta la simulacion y expone el estado por contexto
+al resto de componentes visuales.
+
+## Uso minimo
+
+El uso mas sencillo es pasar el algoritmo y la lista de procesos. Sin hijos,
+`SimulationProvider` renderiza los cuatro componentes por defecto: tabla de procesos,
+diagrama de Gantt, controles de reproduccion y tabla de metricas.
+
+```mdx
+import { SimulationProvider } from 'cpu-scheduler';
+
+<SimulationProvider
+  algorithm="fcfs"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 4 },
+    { id: 'P2', arrival_time: 1, burst_time: 3 },
+  ]}
+  client:only="react"
+/>
+```
+
+## Props del componente
+
+| Prop | Tipo | Requerido | Descripcion |
+|---|---|---|---|
+| `algorithm` | `string` | Si | Nombre del algoritmo registrado (p. ej. `"fcfs"`, `"srtf"`, `"round-robin"`) |
+| `processes` | `Process[]` | Si | Lista de procesos a simular |
+| `params` | `{ quantum?: number }` | No | Parametros del algoritmo (requerido por Round Robin) |
+
+## Ejemplo interactivo
+
+<SimulationProvider
+  algorithm="fcfs"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 4 },
+    { id: 'P2', arrival_time: 1, burst_time: 3 },
+    { id: 'P3', arrival_time: 2, burst_time: 2 },
+  ]}
+  client:only="react"
+/>
+
+## Composicion con hijos
+
+Si se desea intercalar contenido entre los componentes visuales, se pueden pasar como
+hijos. En ese caso, el provider no renderiza los componentes por defecto.
+
+```mdx
+import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
+
+<SimulationProvider algorithm="sjf" processes={[...]} client:only="react">
+  <ProcessTable />
+  <p>El diagrama de Gantt muestra la ejecucion tick a tick.</p>
+  <GanttChart />
+  <PlaybackControls />
+  <MetricsTable />
+</SimulationProvider>
+```

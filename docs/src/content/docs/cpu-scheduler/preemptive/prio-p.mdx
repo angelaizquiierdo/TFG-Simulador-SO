@@ -1,6 +1,30 @@
 ---
 title: Prioridad (Expropiativo)
-description: Algoritmo de planificación por prioridad expropiativo.
+description: Algoritmo de planificacion por prioridad expropiativo.
 ---
 
-Página en construcción.
+import { SimulationProvider } from 'cpu-scheduler';
+
+## Descripcion
+
+El algoritmo de **Prioridad expropiativo** selecciona en cada tick el proceso con menor
+numero de prioridad entre los que estan en la cola lista. Un numero menor indica mayor
+prioridad (p. ej., prioridad 1 es mas urgente que prioridad 3).
+
+A diferencia de la version no expropiativa, si llega un proceso con mayor prioridad que
+el proceso actualmente en CPU, este es expropiado de inmediato.
+
+- Garantiza que los procesos urgentes accedan a la CPU rapidamente.
+- Puede causar inanicion de procesos de baja prioridad.
+
+## Escenario de ejemplo
+
+<SimulationProvider
+  algorithm="priority-p"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 4, priority: 2 },
+    { id: 'P2', arrival_time: 1, burst_time: 2, priority: 2 },
+    { id: 'P3', arrival_time: 2, burst_time: 2, priority: 1 },
+  ]}
+  client:only="react"
+/>

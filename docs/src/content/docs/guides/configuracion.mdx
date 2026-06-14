@@ -1,95 +1,70 @@
 ---
-title: Configuración del componente
-description: Referencia de las props de SimulationProvider y sus valores válidos.
+title: Configuracion del simulador
+description: Referencia de props, procesos, algoritmos y parametros.
 ---
 
-`SimulationProvider` acepta las siguientes props:
+## Estructura de un proceso
 
-## Props
-
-### `algorithm` (obligatorio)
-
-Nombre del algoritmo registrado. Debe coincidir con el valor de `IAlgorithm.name`.
-
-```tsx
-<SimulationProvider algorithm="fcfs" processes={[...]}>
-```
-
-Algoritmos disponibles:
-
-| Nombre | Descripción |
-|---|---|
-| `"fcfs"` | First Come, First Served |
-| `"sjf"` | Shortest Job First (no expropiativo) |
-| `"ljf"` | Longest Job First (no expropiativo) |
-| `"priority-np"` | Prioridad no expropiativa |
-| `"srtf"` | Shortest Remaining Time First |
-| `"priority-p"` | Prioridad expropiativa |
-| `"round-robin"` | Round Robin |
-
-### `processes` (obligatorio)
-
-Array de objetos con la descripción de los procesos:
+Cada proceso en el array `processes` sigue la interfaz `Process`:
 
 ```ts
 interface Process {
-  id: string;           // identificador único, p.ej. "P1"
-  arrival_time: number; // tiempo de llegada ≥ 0
-  burst_time: number;   // duración de la ráfaga > 0
-  priority?: number;    // prioridad (obligatorio para algoritmos de prioridad)
+  id: string;           // Identificador unico del proceso
+  arrival_time: number; // Tick en el que llega (>= 0)
+  burst_time: number;   // Duracion de la rafaga (> 0)
+  priority?: number;    // Prioridad (requerida por algoritmos de prioridad; menor = mas urgente)
 }
 ```
 
-Si el array está vacío, el componente muestra un estado vacío sin error.
+## Algoritmos disponibles
 
-Si algún proceso tiene `burst_time = 0`, el componente muestra el error:
-> "La ráfaga debe ser mayor que 0"
+| Nombre (`algorithm`) | Tipo | Requiere `priority` | Requiere `quantum` |
+|---|---|---|---|
+| `"fcfs"` | No expropiativo | No | No |
+| `"sjf"` | No expropiativo | No | No |
+| `"ljf"` | No expropiativo | No | No |
+| `"priority-np"` | No expropiativo | Si | No |
+| `"srtf"` | Expropiativo | No | No |
+| `"priority-p"` | Expropiativo | Si | No |
+| `"round-robin"` | Expropiativo | No | Si |
 
-### `params` (opcional)
+## Parametro quantum (Round Robin)
 
-Parámetros adicionales del algoritmo:
+Round Robin requiere el parametro `quantum` en la prop `params`:
 
-```tsx
+```mdx
 <SimulationProvider
   algorithm="round-robin"
   processes={[...]}
   params={{ quantum: 2 }}
->
+  client:only="react"
+/>
 ```
 
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `quantum` | `number` | Quantum de tiempo para Round Robin (entero > 0) |
+El valor de `quantum` debe ser un entero positivo. Si se omite, el motor lanzara un error
+en el momento de la simulacion.
 
-## Ejemplo completo
+## Metricas calculadas
 
-```tsx
-import {
-  SimulationProvider,
-  ProcessTable,
-  GanttChart,
-  PlaybackControls,
-  MetricsTable,
-} from 'cpu-scheduler';
+El simulador calcula automaticamente las siguientes metricas para cada proceso:
 
-const processes = [
-  { id: 'P1', arrival_time: 0, burst_time: 5 },
-  { id: 'P2', arrival_time: 1, burst_time: 4 },
-  { id: 'P3', arrival_time: 2, burst_time: 2 },
-];
+| Metrica | Descripcion |
+|---|---|
+| `completion` | Tick en el que el proceso termina |
+| `turnaround` | `completion - arrival_time` |
+| `waiting` | `turnaround - burst_time` |
+| `response` | Primer tick en CPU - `arrival_time` |
 
-export default function RoundRobinDemo() {
-  return (
-    <SimulationProvider
-      algorithm="round-robin"
-      processes={processes}
-      params={{ quantum: 2 }}
-    >
-      <ProcessTable />
-      <GanttChart />
-      <PlaybackControls />
-      <MetricsTable />
-    </SimulationProvider>
-  );
-}
-```
+Y metricas agregadas:
+
+| Metrica | Descripcion |
+|---|---|
+| `avgWaiting` | Promedio de `waiting` entre todos los procesos |
+| `avgTurnaround` | Promedio de `turnaround` entre todos los procesos |
+| `cpuUtilization` | Fraccion de ticks con CPU activa |
+| `throughput` | Procesos completados por tick total |
+
+## Casos especiales
+
+- **Sin procesos:** el simulador devuelve un historial vacio sin error. El componente muestra un estado vacio.
+- **`burst_time = 0`:** el motor lanza el error `"La rafaga debe ser mayor que 0"`. El componente muestra el mensaje de error.
