@@ -1,30 +1,6 @@
 ---
-title: Prioridad (no expropiativa)
+title: Prioridad (No Expropiativo)
 description: Algoritmo de planificación por prioridad no expropiativo.
 ---
 
-import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
-
-## Descripción
-
-**Prioridad (no expropiativa)** selecciona el proceso con mayor prioridad entre los
-que están en la cola de listos. Menor número de prioridad significa mayor urgencia.
-Es no expropiativo: una vez que un proceso entra en CPU, la ocupa hasta terminar su
-ráfaga.
-
-## Escenario de ejemplo
-
-<SimulationProvider
-  algorithm="priority-np"
-  processes={[
-    { id: 'P1', arrival_time: 0, burst_time: 3, priority: 3 },
-    { id: 'P2', arrival_time: 1, burst_time: 2, priority: 2 },
-    { id: 'P3', arrival_time: 2, burst_time: 2, priority: 2 },
-  ]}
-  client:only="react"
->
-  <ProcessTable />
-  <GanttChart />
-  <PlaybackControls />
-  <MetricsTable />
-</SimulationProvider>
+Página en construcción.

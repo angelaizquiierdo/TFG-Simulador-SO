@@ -9,9 +9,6 @@
   ],
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "paths": {
-      "cpu-scheduler": ["../src/index.ts"]
-    }
+    "jsxImportSource": "react"
   }
 }

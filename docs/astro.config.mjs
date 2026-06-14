@@ -1,4 +1,3 @@
-// @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import react from '@astrojs/react';
@@ -7,36 +6,26 @@ import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-// https://astro.build/config
 export default defineConfig({
   integrations: [
     starlight({
       title: 'CPU Scheduler Simulator',
-      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/angelaizquiierdo/TFG-Simulador-SO' }],
       sidebar: [
-        {
-          label: 'Guías',
-          items: [
-            { label: 'Cómo usar el componente', link: '/guides/uso-componente' },
-            { label: 'Configuración',           link: '/guides/configuracion' },
-            { label: 'Crear un algoritmo',      link: '/guides/crear-algoritmo' },
-          ],
-        },
         {
           label: 'No expropiativos',
           items: [
-            { label: 'FCFS',          link: '/cpu-scheduler/non-preemptive/fcfs' },
-            { label: 'SJF',           link: '/cpu-scheduler/non-preemptive/sjf' },
-            { label: 'LJF',           link: '/cpu-scheduler/non-preemptive/ljf' },
+            { label: 'FCFS',           link: '/cpu-scheduler/non-preemptive/fcfs' },
+            { label: 'SJF',            link: '/cpu-scheduler/non-preemptive/sjf' },
+            { label: 'LJF',            link: '/cpu-scheduler/non-preemptive/ljf' },
             { label: 'Prioridad (NP)', link: '/cpu-scheduler/non-preemptive/prio-n' },
           ],
         },
         {
           label: 'Expropiativos',
           items: [
-            { label: 'Round Robin', link: '/cpu-scheduler/preemptive/round-robin' },
-            { label: 'SRTF',        link: '/cpu-scheduler/preemptive/srtf' },
-            { label: 'Prioridad (P)', link: '/cpu-scheduler/preemptive/prio-p' },
+            { label: 'Round Robin',    link: '/cpu-scheduler/preemptive/round-robin' },
+            { label: 'SRTF',           link: '/cpu-scheduler/preemptive/srtf' },
+            { label: 'Prioridad (P)',  link: '/cpu-scheduler/preemptive/prio-p' },
           ],
         },
       ],

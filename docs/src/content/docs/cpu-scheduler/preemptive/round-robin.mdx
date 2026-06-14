@@ -1,30 +1,6 @@
 ---
 title: Round Robin
-description: Algoritmo de planificación Round Robin expropiativo con quantum de tiempo.
+description: Algoritmo de planificación Round Robin expropiativo.
 ---
 
-import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
-
-## Descripción
-
-**Round Robin** asigna la CPU a cada proceso durante un intervalo fijo llamado
-quantum. Si el proceso no termina en su quantum, vuelve al final de la cola de
-listos y el siguiente proceso recibe la CPU.
-
-## Escenario de ejemplo
-
-<SimulationProvider
-  algorithm="round-robin"
-  processes={[
-    { id: 'P1', arrival_time: 0, burst_time: 5 },
-    { id: 'P2', arrival_time: 1, burst_time: 4 },
-    { id: 'P3', arrival_time: 2, burst_time: 2 },
-  ]}
-  params={{ quantum: 2 }}
-  client:only="react"
->
-  <ProcessTable />
-  <GanttChart />
-  <PlaybackControls />
-  <MetricsTable />
-</SimulationProvider>
+Página en construcción.
