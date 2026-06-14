@@ -1,34 +1,28 @@
-// T-05 — Tipos de resultado de simulación y métricas
-
 import type { History, Interval } from './history.js';
 
-/** Métricas individuales por proceso. */
+// Métricas individuales por proceso
 export interface ProcessMetrics {
-  readonly id: string;
-  readonly completion: number;
-  readonly turnaround: number;
-  readonly waiting: number;
-  readonly response: number;
+  readonly id:          string;
+  readonly completion:  number;
+  readonly turnaround:  number;
+  readonly waiting:     number;
+  readonly response:    number;
 }
 
-/** Métricas agregadas de toda la simulación. */
+// Métricas agregadas de la simulación completa
 export interface AggregateMetrics {
-  readonly avgWaiting: number;
-  readonly avgTurnaround: number;
-  readonly cpuUtilization: number;
-  readonly throughput: number;
+  readonly avgWaiting:      number;
+  readonly avgTurnaround:   number;
+  readonly cpuUtilization:  number;
+  readonly throughput:      number;
 }
 
-/**
- * Resultado completo de `run()`.
- * `intervals` y `metrics` se derivan del `history` con funciones puras;
- * nunca se acumulan dentro del bucle del motor.
- */
+// Resultado completo devuelto por run()
 export interface SimulationResult {
-  readonly history: History;
-  readonly intervals: readonly Interval[];
-  readonly metrics: {
-    readonly perProcess: readonly ProcessMetrics[];
-    readonly aggregate: AggregateMetrics;
+  readonly history:   History;
+  readonly intervals: Interval[];
+  readonly metrics:   {
+    readonly perProcess: ProcessMetrics[];
+    readonly aggregate:  AggregateMetrics;
   };
 }

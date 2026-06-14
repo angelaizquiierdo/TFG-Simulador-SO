@@ -1,6 +1,4 @@
-// T-02 — Tipos base de proceso
-
-/** Proceso tal como lo proporciona el usuario. */
+// Representa un proceso tal como lo proporciona el usuario
 export interface Process {
   readonly id: string;
   readonly arrival_time: number;  // >= 0

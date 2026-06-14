@@ -1,24 +1,19 @@
-// T-04 — Tipos de historial y eventos
-
-/** Estado completo de la simulación en un tick dado. */
+// Evento registrado en cada tick del motor
 export interface HistoryEvent {
-  readonly tick: number;
-  readonly onCPU: string | null;       // null = CPU inactiva
-  readonly ready: readonly string[];
-  readonly pending: readonly string[];
+  readonly tick:      number;
+  readonly onCPU:     string | null;   // null = CPU inactiva
+  readonly ready:     readonly string[];
+  readonly pending:   readonly string[];
   readonly completed: readonly string[];
-  readonly message: string;
+  readonly message:   string;
 }
 
-/** Secuencia completa de eventos tick a tick. */
+// Secuencia inmutable de eventos del motor
 export type History = readonly HistoryEvent[];
 
-/**
- * Tramo continuo del mismo proceso (o hueco de inactividad) en el diagrama de Gantt.
- * pid = null indica CPU inactiva.
- */
+// Tramo continuo de ejecución o inactividad en el diagrama de Gantt
 export interface Interval {
-  readonly pid: string | null;
+  readonly pid:   string | null;   // null = hueco de inactividad
   readonly start: number;
-  readonly end: number;
+  readonly end:   number;
 }
