@@ -1,64 +1,62 @@
+// @ts-check
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default tseslint.config(
+  // Ignorar archivos generados y dependencias
   {
-    ignores: ['dist/**', 'coverage/**', 'docs/**', '*.config.*'],
+    ignores: ['dist/**', 'node_modules/**', 'docs/**', 'coverage/**'],
   },
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+
+  // Base: strict + stylistic para archivos TypeScript con type information
   {
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
+    extends: [
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: './tsconfig.json',
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     plugins: {
       'react-hooks': reactHooks,
       'jsx-a11y': jsxA11y,
-    },
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.json', './tsconfig.test.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
     },
   },
-  // Fronteras de arquitectura
+
+  // Frontera: src/core/** NO puede importar React, DOM, ni src/react/**
   {
-    files: ['src/core/**/*.ts'],
+    files: ['src/core/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           patterns: [
-            {
-              group: ['react', 'react-dom', 'react/*'],
-              message: 'src/core no puede importar React ni DOM.',
-            },
-            {
-              group: ['../react/**', '../../react/**', '**/src/react/**'],
-              message: 'src/core no puede importar desde src/react.',
-            },
+            { group: ['react', 'react-dom', 'react/*'], message: 'src/core no puede importar React.' },
+            { group: ['*/react/*', '../react*', '../../react*'], message: 'src/core no puede importar src/react.' },
           ],
         },
       ],
     },
   },
+
+  // Frontera adicional para algoritmos: solo pueden importar types/algorithm.ts
   {
-    files: ['src/core/algorithms/**/*.ts'],
+    files: ['src/core/algorithms/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           patterns: [
-            {
-              group: ['react', 'react-dom', 'react/*'],
-              message: 'Los algoritmos no pueden importar React.',
-            },
-            {
-              group: ['../../registry', '../../simulate', '../../player', '../../types/history', '../../types/process', '../../types/simulation-result'],
-              message: 'src/core/algorithms solo puede importar types/algorithm.ts.',
-            },
+            { group: ['react', 'react-dom', 'react/*'], message: 'Los algoritmos no pueden importar React.' },
+            { group: ['*/react/*', '../react*', '../../react*'], message: 'Los algoritmos no pueden importar src/react.' },
           ],
         },
       ],

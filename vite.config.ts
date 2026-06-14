@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import dts from 'vite-plugin-dts';
-import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [
@@ -10,23 +9,15 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'CpuScheduler',
-      fileName: 'index',
+      entry: 'src/index.ts',
       formats: ['es'],
+      fileName: 'index',
     },
     rollupOptions: {
       external: ['react', 'react-dom'],
-      output: {
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-        },
-      },
     },
   },
   test: {
-    setupFiles: ['tests/react/setup.ts'],
     environmentMatchGlobs: [
       ['tests/react/**', 'jsdom'],
       ['tests/core/**', 'node'],
