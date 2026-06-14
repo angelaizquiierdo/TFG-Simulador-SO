@@ -1,70 +1,50 @@
 ---
-title: Configuracion del simulador
-description: Referencia de props, procesos, algoritmos y parametros.
+title: Configuración del componente
+description: Referencia de props de SimulationProvider.
 ---
+
+## Props de `SimulationProvider`
+
+| Prop | Tipo | Requerida | Descripción |
+|------|------|-----------|-------------|
+| `algorithm` | `string` | Sí | Nombre del algoritmo registrado (p. ej. `"fcfs"`, `"round-robin"`). |
+| `processes` | `Process[]` | Sí | Lista de procesos a simular. |
+| `params` | `{ quantum?: number }` | No | Parámetros adicionales del algoritmo. |
 
 ## Estructura de un proceso
 
-Cada proceso en el array `processes` sigue la interfaz `Process`:
-
 ```ts
 interface Process {
-  id: string;           // Identificador unico del proceso
-  arrival_time: number; // Tick en el que llega (>= 0)
-  burst_time: number;   // Duracion de la rafaga (> 0)
-  priority?: number;    // Prioridad (requerida por algoritmos de prioridad; menor = mas urgente)
+  id: string;           // Identificador único del proceso
+  arrival_time: number; // Tiempo de llegada (≥ 0)
+  burst_time: number;   // Duración de la ráfaga (> 0)
+  priority?: number;    // Prioridad (menor número = mayor prioridad)
 }
 ```
 
-## Algoritmos disponibles
+## Parámetro `quantum`
 
-| Nombre (`algorithm`) | Tipo | Requiere `priority` | Requiere `quantum` |
-|---|---|---|---|
-| `"fcfs"` | No expropiativo | No | No |
-| `"sjf"` | No expropiativo | No | No |
-| `"ljf"` | No expropiativo | No | No |
-| `"priority-np"` | No expropiativo | Si | No |
-| `"srtf"` | Expropiativo | No | No |
-| `"priority-p"` | Expropiativo | Si | No |
-| `"round-robin"` | Expropiativo | No | Si |
+Solo lo usan los algoritmos de tipo Round Robin (`preemptionMode: 'on-quantum'`).
+Si el algoritmo lo requiere (`requires.quantum === true`), el campo es obligatorio:
 
-## Parametro quantum (Round Robin)
-
-Round Robin requiere el parametro `quantum` en la prop `params`:
-
-```mdx
+```tsx
 <SimulationProvider
   algorithm="round-robin"
   processes={[...]}
   params={{ quantum: 2 }}
-  client:only="react"
 />
 ```
 
-El valor de `quantum` debe ser un entero positivo. Si se omite, el motor lanzara un error
-en el momento de la simulacion.
+## Campo `priority`
 
-## Metricas calculadas
+Los algoritmos de prioridad (`priority-np`, `priority-p`) leen el campo `priority`
+del proceso. Un número menor indica mayor prioridad. Si el campo no se incluye, el
+proceso se trata con la prioridad más baja posible.
 
-El simulador calcula automaticamente las siguientes metricas para cada proceso:
+## Errores de configuración
 
-| Metrica | Descripcion |
-|---|---|
-| `completion` | Tick en el que el proceso termina |
-| `turnaround` | `completion - arrival_time` |
-| `waiting` | `turnaround - burst_time` |
-| `response` | Primer tick en CPU - `arrival_time` |
-
-Y metricas agregadas:
-
-| Metrica | Descripcion |
-|---|---|
-| `avgWaiting` | Promedio de `waiting` entre todos los procesos |
-| `avgTurnaround` | Promedio de `turnaround` entre todos los procesos |
-| `cpuUtilization` | Fraccion de ticks con CPU activa |
-| `throughput` | Procesos completados por tick total |
-
-## Casos especiales
-
-- **Sin procesos:** el simulador devuelve un historial vacio sin error. El componente muestra un estado vacio.
-- **`burst_time = 0`:** el motor lanza el error `"La rafaga debe ser mayor que 0"`. El componente muestra el mensaje de error.
+| Situación | Comportamiento |
+|-----------|----------------|
+| `burst_time = 0` | El contexto expone `error: "La ráfaga debe ser mayor que 0"` y no ejecuta la simulación. |
+| `processes` vacío | Estado vacío sin error. |
+| Nombre de algoritmo desconocido | El contexto expone un error descriptivo con los algoritmos disponibles. |

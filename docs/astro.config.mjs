@@ -12,6 +12,14 @@ export default defineConfig({
       title: 'CPU Scheduler Simulator',
       sidebar: [
         {
+          label: 'Guías',
+          items: [
+            { label: 'Cómo usar',          link: '/guides/uso' },
+            { label: 'Configuración',      link: '/guides/configuracion' },
+            { label: 'Crear un algoritmo', link: '/guides/crear-algoritmo' },
+          ],
+        },
+        {
           label: 'No expropiativos',
           items: [
             { label: 'FCFS',           link: '/cpu-scheduler/non-preemptive/fcfs' },

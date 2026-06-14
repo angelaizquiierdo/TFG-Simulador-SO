@@ -1,11 +1,11 @@
 ---
-title: Cómo crear un algoritmo propio
-description: Guía para implementar IAlgorithm y registrar un algoritmo personalizado.
+title: Cómo crear un algoritmo
+description: Guía para implementar y registrar un algoritmo de planificación personalizado.
 ---
 
-El simulador es extensible: puedes añadir tu propio algoritmo de planificación implementando la interfaz `IAlgorithm` y registrándolo con `register()`.
-
 ## Interfaz `IAlgorithm`
+
+Todo algoritmo debe implementar la interfaz `IAlgorithm` exportada por el módulo:
 
 ```ts
 import type { IAlgorithm, ReadyProcess } from 'cpu-scheduler';
@@ -13,37 +13,23 @@ import type { IAlgorithm, ReadyProcess } from 'cpu-scheduler';
 class MiAlgoritmo implements IAlgorithm {
   readonly name = 'mi-algoritmo';
   readonly preemptionMode = 'none'; // 'none' | 'on-better' | 'on-quantum'
-  readonly requires = {};           // { priority?: true, quantum?: true }
+  readonly requires = { priority: false, quantum: false };
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
-    // Devuelve el proceso que debe ejecutarse a continuación.
-    // El array `ready` nunca está vacío cuando el motor llama a select().
-    const first = ready[0];
-    if (first === undefined) throw new Error('ready vacío');
-    return first;
+    if (ready.length === 0) throw new Error('Cola vacía');
+    // Lógica de selección: devuelve el proceso elegido
+    return ready[0]!;
   }
 }
 ```
 
-### Modos de expropación (`preemptionMode`)
+### Valores de `preemptionMode`
 
 | Valor | Comportamiento |
-|---|---|
-| `'none'` | No expropiativo. El motor llama a `select()` solo cuando la CPU queda libre. |
-| `'on-better'` | Expropiativo por mejor proceso. El motor reevalúa cada tick. |
-| `'on-quantum'` | Round Robin. El motor expropia al agotar el quantum y reencola el proceso. |
-
-### Campo `requires`
-
-Declara qué parámetros necesita el algoritmo:
-
-```ts
-readonly requires = { priority: true };  // necesita priority en los procesos
-readonly requires = { quantum: true };   // necesita quantum en params
-readonly requires = {};                  // sin requisitos adicionales
-```
-
-Los componentes visuales usan `requires` para mostrar u ocultar columnas (p.ej. `priority`).
+|-------|----------------|
+| `'none'` | No expropiativo: el motor solo llama a `select()` cuando la CPU queda libre. |
+| `'on-better'` | Expropiativo: el motor reevalúa en cada tick; si `select()` devuelve un proceso distinto al actual, expropia. |
+| `'on-quantum'` | Round Robin: expropia al agotar el quantum y reencola el proceso activo. |
 
 ## Registrar el algoritmo
 
@@ -51,57 +37,25 @@ Llama a `register()` antes de montar el componente:
 
 ```ts
 import { register } from 'cpu-scheduler';
+import { MiAlgoritmo } from './mi-algoritmo';
 
 register(new MiAlgoritmo());
 ```
 
-## Usar el algoritmo registrado
-
-Una vez registrado, pasa su `name` a `SimulationProvider`:
+A partir de ese momento puedes usarlo por nombre:
 
 ```tsx
-import {
-  register,
-  SimulationProvider,
-  GanttChart,
-  PlaybackControls,
-} from 'cpu-scheduler';
+import { SimulationProvider } from 'cpu-scheduler';
 
-register(new MiAlgoritmo());
-
-const processes = [
-  { id: 'P1', arrival_time: 0, burst_time: 4 },
-  { id: 'P2', arrival_time: 1, burst_time: 2 },
-];
-
-export default function MiDemo() {
-  return (
-    <SimulationProvider algorithm="mi-algoritmo" processes={processes}>
-      <GanttChart />
-      <PlaybackControls />
-    </SimulationProvider>
-  );
-}
+<SimulationProvider
+  algorithm="mi-algoritmo"
+  processes={[...]}
+/>
 ```
 
-## Ejemplo completo: algoritmo aleatorio (solo para pruebas)
+## Reglas del método `select()`
 
-```ts
-import type { IAlgorithm, ReadyProcess } from 'cpu-scheduler';
-
-// ADVERTENCIA: el simulador es determinista por diseño.
-// Este ejemplo es puramente ilustrativo — no uses Math.random() en producción.
-class UltimoEnLlegar implements IAlgorithm {
-  readonly name = 'lcfs';
-  readonly preemptionMode = 'none' as const;
-  readonly requires = {};
-
-  select(ready: readonly ReadyProcess[]): ReadyProcess {
-    const last = ready[ready.length - 1];
-    if (last === undefined) throw new Error('ready vacío');
-    return last;
-  }
-}
-```
-
-El motor se encarga del historial, las métricas y la navegación — el algoritmo solo implementa `select()`.
+- Recibe la cola de listos (`ready`) ya ordenada por el motor (criterio principal → menor `arrival_time` → menor `id`).
+- Debe devolver uno de los elementos de `ready` (no puede crear procesos nuevos).
+- Si `ready` está vacía, debe lanzar un error (el motor nunca llama a `select()` con cola vacía, pero es buena práctica protegerse).
+- No debe acceder a estado externo, `Math.random()` ni `Date.now()`: el simulador debe ser determinista.
