@@ -1,71 +1,84 @@
-import { describe, it, expect } from 'vitest';
+// T-16 — Tests de navegación manual (BEHAVIOURS § Navegación manual)
+
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Player } from '../../src/core/player.js';
-import type { HistoryEvent, History } from '../../src/core/types/history.js';
+import type { History } from '../../src/core/types/history.js';
 
-// Historia de N ticks para las pruebas
-function makeHistory(length: number): History {
-  const events: HistoryEvent[] = [];
-  for (let i = 0; i < length; i++) {
-    events.push({
-      tick: i,
-      onCPU: null,
-      ready: [],
-      pending: [],
-      completed: [],
-      message: `tick ${i.toString()}`,
-    });
-  }
-  return events;
-}
+/** Historial sintético de 6 ticks (0–5). */
+const makeHistory = (length: number): History =>
+  Array.from({ length }, (_, i) => ({
+    tick: i,
+    onCPU: null,
+    ready: [],
+    pending: [],
+    completed: [],
+    message: 'tick',
+  }));
 
-describe('Player — Navegación manual', () => {
-  it('tick 3 → stepForward() → 4', () => {
-    const player = new Player(makeHistory(6));
-    player.goTo(3);
+describe('Player — navegación manual', () => {
+  let player: Player;
+
+  beforeEach(() => {
+    // Historial de 6 ticks (índices 0..5)
+    player = new Player(makeHistory(6));
+    player.goTo(3); // situamos en tick 3
+  });
+
+  it('tick 3 → adelante → tick 4', () => {
     player.stepForward();
     expect(player.tick).toBe(4);
   });
 
-  it('tick 3 → stepBackward() → 2', () => {
-    const player = new Player(makeHistory(6));
-    player.goTo(3);
+  it('tick 3 → atrás → tick 2', () => {
     player.stepBackward();
     expect(player.tick).toBe(2);
   });
 
-  it('tick 0 → stepBackward() → 0 (no baja de 0)', () => {
-    const player = new Player(makeHistory(6));
+  it('tick 0 → atrás → permanece en tick 0', () => {
+    player.goTo(0);
     player.stepBackward();
     expect(player.tick).toBe(0);
+    expect(player.atStart).toBe(true);
   });
 
-  it('último tick → stepForward() → último (no supera el final)', () => {
-    const history = makeHistory(6);
-    const player = new Player(history);
-    player.goTo(history.length - 1);
+  it('último tick → adelante → permanece en el último tick', () => {
+    player.goTo(5);
+    expect(player.atEnd).toBe(true);
     player.stepForward();
-    expect(player.tick).toBe(history.length - 1);
+    expect(player.tick).toBe(5);
+    expect(player.atEnd).toBe(true);
   });
 
-  it('goTo(N) → N sin recalcular', () => {
-    const player = new Player(makeHistory(6));
+  it('goTo(N) salta directamente sin recalcular', () => {
+    player.goTo(2);
+    expect(player.tick).toBe(2);
+  });
+
+  it('current devuelve el HistoryEvent del tick actual', () => {
     player.goTo(4);
-    expect(player.tick).toBe(4);
+    expect(player.current?.tick).toBe(4);
   });
 
-  it('atStart es true en tick 0', () => {
-    const player = new Player(makeHistory(6));
+  it('atStart es true solo en tick 0', () => {
+    player.goTo(0);
     expect(player.atStart).toBe(true);
     player.stepForward();
     expect(player.atStart).toBe(false);
   });
 
-  it('atEnd es true en el último tick', () => {
-    const history = makeHistory(6);
-    const player = new Player(history);
-    player.goTo(history.length - 1);
+  it('atEnd es true solo en el último tick', () => {
+    player.goTo(5);
     expect(player.atEnd).toBe(true);
-    player.stepBackward();
+    player.goTo(4);
     expect(player.atEnd).toBe(false);
+  });
+
+  it('historial vacío: atEnd es true, stepForward y stepBackward no lanzan error', () => {
+    const empty = new Player([]);
+    expect(empty.atEnd).toBe(true);
+    expect(empty.atStart).toBe(true);
+    expect(() => { empty.stepForward(); }).not.toThrow();
+    expect(() => { empty.stepBackward(); }).not.toThrow();
+    expect(empty.tick).toBe(0);
   });
 });
