@@ -1,17 +1,18 @@
-// T-29 — Tabla de métricas (solo visible al final)
 import React from 'react';
 import { useSimulation } from './SimulationContext.js';
 import styles from './style/MetricsTable.module.css';
 
-export function MetricsTable(): React.ReactElement | null {
+export function MetricsTable() {
   const { result, atEnd } = useSimulation();
 
-  if (!atEnd || result === null) return null;
+  if (!atEnd || result === null) {
+    return null;
+  }
 
   const { perProcess, aggregate } = result.metrics;
 
   return (
-    <div className={styles.wrapper}>
+    <div className={styles.container}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -23,8 +24,8 @@ export function MetricsTable(): React.ReactElement | null {
           </tr>
         </thead>
         <tbody>
-          {perProcess.map((m, i) => (
-            <tr key={m.id} className={i % 2 === 0 ? styles.even : styles.odd}>
+          {perProcess.map(m => (
+            <tr key={m.id}>
               <td>{m.id}</td>
               <td>{m.completion}</td>
               <td>{m.turnaround}</td>
@@ -36,21 +37,11 @@ export function MetricsTable(): React.ReactElement | null {
       </table>
 
       <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>avgWaiting</th>
-            <th>avgTurnaround</th>
-            <th>cpuUtilization</th>
-            <th>throughput</th>
-          </tr>
-        </thead>
         <tbody>
-          <tr>
-            <td>{aggregate.avgWaiting.toFixed(2)}</td>
-            <td>{aggregate.avgTurnaround.toFixed(2)}</td>
-            <td>{aggregate.cpuUtilization.toFixed(2)}</td>
-            <td>{aggregate.throughput.toFixed(2)}</td>
-          </tr>
+          <tr><th>avgWaiting</th><td>{aggregate.avgWaiting.toFixed(2)}</td></tr>
+          <tr><th>avgTurnaround</th><td>{aggregate.avgTurnaround.toFixed(2)}</td></tr>
+          <tr><th>cpuUtilization</th><td>{aggregate.cpuUtilization.toFixed(2)}</td></tr>
+          <tr><th>throughput</th><td>{aggregate.throughput.toFixed(4)}</td></tr>
         </tbody>
       </table>
     </div>

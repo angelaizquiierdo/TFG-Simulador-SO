@@ -1,32 +1,24 @@
-.container {
+.controls {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-start;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.buttons {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.buttons button {
-  padding: 0.3rem 0.6rem;
-  font-size: 1rem;
+.controls button {
   cursor: pointer;
 }
 
-.buttons button:disabled {
+.controls button:disabled {
   opacity: 0.4;
-  cursor: not-allowed;
+  cursor: default;
 }
 
-.range {
-  width: 100%;
-  max-width: 400px;
+.slider {
+  flex: 1;
+  min-width: 100px;
 }
 
-.indicator {
-  font-size: 0.9rem;
-  color: #555;
+.tickLabel {
+  white-space: nowrap;
 }

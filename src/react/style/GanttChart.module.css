@@ -1,37 +1,43 @@
-.wrapper {
+.container {
   overflow-x: auto;
 }
 
-.table {
+.message {
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.matrix {
   border-collapse: collapse;
-  font-size: 0.85rem;
 }
 
-.tickHeader {
-  min-width: 2rem;
+.matrix th,
+.matrix td {
+  border: 1px solid #ccc;
+  width: 28px;
+  height: 28px;
   text-align: center;
-  border: 1px solid #ccc;
-  padding: 0.2rem;
-  background: #f0f0f0;
+  font-size: 12px;
+  padding: 0;
 }
 
-.cornerCell {
-  border: 1px solid #ccc;
-  padding: 0.2rem 0.5rem;
-}
-
-.pidCell {
-  border: 1px solid #ccc;
-  padding: 0.2rem 0.5rem;
-  font-weight: bold;
+.pidHeader {
+  background: #e0e0e0;
+  padding: 0 4px;
   white-space: nowrap;
 }
 
-.cell {
+.legend {
+  margin-top: 8px;
+}
+
+.legend table {
+  border-collapse: collapse;
+}
+
+.legend th,
+.legend td {
   border: 1px solid #ccc;
-  min-width: 2rem;
-  height: 1.6rem;
+  padding: 2px 6px;
   text-align: center;
-  font-size: 0.7rem;
-  color: #333;
 }

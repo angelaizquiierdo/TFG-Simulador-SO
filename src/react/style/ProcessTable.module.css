@@ -6,14 +6,18 @@
 .table th,
 .table td {
   border: 1px solid #ccc;
-  padding: 0.4rem 0.8rem;
+  padding: 4px 8px;
   text-align: left;
 }
 
+.table th {
+  background: #f0f0f0;
+}
+
 .even {
-  background-color: #f9f9f9;
+  background: #f9f9f9;
 }
 
 .odd {
-  background-color: #ffffff;
+  background: #ffffff;
 }

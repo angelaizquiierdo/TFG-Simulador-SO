@@ -1,17 +1,28 @@
-// T-28 — Controles de reproducción — ÚNICO lugar con requestAnimationFrame
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSimulation } from './SimulationContext.js';
 import styles from './style/PlaybackControls.module.css';
 
-export function PlaybackControls(): React.ReactElement {
-  const { result, tick, atStart, atEnd, stepForward, stepBackward, goTo } = useSimulation();
+const FRAME_MS = 400;
+
+export function PlaybackControls() {
+  const { tick, atStart, atEnd, totalTicks, stepForward, stepBackward, goTo } = useSimulation();
   const [playing, setPlaying] = useState(false);
+
+  // Refs para acceder a los valores actuales dentro del rAF
+  const atEndRef = useRef(atEnd);
+  const stepForwardRef = useRef(stepForward);
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
 
-  const total = result !== null ? result.history.length - 1 : 0;
+  // Sincronizar refs después del render (dentro de un efecto, no durante el render)
+  useLayoutEffect(() => {
+    atEndRef.current = atEnd;
+  }, [atEnd]);
 
-  // Reproducción automática con rAF y deltaTime (~1 tick/seg)
+  useLayoutEffect(() => {
+    stepForwardRef.current = stepForward;
+  }, [stepForward]);
+
   useEffect(() => {
     if (!playing) {
       if (rafRef.current !== null) {
@@ -22,101 +33,57 @@ export function PlaybackControls(): React.ReactElement {
       return;
     }
 
-    const loop = (time: number): void => {
-      lastTimeRef.current ??= time;
-      const delta = time - lastTimeRef.current;
-      if (delta >= 1000) {
-        lastTimeRef.current = time;
-        stepForward();
+    function frame(now: number) {
+      if (atEndRef.current) {
+        setPlaying(false);
+        return;
       }
-      rafRef.current = requestAnimationFrame(loop);
-    };
+      lastTimeRef.current ??= now;
+      const delta = now - lastTimeRef.current;
+      if (delta >= FRAME_MS) {
+        lastTimeRef.current = now;
+        stepForwardRef.current();
+      }
+      rafRef.current = requestAnimationFrame(frame);
+    }
 
-    rafRef.current = requestAnimationFrame(loop);
+    rafRef.current = requestAnimationFrame(frame);
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
 
-  // Detener si llegamos al final
-  useEffect(() => {
-    if (atEnd && playing) {
-      setPlaying(false);
-    }
-  }, [atEnd, playing]);
+  const handlePlayForward = () => { setPlaying(prev => !prev); };
+  const handleGoStart = () => { setPlaying(false); goTo(0); };
+  const handleGoEnd   = () => { setPlaying(false); goTo(Math.max(0, totalTicks - 1)); };
+  const handleBack    = () => { setPlaying(false); stepBackward(); };
+  const handleForward = () => { setPlaying(false); stepForward(); };
 
-  const handlePlayPause = (): void => {
-    if (result === null) return;
-    setPlaying((p) => !p);
-  };
-
-  const handleRange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    goTo(Number(e.target.value));
-  };
-
-  const noResult = result === null;
+  const isNoData = totalTicks === 0;
 
   return (
-    <div className={styles.container}>
-      <div className={styles.buttons}>
-        {/* ⏮ ir al inicio */}
-        <button
-          aria-label="Ir al inicio"
-          disabled={atStart || noResult}
-          onClick={() => { goTo(0); }}
-        >
-          ⏮
-        </button>
-        {/* ◀ retroceder */}
-        <button
-          aria-label="Retroceder"
-          disabled={atStart || noResult}
-          onClick={stepBackward}
-        >
-          ◀
-        </button>
-        {/* ▶ / ⏸ reproducción */}
-        <button
-          aria-label={playing ? 'Pausar' : 'Reproducir'}
-          disabled={noResult}
-          onClick={handlePlayPause}
-        >
-          {playing ? '⏸' : '▶'}
-        </button>
-        {/* ▶| avanzar */}
-        <button
-          aria-label="Avanzar"
-          disabled={atEnd || noResult}
-          onClick={stepForward}
-        >
-          ▶|
-        </button>
-        {/* ⏭ ir al final */}
-        <button
-          aria-label="Ir al final"
-          disabled={atEnd || noResult}
-          onClick={() => { goTo(total); }}
-        >
-          ⏭
-        </button>
-      </div>
+    <div className={styles.controls}>
+      <button onClick={handleGoStart} disabled={atStart || isNoData} aria-label="Ir al inicio">⏮</button>
+      <button onClick={handleBack}    disabled={atStart || isNoData} aria-label="Paso atrás">◀</button>
+      <button onClick={handlePlayForward} disabled={isNoData} aria-label={playing ? 'Pausar' : 'Reproducir'}>
+        {playing ? '⏸' : '▶'}
+      </button>
+      <button onClick={handleForward} disabled={atEnd || isNoData} aria-label="Paso adelante">▶|</button>
+      <button onClick={handleGoEnd}   disabled={atEnd || isNoData} aria-label="Ir al final">⏭</button>
       <input
         type="range"
+        className={styles.slider}
         min={0}
-        max={total}
+        max={totalTicks > 0 ? totalTicks - 1 : 0}
         value={tick}
-        onChange={handleRange}
-        disabled={noResult}
-        className={styles.range}
+        disabled={isNoData}
+        onChange={e => { setPlaying(false); goTo(Number(e.target.value)); }}
         aria-label="Barra de progreso"
       />
-      <span className={styles.indicator}>
-        {`Tick: ${String(tick)} / ${String(total)}`}
-      </span>
+      <span className={styles.tickLabel}>Tick: {tick} / {totalTicks > 0 ? totalTicks - 1 : 0}</span>
     </div>
   );
 }

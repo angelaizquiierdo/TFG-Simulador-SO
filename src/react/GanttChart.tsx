@@ -1,107 +1,113 @@
-// T-27 — Diagrama de Gantt como matriz (filas=procesos, columnas=ticks)
 import React from 'react';
 import { useSimulation } from './SimulationContext.js';
 import styles from './style/GanttChart.module.css';
 
-const PALETTE_SOLID = [
-  '#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
-  '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
-  '#9c755f', '#bab0ac',
+// Paleta de 10 colores de alto contraste
+const PALETTE = [
+  '#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
+  '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990',
 ];
 
-const PALETTE_LIGHT = [
-  '#aec6e8', '#fbc98d', '#f5aeaf', '#c0e0de',
-  '#a8d4a3', '#f7e8a0', '#d8bcd3', '#ffd4db',
-  '#d4c0b5', '#e0dcd9',
-];
-
-type CellState = 'cpu' | 'ready' | 'pending' | 'completed' | 'idle';
-
-function getCellState(
-  pid: string,
-  tickIndex: number,
-  result: ReturnType<typeof useSimulation>['result'],
-): CellState {
-  if (result === null) return 'pending';
-  const event = result.history[tickIndex];
-  if (event === undefined) return 'pending';
-  if (event.onCPU === null && !event.ready.includes(pid) && !event.completed.includes(pid)) {
-    // Tick con CPU inactiva — si el proceso no participa
-    if (!event.pending.includes(pid)) return 'idle';
-    return 'pending';
-  }
-  if (event.onCPU === pid) return 'cpu';
-  if (event.ready.includes(pid)) return 'ready';
-  if (event.completed.includes(pid)) return 'completed';
-  if (event.pending.includes(pid)) return 'pending';
-  // CPU inactiva y el proceso no está en ninguna cola
-  return 'idle';
+function getColor(index: number): string {
+  return PALETTE[index % PALETTE.length] ?? '#888888';
 }
 
-export function GanttChart(): React.ReactElement {
-  const { result, processes, tick } = useSimulation();
+type CellState = 'cpu' | 'waiting' | 'not-arrived' | 'idle';
 
-  // Columnas: 0..tick
-  const cols = Array.from({ length: tick + 1 }, (_, i) => i);
+function cellBackground(state: CellState, color: string): string {
+  switch (state) {
+    case 'cpu':        return color;
+    case 'waiting':    return `${color}55`;
+    case 'idle':       return '#aaaaaa';
+    case 'not-arrived': return '#eeeeee';
+  }
+}
+
+export function GanttChart() {
+  const { result, tick, currentEvent, processes } = useSimulation();
+
+  if (result === null || processes.length === 0) {
+    return <div className={styles.container}><p>Sin datos.</p></div>;
+  }
+
+  const history = result.history;
+  const visibleTicks = tick + 1;
+  const pids = processes.map(p => p.id);
+  const colorMap = new Map(pids.map((pid, i) => [pid, getColor(i)]));
+
+  function getCellState(pid: string, t: number): CellState {
+    const event = history[t];
+    if (event === undefined) return 'not-arrived';
+    if (event.completed.includes(pid)) return 'not-arrived';
+    if (event.onCPU === pid) return 'cpu';
+    if (event.ready.includes(pid)) return 'waiting';
+    if (event.onCPU === null && event.ready.length === 0) return 'idle';
+    return 'not-arrived';
+  }
+
+  function isIdleTick(t: number): boolean {
+    return history[t]?.onCPU === null;
+  }
+
+  const message = currentEvent?.message ?? '';
 
   return (
-    <div className={styles.wrapper}>
-      <table className={styles.table}>
+    <div className={styles.container}>
+      <p className={styles.message}>{message}</p>
+      <table className={styles.matrix}>
         <thead>
           <tr>
-            <th className={styles.cornerCell}></th>
-            {cols.map((t) => (
-              <th key={t} className={styles.tickHeader}>{String(t)}</th>
+            <th className={styles.pidHeader}></th>
+            {Array.from({ length: visibleTicks }, (_, t) => (
+              <th key={t}>{t}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {processes.map((p, pidx) => {
-            const solid = PALETTE_SOLID[pidx % PALETTE_SOLID.length] ?? '#999';
-            const light = PALETTE_LIGHT[pidx % PALETTE_LIGHT.length] ?? '#eee';
+          {pids.map(pid => {
+            const color = colorMap.get(pid) ?? '#888';
             return (
-              <tr key={p.id}>
-                <td className={styles.pidCell}>{p.id}</td>
-                {cols.map((t) => {
-                  const state = getCellState(p.id, t, result);
-                  const event = result?.history[t];
-                  const isIdleTick = event?.onCPU === null;
-
-                  let bg = 'transparent';
-                  let label = '';
-                  if (isIdleTick && state !== 'cpu' && state !== 'ready') {
-                    bg = '#d0d0d0';
-                    label = '';
-                  } else if (state === 'cpu') {
-                    bg = solid;
-                    label = 'CPU';
-                  } else if (state === 'ready') {
-                    bg = light;
-                    label = 'W';
-                  } else if (state === 'completed') {
-                    bg = '#e0e0e0';
-                    label = '';
-                  }
-
-                  return (
-                    <td
-                      key={t}
-                      className={styles.cell}
-                      style={{ backgroundColor: bg }}
-                      data-state={state}
-                      data-pid={p.id}
-                      data-tick={String(t)}
-                      aria-label={`${p.id} tick ${String(t)}: ${state}`}
-                    >
-                      {label}
-                    </td>
-                  );
+              <tr key={pid}>
+                <th className={styles.pidHeader}>{pid}</th>
+                {Array.from({ length: visibleTicks }, (_, t) => {
+                  const state = getCellState(pid, t);
+                  const bg = isIdleTick(t) && state === 'not-arrived'
+                    ? '#aaaaaa'
+                    : cellBackground(state, color);
+                  return <td key={t} style={{ backgroundColor: bg }}></td>;
                 })}
               </tr>
             );
           })}
         </tbody>
       </table>
+
+      <div className={styles.legend}>
+        <strong>Leyenda</strong>
+        <table>
+          <thead>
+            <tr>
+              <th>Proceso</th>
+              <th>Inactivo</th>
+              <th>En espera</th>
+              <th>En CPU</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pids.map(pid => {
+              const color = colorMap.get(pid) ?? '#888';
+              return (
+                <tr key={pid}>
+                  <th>{pid}</th>
+                  <td style={{ backgroundColor: '#aaaaaa' }}></td>
+                  <td style={{ backgroundColor: `${color}55` }}></td>
+                  <td style={{ backgroundColor: color }}></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
