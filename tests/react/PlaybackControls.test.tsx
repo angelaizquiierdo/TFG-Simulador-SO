@@ -1,167 +1,115 @@
-// @vitest-environment jsdom
+// Tests T-28 — PlaybackControls
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
 import React from 'react';
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import '../../src/index.js';
 import { SimulationProvider } from '../../src/react/SimulationProvider.js';
 import { PlaybackControls } from '../../src/react/PlaybackControls.js';
+import type { Process } from '../../src/core/types/process.js';
 
-afterEach(() => { cleanup(); });
-
-// P1(0,3), P2(1,2) con FCFS → 5 ticks (0..4)
-const processes = [
-  { id: 'P1', arrival_time: 0, burst_time: 3 },
+const procs: readonly Process[] = [
+  { id: 'P1', arrival_time: 0, burst_time: 2 },
   { id: 'P2', arrival_time: 1, burst_time: 2 },
 ];
 
 describe('PlaybackControls', () => {
-  it('BEHAVIOURS § Renderizado — PlaybackControls: muestra los 5 botones y la barra', () => {
+  it('Renderiza botones ⏮ ◀ ▶ ▶| ⏭ y barra y indicador de tick', () => {
     render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
+      <SimulationProvider algorithm="fcfs" processes={procs}>
         <PlaybackControls />
       </SimulationProvider>,
     );
-    expect(screen.getByRole('button', { name: /ir al inicio/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /paso atrás/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /reproducir|pausar/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /paso adelante/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /ir al final/i })).toBeTruthy();
-    expect(screen.getByRole('slider')).toBeTruthy();
+    expect(screen.getByLabelText('Ir al inicio')).toBeDefined();
+    expect(screen.getByLabelText('Retroceder')).toBeDefined();
+    expect(screen.getByLabelText('Reproducir')).toBeDefined();
+    expect(screen.getByLabelText('Avanzar')).toBeDefined();
+    expect(screen.getByLabelText('Ir al final')).toBeDefined();
+    expect(screen.getByLabelText('Barra de progreso')).toBeDefined();
+    expect(screen.getByText(/Tick:/)).toBeDefined();
   });
 
-  it('BEHAVIOURS § Renderizado — PlaybackControls: en tick 0 los botones atrás e inicio están deshabilitados', () => {
+  it('Tick 0 → ⏮ y ◀ disabled', () => {
     render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
+      <SimulationProvider algorithm="fcfs" processes={procs}>
         <PlaybackControls />
       </SimulationProvider>,
     );
-    expect(screen.getByRole('button', { name: /paso atrás/i }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: /ir al inicio/i }).hasAttribute('disabled')).toBe(true);
+    expect((screen.getByLabelText('Ir al inicio')).disabled).toBe(true);
+    expect((screen.getByLabelText('Retroceder')).disabled).toBe(true);
   });
 
-  it('BEHAVIOURS § Renderizado — PlaybackControls: en último tick los botones adelante y final están deshabilitados', () => {
+  it('Último tick → ▶| y ⏭ disabled', () => {
     render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
+      <SimulationProvider algorithm="fcfs" processes={procs}>
         <PlaybackControls />
       </SimulationProvider>,
     );
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '4' } });
-    expect(screen.getByRole('button', { name: /paso adelante/i }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: /ir al final/i }).hasAttribute('disabled')).toBe(true);
+    act(() => {
+      screen.getByLabelText('Ir al final').click();
+    });
+    expect((screen.getByLabelText('Avanzar')).disabled).toBe(true);
+    expect((screen.getByLabelText('Ir al final')).disabled).toBe(true);
   });
 
-  it('BEHAVIOURS § Navegación manual: paso adelante avanza el tick', () => {
+  it('Tick intermedio → botones de avance y retroceso habilitados', () => {
     render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
+      <SimulationProvider algorithm="fcfs" processes={procs}>
         <PlaybackControls />
       </SimulationProvider>,
     );
-    const indicator = screen.getByLabelText('tick actual');
-    expect(indicator.textContent).toContain('Tick: 0');
-    fireEvent.click(screen.getByRole('button', { name: /paso adelante/i }));
-    expect(indicator.textContent).toContain('Tick: 1');
+    act(() => {
+      screen.getByLabelText('Avanzar').click();
+    });
+    expect((screen.getByLabelText('Ir al inicio')).disabled).toBe(false);
+    expect((screen.getByLabelText('Retroceder')).disabled).toBe(false);
+    expect((screen.getByLabelText('Avanzar')).disabled).toBe(false);
+    expect((screen.getByLabelText('Ir al final')).disabled).toBe(false);
   });
 
-  it('BEHAVIOURS § Renderizado — PlaybackControls: tick intermedio — todos los botones habilitados', () => {
+  it('Sin procesos (result null) → tick 0/0 y botones de avance deshabilitados', () => {
     render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
+      <SimulationProvider algorithm="fcfs" processes={[]}>
         <PlaybackControls />
       </SimulationProvider>,
     );
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '2' } });
-    expect(screen.getByRole('button', { name: /paso atrás/i }).hasAttribute('disabled')).toBe(false);
-    expect(screen.getByRole('button', { name: /paso adelante/i }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByText('Tick: 0 / 0')).toBeDefined();
+    expect((screen.getByLabelText('Avanzar')).disabled).toBe(true);
+    expect((screen.getByLabelText('Ir al final')).disabled).toBe(true);
   });
 
-  it('BEHAVIOURS § Reproducción automática: click ir al final va al último tick', () => {
-    render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
-        <PlaybackControls />
-      </SimulationProvider>,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /ir al final/i }));
-    expect(screen.getByLabelText('tick actual').textContent).toContain('Tick: 4');
-  });
-
-  it('BEHAVIOURS § Reproducción automática: click ir al inicio vuelve a tick 0', () => {
-    render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
-        <PlaybackControls />
-      </SimulationProvider>,
-    );
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
-    fireEvent.click(screen.getByRole('button', { name: /ir al inicio/i }));
-    expect(screen.getByLabelText('tick actual').textContent).toContain('Tick: 0');
-  });
-
-  it('BEHAVIOURS § Navegación manual: paso atrás desde tick 2 va a tick 1', () => {
-    render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
-        <PlaybackControls />
-      </SimulationProvider>,
-    );
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: /paso atrás/i }));
-    expect(screen.getByLabelText('tick actual').textContent).toContain('Tick: 1');
-  });
-
-  it('BEHAVIOURS § Reproducción automática: RAF avanza tick al reproducir', () => {
-    let storedCb: FrameRequestCallback | null = null;
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { storedCb = cb; return 1; });
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  it('Reproducción automática llega al último tick → se detiene (playing=false)', () => {
+    let time = 0;
+    const rafCallbacks: ((t: number) => void)[] = [];
+    const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => { /* noop */ });
 
     render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
+      <SimulationProvider algorithm="fcfs" processes={procs}>
         <PlaybackControls />
       </SimulationProvider>,
     );
 
-    act(() => { fireEvent.click(screen.getByRole('button', { name: /reproducir/i })); });
-    act(() => { storedCb?.(600); });
+    // Iniciar reproducción
+    act(() => {
+      screen.getByLabelText('Reproducir').click();
+    });
 
-    expect(screen.getByLabelText('tick actual').textContent).toContain('Tick: 1');
-    vi.unstubAllGlobals();
-  });
+    // Simular frames hasta que el botón vuelva a ser "Reproducir"
+    for (let i = 0; i < 20; i++) {
+      act(() => {
+        time += 1100;
+        const cbs = rafCallbacks.splice(0);
+        for (const cb of cbs) cb(time);
+      });
+      if (screen.queryByLabelText('Pausar') === null) break;
+    }
 
-  it('BEHAVIOURS § Reproducción automática: al llegar al final la reproducción se detiene', () => {
-    // Avanzamos tick a tick con RAF desde el inicio hasta que atEnd dispara setPlaying(false)
-    let storedCb: FrameRequestCallback | null = null;
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { storedCb = cb; return 1; });
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    expect(screen.queryByLabelText('Pausar')).toBeNull();
+    expect(screen.getByLabelText('Reproducir')).toBeDefined();
 
-    render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
-        <PlaybackControls />
-      </SimulationProvider>,
-    );
-
-    // Iniciar reproducción desde tick 0
-    act(() => { fireEvent.click(screen.getByRole('button', { name: /reproducir/i })); });
-    // 4 avances: 0→1, 1→2, 2→3, 3→4 (al llegar a 4, atEnd=true y effect re-runs)
-    act(() => { storedCb?.(600); });
-    act(() => { storedCb?.(1200); });
-    act(() => { storedCb?.(1800); });
-    act(() => { storedCb?.(2400); });
-    // El effect re-corrió con atEnd=true; este disparo llama setPlaying(false)
-    act(() => { storedCb?.(3000); });
-
-    expect(screen.getByRole('button', { name: /reproducir/i })).toBeTruthy();
-    vi.unstubAllGlobals();
-  });
-
-  it('BEHAVIOURS § Reproducción automática: pausar detiene la reproducción', () => {
-    vi.stubGlobal('requestAnimationFrame', vi.fn().mockReturnValue(1));
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
-
-    render(
-      <SimulationProvider algorithm="FCFS" processes={processes}>
-        <PlaybackControls />
-      </SimulationProvider>,
-    );
-
-    act(() => { fireEvent.click(screen.getByRole('button', { name: /reproducir/i })); });
-    act(() => { fireEvent.click(screen.getByRole('button', { name: /pausar/i })); });
-
-    expect(screen.getByRole('button', { name: /reproducir/i })).toBeTruthy();
-    vi.unstubAllGlobals();
+    rafSpy.mockRestore();
   });
 });

@@ -1,0 +1,32 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.buttons button {
+  padding: 0.3rem 0.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.range {
+  width: 100%;
+  max-width: 400px;
+}
+
+.indicator {
+  font-size: 0.9rem;
+  color: #555;
+}

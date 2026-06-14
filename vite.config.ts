@@ -26,6 +26,7 @@ export default defineConfig({
     },
   },
   test: {
+    setupFiles: ['tests/react/setup.ts'],
     environmentMatchGlobs: [
       ['tests/react/**', 'jsdom'],
       ['tests/core/**', 'node'],

@@ -1,0 +1,19 @@
+.table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ccc;
+  padding: 0.4rem 0.8rem;
+  text-align: left;
+}
+
+.even {
+  background-color: #f9f9f9;
+}
+
+.odd {
+  background-color: #ffffff;
+}
