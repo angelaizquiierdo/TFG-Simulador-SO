@@ -1,6 +1,6 @@
 # CLAUDE.md — Guía para el agente
 
-Este archivo orienta al agente que ejecuta `specs/PLAN.MD` tarea a tarea.
+Este archivo orienta al agente que ejecuta `specs/v-01/PLAN.MD` tarea a tarea.
 Léelo completo antes de tocar código.
 
 ---
@@ -20,10 +20,10 @@ embeber. Las páginas de Astro son solo la demo.
 
 | Archivo | Qué contiene |
 |---|---|
-| `specs/SPECv-01.md` | Qué debe hacer el producto (funcionalidades, modelo de datos, casos límite) |
+| `specs/v-01/SPECv-01.md` | Qué debe hacer el producto (funcionalidades, modelo de datos, casos límite) |
 | `specs/TECHNICAL.md` | Arquitectura, stack, contratos exactos (`IAlgorithm`, `History`), restricciones |
-| `specs/BEHAVIOURSv-01.md` | Criterios de aceptación Given/When/Then — cada uno debe tener un test |
-| `specs/PLAN.MD` | Hoja de ruta: fases y tareas atómicas con su verificación |
+| `specs/v-01/BEHAVIOURSv-01.md` | Criterios de aceptación Given/When/Then — cada uno debe tener un test |
+| `specs/v-01/PLAN.MD` | Hoja de ruta: fases y tareas atómicas con su verificación |
 | `specs/DECISIONS.md` | Decisiones de diseño ya tomadas — no reabrir sin motivo |
 
 ---
@@ -121,7 +121,7 @@ type History = readonly HistoryEvent[];
 interface Interval {
   readonly pid:   string | null;   // null = hueco de inactividad
   readonly start: number;
-  readonly fin:   number;
+  readonly end:   number;
 }
 ```
 
@@ -184,7 +184,7 @@ npm run build       # build estático
 
 ## 10. Tests y criterios de aceptación
 
-Cada criterio de `specs/BEHAVIOURSv-01.md` debe tener **al menos un test** en `tests/`.
+Cada criterio de `specs/v-01/BEHAVIOURSv-01.md` debe tener **al menos un test** en `tests/`.
 
 - Tests del motor y algoritmos → `tests/core/` (entorno Node, sin DOM).
 - Tests de componentes → `tests/react/` (entorno jsdom, Testing Library).
