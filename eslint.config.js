@@ -10,6 +10,7 @@ export default tseslint.config(
       'dist/**',
       'node_modules/**',
       'docs/**',
+      'simulador-ui/**',
       '*.config.js',
       '*.config.ts',
     ],
