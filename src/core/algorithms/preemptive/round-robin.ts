@@ -1,15 +1,17 @@
-// T-23 · Round Robin — expropiativo on-quantum, orden FIFO
 import type { IAlgorithm, ReadyProcess } from '../../types/algorithm.js';
 
+// Round Robin: selecciona el primer proceso de la cola FIFO (el motor gestiona el quantum)
 export class RoundRobin implements IAlgorithm {
   readonly name = 'round-robin';
   readonly preemptionMode = 'on-quantum' as const;
   readonly requires = { quantum: true };
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
-    // El motor mantiene el orden FIFO de la cola; devolver el primero es suficiente.
+    if (ready.length === 0) {
+      throw new Error('select() llamado con la cola de listos vacía');
+    }
     const first = ready[0];
-    if (first === undefined) throw new Error('RoundRobin.select: cola vacía');
+    if (first === undefined) throw new Error('select() llamado con la cola de listos vacía');
     return first;
   }
 }

@@ -1,17 +1,19 @@
-// T-21 · SRTF (Shortest Remaining Time First) — expropiativo on-better
 import type { IAlgorithm, ReadyProcess } from '../../types/algorithm.js';
 
+// Shortest-Remaining-Time-First expropiativo: selecciona el proceso con menor remaining
 export class SRTF implements IAlgorithm {
   readonly name = 'srtf';
   readonly preemptionMode = 'on-better' as const;
   readonly requires = {};
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
-    let best = ready[0];
-    if (best === undefined) throw new Error('SRTF.select: cola vacía');
-    for (let i = 1; i < ready.length; i++) {
-      const p = ready[i];
-      if (p !== undefined && p.remaining < best.remaining) {
+    const initial = ready[0];
+    if (initial === undefined) {
+      throw new Error('select() llamado con la cola de listos vacía');
+    }
+    let best = initial;
+    for (const p of ready) {
+      if (p.remaining < best.remaining) {
         best = p;
       }
     }

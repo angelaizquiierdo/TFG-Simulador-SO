@@ -420,6 +420,7 @@ describe('T-14: Casos límite', () => {
       preemptionMode: 'none',
       requires: {},
       select(ready: readonly ReadyProcess[]): ReadyProcess {
+        void ready; // parámetro requerido por IAlgorithm; no usado en este stub
         // Devolver un ID falso para forzar CPU inactiva indefinidamente
         return { id: 'FAKE', arrival_time: 0, burst_time: 1, remaining: 1 };
       },
