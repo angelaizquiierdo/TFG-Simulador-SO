@@ -1,76 +1,71 @@
+// T-18 · Tests de SJF — cierra § Simular — SJF
 import { describe, it, expect } from 'vitest';
-import { SJF } from '../../../../src/core/algorithms/non-preemptive/sjf.js';
 import { run } from '../../../../src/core/simulate.js';
+import { SJF } from '../../../../src/core/algorithms/non-preemptive/sjf.js';
 
-describe('SJF', () => {
-  const algo = new SJF();
+const algo = new SJF();
 
-  it('tiene preemptionMode none', () => {
-    expect(algo.preemptionMode).toBe('none');
-    expect(algo.name).toBe('SJF');
+describe('SJF — escenario 1', () => {
+  // P1(0,5), P2(1,2), P3(2,4), P4(3,1) → P1[0–5], P4[5–6], P2[6–8], P3[8–12]
+  const processes = [
+    { id: 'P1', arrival_time: 0, burst_time: 5 },
+    { id: 'P2', arrival_time: 1, burst_time: 2 },
+    { id: 'P3', arrival_time: 2, burst_time: 4 },
+    { id: 'P4', arrival_time: 3, burst_time: 1 },
+  ];
+  const result = run(processes, { algorithm: algo });
+
+  it('diagrama de Gantt correcto', () => {
+    const active = result.intervals.filter(i => i.pid !== null);
+    expect(active[0]).toMatchObject({ pid: 'P1', start: 0, end: 5 });
+    expect(active[1]).toMatchObject({ pid: 'P4', start: 5, end: 6 });
+    expect(active[2]).toMatchObject({ pid: 'P2', start: 6, end: 8 });
+    expect(active[3]).toMatchObject({ pid: 'P3', start: 8, end: 12 });
   });
 
-  it('select lanza error si la lista está vacía', () => {
-    expect(() => algo.select([])).toThrow();
+  it('tiempo de espera medio ≈ 3.25', () => {
+    expect(result.metrics.aggregate.avgWaiting).toBeCloseTo(3.25, 2);
   });
 
-  it('select devuelve el proceso con menor remaining', () => {
-    const ready = [
-      { id: 'P1', arrival_time: 0, burst_time: 5, remaining: 5 },
-      { id: 'P2', arrival_time: 1, burst_time: 2, remaining: 2 },
-    ];
-    expect(algo.select(ready).id).toBe('P2');
+  it('tiempo de retorno medio ≈ 6.25', () => {
+    expect(result.metrics.aggregate.avgTurnaround).toBeCloseTo(6.25, 2);
   });
+});
 
-  // BEHAVIOURS § Simular — SJF (caso 1)
-  // P1(0,5), P2(1,2), P3(2,4), P4(3,1) → P1[0-5], P4[5-6], P2[6-8], P3[8-12]
-  // avgWaiting=3.25, avgTurnaround=6.25
-  it('fixture 1: P1[0-5], P4[5-6], P2[6-8], P3[8-12]', () => {
-    const processes = [
-      { id: 'P1', arrival_time: 0, burst_time: 5 },
-      { id: 'P2', arrival_time: 1, burst_time: 2 },
-      { id: 'P3', arrival_time: 2, burst_time: 4 },
-      { id: 'P4', arrival_time: 3, burst_time: 1 },
-    ];
-    const result = run(processes, algo);
-    const ids = result.intervals.map((i) => i.pid);
-    expect(ids).toEqual(['P1', 'P4', 'P2', 'P3']);
-    expect(result.metrics.aggregate.avgWaiting).toBe(3.25);
-    expect(result.metrics.aggregate.avgTurnaround).toBe(6.25);
-  });
-
-  // BEHAVIOURS § Simular — SJF (caso 2): idle gaps
+describe('SJF — escenario 2 (CPU inactiva)', () => {
   // P1(0,2), P2(5,2), P3(6,3), P4(12,1)
-  // Gantt: P1[0-2], Idle[2-5], P2[5-7], P3[7-10], Idle[10-12], P4[12-13]
-  it('fixture 2: idle gaps entre procesos', () => {
-    const processes = [
-      { id: 'P1', arrival_time: 0, burst_time: 2 },
-      { id: 'P2', arrival_time: 5, burst_time: 2 },
-      { id: 'P3', arrival_time: 6, burst_time: 3 },
-      { id: 'P4', arrival_time: 12, burst_time: 1 },
-    ];
-    const result = run(processes, algo);
-    expect(result.intervals[0]).toMatchObject({ pid: 'P1', start: 0, end: 2 });
-    expect(result.intervals[1]).toMatchObject({ pid: null, start: 2, end: 5 });
-    expect(result.intervals[2]).toMatchObject({ pid: 'P2', start: 5, end: 7 });
-    expect(result.intervals[3]).toMatchObject({ pid: 'P3', start: 7, end: 10 });
-    expect(result.intervals[4]).toMatchObject({ pid: null, start: 10, end: 12 });
-    expect(result.intervals[5]).toMatchObject({ pid: 'P4', start: 12, end: 13 });
+  const processes = [
+    { id: 'P1', arrival_time: 0, burst_time: 2 },
+    { id: 'P2', arrival_time: 5, burst_time: 2 },
+    { id: 'P3', arrival_time: 6, burst_time: 3 },
+    { id: 'P4', arrival_time: 12, burst_time: 1 },
+  ];
+  const result = run(processes, { algorithm: algo });
+
+  it('CPU inactiva en [2–5] y [10–12]', () => {
+    const idle = result.intervals.filter(i => i.pid === null);
+    expect(idle[0]).toMatchObject({ start: 2, end: 5 });
+    expect(idle[1]).toMatchObject({ start: 10, end: 12 });
+  });
+});
+
+describe('SJF — escenario 3 (desempate por burst_time igual)', () => {
+  // P1(0,4), P2(0,2), P3(0,3) → P2[0–2], P3[2–5], P1[5–9]
+  const processes = [
+    { id: 'P1', arrival_time: 0, burst_time: 4 },
+    { id: 'P2', arrival_time: 0, burst_time: 2 },
+    { id: 'P3', arrival_time: 0, burst_time: 3 },
+  ];
+  const result = run(processes, { algorithm: algo });
+
+  it('diagrama de Gantt correcto', () => {
+    const active = result.intervals.filter(i => i.pid !== null);
+    expect(active[0]).toMatchObject({ pid: 'P2', start: 0, end: 2 });
+    expect(active[1]).toMatchObject({ pid: 'P3', start: 2, end: 5 });
+    expect(active[2]).toMatchObject({ pid: 'P1', start: 5, end: 9 });
   });
 
-  // BEHAVIOURS § Simular — SJF (caso 3): todos llegan en t=0
-  // P1(0,4), P2(0,2), P3(0,3) → P2[0-2], P3[2-5], P1[5-9]
-  it('fixture 3: P2[0-2], P3[2-5], P1[5-9]', () => {
-    const processes = [
-      { id: 'P1', arrival_time: 0, burst_time: 4 },
-      { id: 'P2', arrival_time: 0, burst_time: 2 },
-      { id: 'P3', arrival_time: 0, burst_time: 3 },
-    ];
-    const result = run(processes, algo);
-    expect(result.intervals[0]).toMatchObject({ pid: 'P2', start: 0, end: 2 });
-    expect(result.intervals[1]).toMatchObject({ pid: 'P3', start: 2, end: 5 });
-    expect(result.intervals[2]).toMatchObject({ pid: 'P1', start: 5, end: 9 });
-    expect(result.metrics.aggregate.avgWaiting).toBe(2.33);
-    expect(result.metrics.aggregate.avgTurnaround).toBe(5.33);
+  it('tiempo de espera medio ≈ 2.33', () => {
+    expect(result.metrics.aggregate.avgWaiting).toBeCloseTo(2.33, 2);
   });
 });

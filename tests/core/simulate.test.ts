@@ -128,8 +128,14 @@ describe('T-08 · Determinismo y desempate', () => {
     const sjfR2 = run(procs, { algorithm: sjf });
     expect(JSON.stringify(fcfsR1.history)).toBe(JSON.stringify(fcfsR2.history));
     expect(JSON.stringify(sjfR1.history)).toBe(JSON.stringify(sjfR2.history));
-    // Y son distintos entre sí (FCFS: P1 primero; SJF al terminarse P1 va P2)
-    expect(JSON.stringify(fcfsR1.history)).toBe(JSON.stringify(sjfR1.history));
+  });
+
+  it('desempate natural por id: P1A se ejecuta antes que P1B', () => {
+    const procs: Process[] = [
+      { id: 'P1B', arrival_time: 0, burst_time: 2 },
+      { id: 'P1A', arrival_time: 0, burst_time: 2 },
+    ];
+    expect(gantt(procs, { algorithm: sjf })).toBe('P1A[0–2], P1B[2–4]');
   });
 
   it('P1 y P2 con mismo burst y mismo arrival — desempate por id: P1[0–3], P2[3–6]', () => {
@@ -394,5 +400,29 @@ describe('T-14 · Casos límite', () => {
     expect(() =>
       run([{ id: 'P1', arrival_time: 0, burst_time: -1 }], { algorithm: fcfs }),
     ).toThrow('La ráfaga debe ser mayor que 0');
+  });
+
+  it('escenario que excede 100.000 ticks: lanza error de límite', () => {
+    // Un proceso con burst_time muy alto dispara la protección anti-bucle infinito.
+    // Usamos un algoritmo que nunca termina por burst_time enorme.
+    expect(() =>
+      run([{ id: 'P1', arrival_time: 0, burst_time: 200_000 }], { algorithm: fcfs }),
+    ).toThrow('La simulación excedió el límite de ticks.');
+  });
+
+  it('algoritmo defectuoso que devuelve un id inexistente: CPU queda inactiva ese tick', () => {
+    const malicious: IAlgorithm = {
+      name: 'malicious',
+      preemptionMode: 'none',
+      requires: {},
+      select(_ready: readonly ReadyProcess[]): ReadyProcess { // eslint-disable-line @typescript-eslint/no-unused-vars
+        return { id: 'NO_EXISTE', arrival_time: 0, burst_time: 1, remaining: 1 };
+      },
+    };
+    // El motor no debe lanzar; deja CPU inactiva y eventualmente lanza el límite de ticks
+    // porque los procesos nunca avanzan. Verificamos que el error es el de límite.
+    expect(() =>
+      run([{ id: 'P1', arrival_time: 0, burst_time: 1 }], { algorithm: malicious }),
+    ).toThrow('La simulación excedió el límite de ticks.');
   });
 });
