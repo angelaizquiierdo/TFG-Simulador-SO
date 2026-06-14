@@ -7,9 +7,11 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "typecheck": "astro check"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.9",
     "@astrojs/react": "^5.0.7",
     "@astrojs/starlight": "^0.40.0",
     "@types/react": "^19.2.17",
@@ -17,7 +19,8 @@
     "astro": "^6.4.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
     "eslint-plugin-astro": "^1.7.0"
