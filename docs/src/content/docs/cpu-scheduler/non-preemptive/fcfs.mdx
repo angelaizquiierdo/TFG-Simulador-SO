@@ -3,4 +3,21 @@ title: FCFS (First-Come, First-Served)
 description: Algoritmo de planificación FCFS no expropiativo.
 ---
 
-Página en construcción.
+import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
+
+## Descripción
+
+**FCFS** ejecuta los procesos en orden de llegada. Es no expropiativo: una vez que un
+proceso entra en CPU, la ocupa hasta terminar su ráfaga.
+
+## Escenario de ejemplo
+
+<SimulationProvider
+  algorithm="fcfs"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 3 },
+    { id: 'P2', arrival_time: 2, burst_time: 2 },
+    { id: 'P3', arrival_time: 1, burst_time: 4 },
+  ]}
+  client:only="react"
+/>

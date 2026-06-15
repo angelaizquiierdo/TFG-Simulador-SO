@@ -1,0 +1,64 @@
+---
+title: Cómo crear un algoritmo
+description: Implementa IAlgorithm y regístralo para usarlo con el simulador.
+---
+
+## Contrato `IAlgorithm`
+
+Cualquier algoritmo de planificación debe implementar la interfaz:
+
+```ts
+interface IAlgorithm {
+  readonly name: string;                           // Nombre único para el registro
+  readonly preemptionMode: PreemptionMode;         // 'none' | 'on-better' | 'on-quantum'
+  readonly requires: { priority?: boolean; quantum?: boolean };
+  select(ready: readonly ReadyProcess[]): ReadyProcess;
+}
+```
+
+- `preemptionMode: 'none'` → no expropiativo (select solo cuando la CPU queda libre).
+- `preemptionMode: 'on-better'` → expropiativo por mejor proceso (select cada tick).
+- `preemptionMode: 'on-quantum'` → Round Robin (expropiar al agotar el quantum).
+
+## Ejemplo: algoritmo LIFO
+
+```ts
+import type { IAlgorithm, ReadyProcess } from 'cpu-scheduler';
+
+export class LIFO implements IAlgorithm {
+  readonly name = 'lifo';
+  readonly preemptionMode = 'none' as const;
+  readonly requires = {};
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    const last = ready[ready.length - 1];
+    if (last === undefined) throw new Error('La cola de listos está vacía');
+    return last;
+  }
+}
+```
+
+## Registrar el algoritmo
+
+```ts
+import { register } from 'cpu-scheduler';
+import { LIFO } from './lifo.js';
+
+register(new LIFO());
+```
+
+Después de registrarlo, úsalo por nombre en `SimulationProvider`:
+
+```mdx
+<SimulationProvider
+  algorithm="lifo"
+  processes={[...]}
+  client:only="react"
+/>
+```
+
+## Reglas del contrato
+
+- `select()` nunca debe modificar el historial, las colas ni las métricas — solo seleccionar.
+- Si la cola está vacía, `select()` debe lanzar un error.
+- No usar `Math.random()` ni `Date.now()` (el simulador debe ser determinista).
