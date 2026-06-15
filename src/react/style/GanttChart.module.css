@@ -4,7 +4,7 @@
 
 .message {
   font-size: 0.9rem;
-  color: #444;
+  color: var(--sim-text-muted, #555555);
   margin-bottom: 0.5rem;
   min-height: 1.2em;
 }
@@ -19,7 +19,7 @@
 
 .matrix th,
 .matrix td {
-  border: 1px solid #ccc;
+  border: 1px solid var(--sim-border, #cccccc);
   width: 28px;
   height: 24px;
   padding: 0;
@@ -28,12 +28,12 @@
 }
 
 .matrix th {
-  background: #f5f5f5;
+  background: var(--sim-surface, #f0f0f0);
   font-weight: normal;
 }
 
 .pidHeader {
-  background: #e8e8e8;
+  background: var(--sim-surface-2, #e8e8e8);
   font-weight: bold;
   padding: 0 6px;
   white-space: nowrap;
@@ -55,11 +55,11 @@
 
 .legendTable th,
 .legendTable td {
-  border: 1px solid #ccc;
+  border: 1px solid var(--sim-border, #cccccc);
   padding: 0.3rem 0.6rem;
   font-size: 0.8rem;
 }
 
 .legendTable th {
-  background: #f5f5f5;
+  background: var(--sim-surface, #f0f0f0);
 }

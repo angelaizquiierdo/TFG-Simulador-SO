@@ -1,12 +1,26 @@
 .container {
+  /* Variables del tema — Starlight las sobreescribe automaticamente si el host
+     las define; si no, se usan los valores de modo claro como fallback. */
+  --sim-bg:          var(--sl-color-bg,          #ffffff);
+  --sim-surface:     var(--sl-color-bg-nav,       #f0f0f0);
+  --sim-surface-2:   var(--sl-color-bg-sidebar,   #e8e8e8);
+  --sim-border:      var(--sl-color-hairline,     #cccccc);
+  --sim-text:        var(--sl-color-text,         inherit);
+  --sim-text-muted:  var(--sl-color-gray-3,       #555555);
+  --sim-stripe:      var(--sl-color-bg-sidebar,   #f9f9f9);
+  --sim-btn-bg:      var(--sl-color-bg-nav,       #f0f0f0);
+  --sim-btn-border:  var(--sl-color-hairline,     #bbbbbb);
+
   font-family: sans-serif;
   padding: 1rem;
+  color: var(--sim-text);
+  background: var(--sim-bg);
 }
 
 .error {
-  color: #c00;
+  color: #cc0000;
   font-weight: bold;
   padding: 0.5rem;
-  border: 1px solid #c00;
+  border: 1px solid #cc0000;
   border-radius: 4px;
 }

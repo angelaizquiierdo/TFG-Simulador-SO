@@ -7,12 +7,13 @@
 }
 
 .btn {
-  background: #f0f0f0;
-  border: 1px solid #bbb;
+  background: var(--sim-btn-bg, #f0f0f0);
+  border: 1px solid var(--sim-btn-border, #bbbbbb);
   border-radius: 4px;
   padding: 0.3rem 0.6rem;
   cursor: pointer;
   font-size: 1rem;
+  color: var(--sim-text, inherit);
 }
 
 .btn:disabled {
