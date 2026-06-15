@@ -7,9 +7,10 @@
   --sim-border:      var(--sl-color-hairline,     #cccccc);
   --sim-text:        var(--sl-color-text,         inherit);
   --sim-text-muted:  var(--sl-color-gray-3,       #555555);
-  --sim-stripe:      var(--sl-color-bg-sidebar,   #f9f9f9);
-  --sim-btn-bg:      var(--sl-color-bg-nav,       #f0f0f0);
-  --sim-btn-border:  var(--sl-color-hairline,     #bbbbbb);
+  --sim-stripe:                                   #f9f9f9;
+  --sim-btn-bg:      var(--sim-surface);
+  --sim-btn-border:  var(--sim-border);
+  --sim-error:       var(--sl-color-red,          #cc0000);
 
   font-family: sans-serif;
   padding: 1rem;
@@ -18,9 +19,9 @@
 }
 
 .error {
-  color: #cc0000;
+  color: var(--sim-error);
   font-weight: bold;
   padding: 0.5rem;
-  border: 1px solid #cc0000;
+  border: 1px solid var(--sim-error);
   border-radius: 4px;
 }

@@ -15,11 +15,11 @@
 
 .table th,
 .table td {
-  border: 1px solid var(--sim-border, #cccccc);
+  border: 1px solid var(--sim-border);
   padding: 0.4rem 0.8rem;
   text-align: left;
 }
 
 .table th {
-  background: var(--sim-surface, #f0f0f0);
+  background: var(--sim-surface);
 }
