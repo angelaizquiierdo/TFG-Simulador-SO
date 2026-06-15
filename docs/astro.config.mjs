@@ -12,28 +12,20 @@ export default defineConfig({
       title: 'CPU Scheduler Simulator',
       sidebar: [
         {
-          label: 'Guías',
-          items: [
-            { label: 'Cómo usar',          link: '/guides/uso' },
-            { label: 'Configuración',      link: '/guides/configuracion' },
-            { label: 'Crear un algoritmo', link: '/guides/crear-algoritmo' },
-          ],
-        },
-        {
           label: 'No expropiativos',
           items: [
-            { label: 'FCFS',           link: '/cpu-scheduler/non-preemptive/fcfs' },
-            { label: 'SJF',            link: '/cpu-scheduler/non-preemptive/sjf' },
-            { label: 'LJF',            link: '/cpu-scheduler/non-preemptive/ljf' },
+            { label: 'FCFS',          link: '/cpu-scheduler/non-preemptive/fcfs' },
+            { label: 'SJF',           link: '/cpu-scheduler/non-preemptive/sjf' },
+            { label: 'LJF',           link: '/cpu-scheduler/non-preemptive/ljf' },
             { label: 'Prioridad (NP)', link: '/cpu-scheduler/non-preemptive/prio-n' },
           ],
         },
         {
           label: 'Expropiativos',
           items: [
-            { label: 'Round Robin',    link: '/cpu-scheduler/preemptive/round-robin' },
-            { label: 'SRTF',           link: '/cpu-scheduler/preemptive/srtf' },
-            { label: 'Prioridad (P)',  link: '/cpu-scheduler/preemptive/prio-p' },
+            { label: 'Round Robin',   link: '/cpu-scheduler/preemptive/round-robin' },
+            { label: 'SRTF',          link: '/cpu-scheduler/preemptive/srtf' },
+            { label: 'Prioridad (P)', link: '/cpu-scheduler/preemptive/prio-p' },
           ],
         },
       ],

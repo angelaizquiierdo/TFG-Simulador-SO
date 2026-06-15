@@ -388,6 +388,7 @@ Lee `metrics` del contexto. Dos tablas: por proceso (id, completion, turnaround,
 
 > **Prohibido crear componentes wrapper** (como `SimulatorDemo`, `SimulatorLayout` o similar) en `docs/` ni en `src/react/`. Las páginas `.mdx` importan directamente los componentes del módulo publicado (`cpu-scheduler`) y los componen inline. No existe ningún componente intermediario.
 
+> **Página de inicio (`index.mdx`):** Es OBLIGATORIO mantener el archivo `docs/src/content/docs/index.mdx` con la plantilla `splash`. Este es el punto de entrada principal (`/`) de la web. NUNCA debe ser eliminado al generar el resto de la documentación.
 ### T-30 · Guías para desarrolladores
 
 Tres guías: **cómo usar** el componente, **cómo configurarlo** (`processes`, `algorithm`, `quantum`, `metrics`) y **cómo crear un algoritmo** (implementar `IAlgorithm` y registrarlo).

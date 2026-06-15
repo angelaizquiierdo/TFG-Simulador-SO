@@ -4,18 +4,20 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    "jsx": "react-jsx",
+    "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "dist",
-    "skipLibCheck": true
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
-  "include": ["src", "tests"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "docs"]
 }

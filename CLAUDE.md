@@ -1,10 +1,8 @@
 # CLAUDE.md — Instrucciones para el Agente de IA
 
 > **Modelo:** Claude Sonnet 4.6 (`claude-sonnet-4-6`)
-> **Modo de uso:** Claude Code (`claude --model claude-sonnet-4-6`) o API con este
-> archivo como system prompt.
+> **Modo de uso:** Claude Code (`claude --model claude-sonnet-4-6`) o API con este archivo como system prompt.
 > **Propósito:** guiar la ejecución tarea a tarea de `specs/PLAN.MD`.
->
 > Lee este archivo completo antes de tocar ningún archivo del proyecto.
 
 ---
@@ -436,7 +434,7 @@ tarea.
 
 1. Crear `src/core/algorithms/(non-preemptive|preemptive)/nombre.ts`.
 2. Implementar `IAlgorithm`: `name`, `preemptionMode`, `requires`, `select()`.
-3. Registrarlo en `registry.ts` con `register(new NombreAlgoritmo())`.
+3. Registrarlo en el punto de entrada principal (`src/index.ts`) con `register(new NombreAlgoritmo())`, NUNCA directamente dentro de `registry.ts`.
 4. Añadir test en `tests/core/algorithms/(non-preemptive|preemptive)/nombre.test.ts`
    con el fixture de `BEHAVIOURS-v01.md`.
 5. Añadir o actualizar su página en `docs/src/content/docs/cpu-scheduler/`.
@@ -461,45 +459,4 @@ tarea.
 | Marcar tarea terminada sin verificar | Tests en rojo que se acumulan | Ejecutar siempre los tres comandos antes de reportar |
 
 ---
-
-## 16. Entorno de ejecución — WSL2 y timeouts
-
-El proyecto corre bajo **WSL2 con el filesystem montado desde Windows** (`/mnt/c/...`).
-Las operaciones masivas de lectura/escritura son lentas y los comandos globales pueden
-sufrir timeouts sin que el código sea incorrecto.
-
-### Timeout ≠ fallo de código — y no cuenta como strike
-
-Un timeout del comando **no es un error de código**. No cuenta como strike en la regla
-3.4. Antes de asumir que algo está mal, determina si el comando simplemente tardó
-demasiado.
-
-### Qué hacer si `npm run typecheck` o `npm run lint` sufre timeout
-
-**Para ESLint:** ejecutar en el archivo concreto que acabas de modificar funciona bien
-porque ESLint respeta el `eslint.config.js` del proyecto al correr sobre un archivo:
-
-```bash
-npx eslint src/core/tu-archivo.ts
-```
-
-Si pasa, da ESLint por bueno para ese cambio.
-
-**Para TypeScript:** `npx tsc --noEmit src/core/tu-archivo.ts` **no sirve** — cuando
-se pasan archivos directamente, TypeScript ignora el `tsconfig.json` y no aplica
-`strict`, `noUncheckedIndexedAccess` ni el resto de flags del proyecto. Puede dar
-un falso positivo. Usa en su lugar el typecheck incremental, que es significativamente
-más rápido en ejecuciones sucesivas:
-
-```bash
-npx tsc --noEmit --incremental
-```
-
-Si tampoco termina, comunícalo como timeout (no como error) y espera instrucciones.
-
-### Solución real al problema de rendimiento
-
-Si el proyecto está en `/mnt/c/...`, muévelo al **filesystem nativo de Linux**
-(`~/projects/cpu-scheduler-simulator`). Con el filesystem nativo, `npm run typecheck`
-pasa de minutos a segundos. El problema de rendimiento en WSL2 solo existe con archivos
-montados desde Windows.
+**Nota**: El proyecto ya se encuentra en el filesystem nativo de Linux, por lo que los comandos typecheck y lint deberían ejecutarse en segundos. Si hay un timeout excesivo, sígnifica que hay un bucle infinito o un error grave en el código, repórtalo.
