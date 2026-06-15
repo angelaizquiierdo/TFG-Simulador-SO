@@ -1,0 +1,25 @@
+.section {
+  margin-top: 1rem;
+}
+
+.title {
+  font-weight: bold;
+  margin-bottom: 0.4rem;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ccc;
+  padding: 0.4rem 0.8rem;
+  text-align: left;
+}
+
+.table th {
+  background: #f0f0f0;
+}

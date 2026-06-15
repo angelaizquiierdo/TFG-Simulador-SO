@@ -21,6 +21,14 @@ register(new SRTF());
 register(new PriorityP());
 register(new RoundRobin());
 
+// Componentes React
+export { SimulationProvider } from './react/SimulationProvider.js';
+export { ProcessTable } from './react/ProcessTable.js';
+export { GanttChart } from './react/GanttChart.js';
+export { PlaybackControls } from './react/PlaybackControls.js';
+export { MetricsTable } from './react/MetricsTable.js';
+export { useSimulation } from './react/SimulationContext.js';
+
 // Tipos públicos
 export type { Process } from './core/types/process.js';
 export type { IAlgorithm, ReadyProcess, PreemptionMode } from './core/types/algorithm.js';
