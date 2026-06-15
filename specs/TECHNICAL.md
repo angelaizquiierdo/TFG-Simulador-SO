@@ -66,8 +66,9 @@ revés. El valor (el simulador) no queda atado a una vista.
           round-robin.ts
           priority-p.ts
     react/                     # componente (islas React)
-      Simulator.tsx
+      SimulationProvider.tsx
       GanttChart.tsx
+      ProcessTable.tsx
       PlaybackControls.tsx     # ÚNICO sitio con deltaTime / requestAnimationFrame
       MetricsTable.tsx
       ProcessForm.tsx          # edición de procesos -> fuera de v1
@@ -232,7 +233,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 | Prioridad (P)    | `'on-better'`    | menor `priority`           |
 | Round Robin      | `'on-quantum'`   | FIFO                       |
 
-- **Fase 6 — Componente React (`src/react`):** `Simulator.tsx` orquesta (config → `run` → índice → subcomponentes).
+- **Fase 6 — Componente React (`src/react`):** `SimulationProvider.tsx` orquesta (config → `run` → índice → subcomponentes).
 - **Fase 7 — Documentación (`docs/`):** guías (usar, configurar, crear algoritmo) y una página por algoritmo que embebe el componente.
 
 ---

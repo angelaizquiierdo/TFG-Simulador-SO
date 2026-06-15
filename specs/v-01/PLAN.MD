@@ -219,7 +219,7 @@ Las invariantes de comportamiento del historial (`completed` crece monotónicame
 
 `register(algo: IAlgorithm): void` y `get(name: string): IAlgorithm` (error descriptivo si no existe). Singleton.
 
-**Verificación:** test — registrar un algoritmo mínimo y recuperarlo por `name`; nombre inexistente lanza error. Cierra la parte de registro de **«Contrato de algoritmo»**.
+**Verificación:** test — registrar un algoritmo mínimo y recuperarlo por `name`; nombre inexistente lanza error. Cierra la parte de registro de **«Contrato de algoritmo»** y **Registro de algoritmos (Motor interno)**.
 
 ---
 
@@ -237,7 +237,7 @@ Las invariantes de comportamiento del historial (`completed` crece monotónicame
 
 Ordenar `ready` antes de `select()`: criterio del algoritmo → menor `arrival_time` → menor`id`. El desempate por `id` debe ser por orden de inserción o numérico, no lexicográfico ingenuo (evita que `P10` se ordene antes que `P2`).
 
-**Cierra:** `BEHAVIOURS § Determinismo` (los tres casos) — `tests/core/simulate.test.ts`
+**Cierra:** `BEHAVIOURS § Determinismo` (todos los casos) — `tests/core/simulate.test.ts`
 
 ### T-09 · Modo `'none'` (no expropiativo)
 
@@ -275,14 +275,14 @@ En cada tick T, `completed` contiene exactamente los procesos finalizados en T o
 - Sin procesos: `run()` devuelve `history` vacío, sin error.
 - `burst_time = 0`: `run()` lanza error con mensaje `"La ráfaga debe ser mayor que 0"`.
 
-**Cierra:** `BEHAVIOURS § Conjunto vacío` y `§ Configuración inválida` — `tests/core/simulate.test.ts`
+**Cierra:** `BEHAVIOURS § Conjunto vacío`, `§ Configuración inválida` y `§ Seguridad y tolerancia a fallos (Motor interno)` — `tests/core/simulate.test.ts`
 
 ### T-15 · Aislamiento de dependencias (Node)
 
 Test que importa `run()` desde un script Node (`tests/core`) y ejecuta FCFS, sin React, DOM ni imports de `src/react/`.
 
-**Test 1 — `BEHAVIOURS § Simulador independiente de la vista`:** importar `run()` desde Node sin React ni DOM y ejecutar FCFS.
-**Test 2:** el `SimulationResult` devuelto contiene `history`, `intervals` y `metrics` con al menos un elemento cada uno.
+
+**Cierra:** `BEHAVIOURS § Simulador independiente de la vist` y `BEHAVIOUS § Estructura del resultado de simulación` — `tests/core/simulate.test.ts`
 
 ---
 
@@ -355,7 +355,12 @@ Lee los procesos y el descriptor del algoritmo (`requires`) del contexto. Muestr
 
 Archivos: `GanttChart.tsx`, `style/GanttChart.module.css`.
 
-Lee `history` y `tick`actual del Player del contexto. Renderiza una **matriz** (filas: procesos columnas: ticks) solo hasta el tick actual: al avanzar un tick se añade una columna, al retroceder se quita. En el tick 0 solo se ve la primera columna; en el último tick se ve la matriz completa. Cada celda tiene color de fondo según el estado (en CPU = color sólido del proceso, en espera = color claro, no llegado = vacío, inactividad = gris). Colores asignados automáticamente de una paleta (mínimo 10 colores).
+Lee history y el tick actual del Player del contexto. Layout de arriba abajo:
+
+
+1. **Mensaje del evento** — `HistoryEvent.message` del tick actual.
+2. **Matriz** — filas: procesos, columnas: ticks (cabecera `0`, `1`, `2`…). Solo hasta el tick actual (sincronizado con PlaybackControls). Celdas **solo color, sin texto** (no poner "CPU", "W" ni etiquetas). Colores: en CPU = sólido, en espera = claro, no llegado/completado = gris muy claro (no transparente), inactividad = gris medio. Cabecera lateral de nombres de proceso con **fondo neutro visible** (no transparente). Paleta automática (mínimo 10 colores alto contraste).
+3. Título **"Leyenda"** visible, seguido de la matriz de leyenda: filas = procesos (vertical, con su color), columnas = estados (Inactivo, En espera, En CPU).
 
 **Cierra:** `BEHAVIOURS § Renderizado — GanttChart (matriz sincronizada)` (todos los casos) — `tests/react/GanttChart.test.tsx`
 
@@ -392,7 +397,7 @@ Tres guías: **cómo usar** el componente, **cómo configurarlo** (`processes`, 
 ### T-31 · Página de demo FCFS
 Archivo: `docs/src/content/docs/cpu-scheduler/non-preemptive/fcfs.mdx`
 
-Usar **exactamente** esta estructura. **Sin componentes wrapper.** Como el `SimulationProvider` renderiza por defecto los cuatro componentes (ProcessTable, GanttChart, PlaybackControls, MetricsTable) cuando no recibe children, basta con ponerlo sin hijos:
+
 
 ```mdx
 ---
@@ -400,7 +405,7 @@ title: FCFS (First-Come, First-Served)
 description: Algoritmo de planificación FCFS no expropiativo.
 ---
 
-import { SimulationProvider } from 'cpu-scheduler';
+import { SimulationProvider, ProcessTable, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
 
 ## Descripción
 
@@ -522,8 +527,10 @@ Fase 0 (T-00, T-01)
 
 | Criterio `BEHAVIOURS-v01.md`              | Tarea(s)        |
 |-------------------------------------------|-----------------|
-| Contrato de algoritmo (extensibilidad)    | T-06, T-24      |
+| Registro de algoritmos (Motor interno)    | T-06            |
+| Contrato de algoritmo (extensibilidad)    | T-24, T-17, T-18, T19,T-20, T-21, T-22, T-23            |
 | Simulador independiente de la vista       | T-15            |
+| Estructura del resultado de simulación    | T-15            |
 | Página de algoritmo y campos declarados   | T-26            |
 | Configuración inválida (burst = 0)        | T-14, T-25      |
 | Simular — FCFS                            | T-09, T-17      |
@@ -534,6 +541,7 @@ Fase 0 (T-00, T-01)
 | Simular — Prioridad (expropiativa)        | T-22            |
 | Simular — Round Robin                     | T-11, T-23      |
 | CPU inactiva                              | T-07            |
+| Seguridad y tolerancia a fallos           | T-14            |
 | Determinismo                              | T-08            |
 | Reproducción automática                   | T-28            |
 | Navegación manual                         | T-16, T-28      |

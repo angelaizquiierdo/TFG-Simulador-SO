@@ -120,19 +120,46 @@ Tabla HTML estándar con cabecera. Columnas: `id`, `arrival_time`, `burst_time` 
 
 ### GanttChart ()
 
-Tabla donde las **filas son los procesos** y las **columnas son los ticks**. Cabecera superior con los números de tick; cabecera lateral con los `id` de proceso.
+### GanttChart (matriz sincronizada con el reproductor)
 
-**Sincronización:** la matriz muestra **solo las columnas hasta el tick actual** del reproductor. Al pulsar paso adelante se añade la columna del siguiente tick; al pulsar paso atrás se quita la última columna. Durante la reproducción automática, las columnas aparecen progresivamente. En el tick 0 solo se ve la primera columna; en el último tick se ve la matriz completa.
+Layout del componente, de arriba abajo:
 
-Cada celda tiene un color de fondo según el estado del proceso en ese tick:
+1. **Mensaje del evento** — el texto de `HistoryEvent.message` del tick actual (p. ej. "Seleccionado: P1", "P2 completa en tick 5", "CPU inactiva").
+2. **Matriz** — la grilla de celdas.
+3. **Leyenda** — una tabla/matriz pequeña debajo del diagrama:
+   - **Filas (vertical):** un proceso por fila con su color (■ P1, ■ P2, ■ P3).
+   - **Columnas (horizontal):** los estados (Inactivo, En espera, En CPU).
+   - Cada celda de la leyenda muestra el color que tendría esa combinación proceso/estado en el diagrama principal.
+
+   Ejemplo visual:
+
+   |          | Inactivo | En espera | En CPU   |
+   |----------|----------|-----------|----------|
+   | ■ P1     | gris     | claro     | sólido   |
+   | ■ P2     | gris     | claro     | sólido   |
+   | ■ P3     | gris     | claro     | sólido   |
+
+**Estructura de la matriz:**
+- **Cabecera superior:** los números de tick (`0`, `1`, `2`, …) como cabeceras de columna.
+- **Cabecera lateral:** los `id` de proceso (`P1`, `P2`, …) como cabeceras de fila.
+- **Celdas:** solo color de fondo, **sin texto** dentro (no poner "CPU", "W", ni ninguna
+  etiqueta). El estado se comunica exclusivamente con el color.
+
+**Sincronización:** la matriz muestra **solo las columnas hasta el tick actual** del
+reproductor. Al pulsar paso adelante se añade la columna del siguiente tick; al pulsar
+paso atrás se quita la última columna. En el tick 0 solo se ve la primera columna; en el
+último tick se ve la matriz completa.
+
+**Colores de celda según estado:**
 - **En CPU** — color sólido asignado al proceso (cada proceso un color distinto).
-- **En espera (ready)** — mismo color del proceso pero con patrón rayado.
-- **No llegado (pending)** — gris muy claro.
-- **Completado** — celda vacía 
-- **CPU inactiva** — columna entera sin color de proceso; fondo distinguible (gris).
+- **En espera (ready)** — mismo color del proceso pero más claro (opacidad reducida).
+- **No llegado (pending)** — celda vacía (sin color).
+- **Completado** — celda vacía (sin color).
+- **CPU inactiva** — fondo gris distinguible.
 
 Los colores de proceso se asignan automáticamente de una paleta predefinida (mínimo 10
-colores distintos para cubrir los 10 procesos típicos de los ejercicios como máximo sino se repite los mismos colores).
+colores distintos de alto contraste para cubrir los 10 procesos típicos de los ejercicios).
+
 
 ### PlaybackControls
 

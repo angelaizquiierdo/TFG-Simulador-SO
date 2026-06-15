@@ -1,5 +1,23 @@
 # Acceptance Criteria — v01
 
+## Registro de algoritmos (Motor interno)
+
+DADO un algoritmo válido
+CUANDO se registra en el sistema
+ENTONCES se puede recuperar posteriormente por su nombre exacto
+
+DADO que se registra un algoritmo con un nombre que ya existe
+CUANDO se realiza el registro
+ENTONCES el nuevo algoritmo sobrescribe al anterior
+
+DADO que el sistema intenta recuperar un algoritmo no registrado
+CUANDO el registro de algoritmos no está completamente vacío
+ENTONCES se produce un error que lista los nombres de los algoritmos disponibles actualmente
+
+DADO que el sistema intenta recuperar un algoritmo no registrado
+CUANDO el registro de algoritmos está completamente vacío
+ENTONCES se produce un error que indica explícitamente "(ninguno)" en la lista de algoritmos disponibles
+
 ## Contrato de algoritmo (extensibilidad)
 
 DADO un algoritmo nuevo que implementa la interfaz `IAlgorithm` y se registra por su nombre
@@ -10,11 +28,23 @@ DADO un algoritmo cuyo `requires` no incluye prioridad
 CUANDO el componente muestra el escenario
 ENTONCES no se muestra la prioridad de los procesos
 
+DADO cualquier algoritmo de planificación registrado
+CUANDO se le pide seleccionar un proceso pasándole una cola de listos vacía
+ENTONCES lanza un error de seguridad indicando que la cola está vacía
+
 ## Simulador independiente de la vista
 
 DADO un script de Node sin ninguna librería de interfaz
 CUANDO importa el simulador y ejecuta una simulación
 ENTONCES obtiene el resultado (intervalos, historial y métricas) sin dependencias de presentación
+
+## Estructura del resultado de simulación
+
+DADO un conjunto que contiene al menos un proceso válido y cualquier algoritmo
+CUANDO el motor principal completa la simulación
+ENTONCES el resultado devuelto contiene una lista de intervalos de ejecución no vacía
+ENTONCES el resultado devuelto contiene un historial temporal de eventos no vacío
+ENTONCES el resultado devuelto contiene las métricas individuales y agregadas calculadas
 
 ## Página de algoritmo y campos declarados
 
@@ -192,6 +222,15 @@ CUANDO se ejecuta la simulación
 ENTONCES la CPU está inactiva en el intervalo [0–4]
 ENTONCES el diagrama de Gantt muestra el hueco de inactividad y P1[4–7]
 
+## Seguridad y tolerancia a fallos (Motor interno)
+DADO un escenario extremo que requiere más de 100,000 ticks para completarse
+CUANDO el motor ejecuta la simulación
+ENTONCES se interrumpe la ejecución y se lanza un error indicando que se excedió el límite de ticks para evitar bucles infinitos
+
+DADO un algoritmo defectuoso o malicioso que selecciona un ID de proceso que no existe
+CUANDO el motor intenta asignar ese proceso a la CPU
+ENTONCES el motor protege su estado interno dejando la CPU inactiva (lo que eventualmente disparará la protección de límite de ticks si el algoritmo no se recupera)
+
 ## Determinismo
 
 DADO un conjunto de procesos y un algoritmo cualesquiera
@@ -206,6 +245,10 @@ DADO los procesos P1(llegada 0, ráfaga 3) y P2(llegada 0, ráfaga 3) con SJF
 CUANDO se ejecuta la simulación
 ENTONCES el desempate se resuelve por menor arrival_time y luego por menor id
 ENTONCES el diagrama de Gantt es P1[0–3], P2[3–6] (P1 antes que P2 porque tiene menor id)
+
+DADO dos procesos con el mismo tiempo de llegada y ráfaga, cuyos IDs comparten el mismo número pero distinta letra (ej. "P1B" y "P1A")
+CUANDO el motor necesita resolver el desempate
+ENTONCES el proceso "P1A" se ejecuta antes que "P1B" aplicando una comparación natural
 
 ## Reproducción automática
 
@@ -242,6 +285,10 @@ ENTONCES se muestra el estado del tick N sin recalcular la simulación
 DADO la simulación situada en el tick N
 CUANDO se consulta el estado actual del Player
 ENTONCES devuelve el HistoryEvent correspondiente al tick N
+
+DADO el cursor de un historial de simulación vacío
+CUANDO se intenta saltar directamente a un tick específico (goTo)
+ENTONCES la orden se ignora y el cursor permanece en el tick 0
 
 ## Coherencia de métricas y estado
 
@@ -296,9 +343,9 @@ DADO un SimulationProvider con burst_time = 0 en un proceso
 CUANDO se monta el componente
 ENTONCES el contexto expone un error y no hay resultado de simulación
 
-DADO un SimulationProvider sin hijos (etiqueta de autocierre)
+DADO un SimulationProvider con componentes visuales pasados como hijos
 CUANDO se monta el componente
-ENTONCES renderiza el layout por defecto (ProcessTable, GanttChart, PlaybackControls, MetricsTable)
+ENTONCES renderiza el layout definido por esos hijos inyectándoles el contexto de la simulación
 
 DADO un SimulationProvider con hijos personalizados
 CUANDO se monta con children explícitos (p. ej. solo GanttChart y PlaybackControls)
@@ -327,7 +374,15 @@ ENTONCES la cabecera no incluye la columna priority
 
 DADO un SimulationProvider con P1(llegada 0, ráfaga 3) y P2(llegada 1, ráfaga 2) con FCFS
 CUANDO GanttChart se renderiza
-ENTONCES muestra una matriz con cabecera de ticks (columnas) y cabecera de procesos (filas)
+ENTONCES muestra el mensaje del evento del tick actual encima de la matriz
+ENTONCES muestra una matriz con cabecera de ticks (0, 1, 2…) y cabecera de procesos (P1, P2)
+ENTONCES los nombres de proceso en la cabecera lateral son legibles (fondo neutro visible, no transparente)
+ENTONCES debajo de la matriz muestra el título "Leyenda" seguido de la tabla de leyenda
+
+DADO la matriz del GanttChart
+CUANDO se observa cualquier celda
+ENTONCES la celda no contiene texto (ni "CPU", ni "W", ni ninguna etiqueta)
+ENTONCES el estado se indica solo con el color de fondo
 
 DADO el reproductor en el tick 0
 CUANDO GanttChart se renderiza
@@ -340,10 +395,12 @@ ENTONCES la matriz muestra las columnas de los ticks 0, 1 y 2
 DADO el reproductor avanzando del tick 2 al tick 3
 CUANDO el usuario pulsa paso adelante
 ENTONCES se añade la columna del tick 3 a la matriz
+ENTONCES el mensaje se actualiza al evento del tick 3
 
 DADO el reproductor retrocediendo del tick 3 al tick 2
 CUANDO el usuario pulsa paso atrás
 ENTONCES se quita la columna del tick 3 de la matriz
+ENTONCES el mensaje se actualiza al evento del tick 2
 
 DADO el reproductor en el último tick
 CUANDO GanttChart se renderiza
@@ -351,27 +408,29 @@ ENTONCES la matriz muestra todas las columnas (diagrama completo)
 
 DADO la matriz del GanttChart con P1 en CPU en tick 0
 CUANDO se observa la celda P1/tick 0
-ENTONCES tiene el color sólido asignado a P1 (estado: en CPU)
+ENTONCES tiene el color sólido asignado a P1
 
 DADO la matriz del GanttChart con P2 en espera en tick 1
 CUANDO se observa la celda P2/tick 1
-ENTONCES tiene un estilo visualmente distinto al de "en CPU" (estado: en espera)
+ENTONCES tiene el color del proceso con opacidad reducida (más claro que "en CPU")
 
 DADO la matriz del GanttChart con P2 no llegado en tick 0
 CUANDO se observa la celda P2/tick 0
-ENTONCES la celda está vacía o con fondo neutro (estado: no llegado)
+ENTONCES la celda tiene fondo gris muy claro (no transparente ni blanco puro)
 
 DADO un SimulationProvider con P1(llegada 2, ráfaga 2) con FCFS
 CUANDO GanttChart se renderiza en tick 1
-ENTONCES el tick 0 y tick 1 muestran inactividad (fondo gris distinguible, sin color de proceso)
+ENTONCES los ticks 0 y 1 muestran inactividad (fondo gris)
 
 DADO un SimulationProvider con 3 procesos
 CUANDO GanttChart se renderiza
 ENTONCES cada proceso tiene un color distinto asignado automáticamente
+ENTONCES la leyenda muestra una matriz con una fila por proceso y columnas: Inactivo, En espera, En CPU
+ENTONCES cada celda de la leyenda tiene el color correspondiente a esa combinación proceso/estado
 
 DADO la matriz del GanttChart con P1 ya completado en un tick posterior a su finalización
 CUANDO se observa la celda P1/tick posterior
-ENTONCES la celda indica estado completado (sin color activo de CPU ni de espera)
+ENTONCES la celda tiene fondo gris muy claro (mismo que "no llegado")
 
 ## Renderizado — PlaybackControls
 
