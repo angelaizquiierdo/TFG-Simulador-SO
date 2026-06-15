@@ -457,6 +457,9 @@ tarea.
 | Reescribir un archivo entero | Cambios innecesarios que rompen otros tests | Edición quirúrgica: cambia solo lo que la tarea pide |
 | Combinar dos tareas | Difícil de revertir si algo falla | Una tarea = un conjunto de verificaciones = un commit |
 | Marcar tarea terminada sin verificar | Tests en rojo que se acumulan | Ejecutar siempre los tres comandos antes de reportar |
+| Asignar `undefined` a opciones | `typecheck` falla por `exactOptionalPropertyTypes` | NUNCA asignes `undefined`. Usa spread condicional: `...(val !== undefined ? { prop: val } : {})` |
+| Acceder a arrays o RegExp sin guarda | `typecheck` falla por `noUncheckedIndexedAccess` | Trata todo índice como posible `undefined`. Usa `?? fallback` (ej. `arr[0] ?? null`) |
+| Variables en template literals | ESLint falla por `restrict-template-expressions` | Fuerza el tipo explícitamente usando `String(val)` o `Number(val)` dentro de `${...}` |
 
 ---
 **Nota**: El proyecto ya se encuentra en el filesystem nativo de Linux, por lo que los comandos typecheck y lint deberían ejecutarse en segundos. Si hay un timeout excesivo, sígnifica que hay un bucle infinito o un error grave en el código, repórtalo.

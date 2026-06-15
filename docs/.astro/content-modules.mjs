@@ -7,5 +7,8 @@ export default new Map([
 ["src/content/docs/cpu-scheduler/preemptive/prio-p.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fprio-p.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/cpu-scheduler/preemptive/round-robin.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fround-robin.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/cpu-scheduler/preemptive/srtf.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fsrtf.mdx&astroContentModuleFlag=true")],
+["src/content/docs/guides/configuracion.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguides%2Fconfiguracion.mdx&astroContentModuleFlag=true")],
+["src/content/docs/guides/crear-algoritmo.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguides%2Fcrear-algoritmo.mdx&astroContentModuleFlag=true")],
+["src/content/docs/guides/uso.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguides%2Fuso.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/index.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Findex.mdx&astroContentModuleFlag=true")]]);
 		

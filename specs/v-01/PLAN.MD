@@ -90,6 +90,7 @@ Luego crear y configurar:
 
 **Verificación:** `npm run typecheck` y `npm run lint` sin errores en vacío; `npm test` pasa sin tests (`--passWithNoTests`); un import prohibido de prueba (React desde `core`) hace fallar el lint.
 
+**Nota técnica sobre `priority?`:** Debido a la regla `exactOptionalPropertyTypes`, la propiedad `priority` es estrictamente omitible. Está prohibido asignarle el valor `undefined` explícitamente en la creación de objetos.
 ---
 
 ### T-01 · Crear el subproyecto `docs/` (Astro + Starlight — solo la demo)
@@ -177,6 +178,8 @@ docs/src/content/docs/cpu-scheduler/
 Confirmar que `docs/tsconfig.json` extiende `astro/tsconfigs/strictest` y añadir `eslint-plugin-astro`.
 
 **Verificación:** `npm run docs:dev` arranca sin errores; `npm run docs:build` pasa con páginas vacías; el alias resuelve correctamente (`import from 'cpu-scheduler'` no da error de módulo no encontrado).
+
+
 
 ---
 
