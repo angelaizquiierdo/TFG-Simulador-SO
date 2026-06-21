@@ -1,22 +1,16 @@
 # CPUSchedulerSimulator — Decisiones técnicas
 
-> **El objetivo del proyecto es un módulo reutilizable** (paquete de JavaScript/TypeScript)
-> que implementa el **simulador + el componente** y que se puede instalar como una
-> **dependencia** (`npm install`). El sitio de documentación es un subproyecto en `docs/`
-> (Astro + Starlight) que documenta y demuestra el módulo; la web no es el fin.
->
-> Convención: **todos los identificadores del código (tipos, campos, métodos, archivos y
-> carpetas) están en inglés**; la prosa de los documentos está en español.
-
+> **El objetivo del proyecto es un módulo reutilizable** (paquete de JavaScript/TypeScript) que implementa el **simulador + el componente** y que se puede instalar como una **dependencia** (`npm install`). El sitio de documentación es un subproyecto en `docs/` (Astro + Starlight) que documenta y demuestra el módulo; la web no es el fin.
+> Convención: **todos los identificadores del código (tipos, campos, métodos, archivos y carpetas) están en inglés**; la prosa de los documentos está en español.
+> Se añade una **capa de servidor** (backend) para persistir, compartir, colaborar y exportar; el núcleo de simulación sigue siendo puro y funciona sin servidor.
 ---
 
 ## Arquitectura: tres capas desacopladas
 
-La dependencia va en **una sola dirección**: **demo → componente → simulador**. Nunca al
-revés. El valor (el simulador) no queda atado a una vista.
+La dependencia va en **una sola dirección**: **demo → componente → simulador**. Nunca al revés. El valor (el simulador) no queda atado a una vista.
 
-1. **Simulador (`src/core`)** — toda la lógica. TypeScript puro, **sin React ni DOM**. Usable desde cualquier librería de interfaz o desde un script de Node.
-2. **Componente React (`src/react`)** — **consume** el simulador y **renderiza** los resultados. Depende del simulador; el simulador no depende de él.
+1. **Simulador (`src/core`)** — toda la lógica. TypeScript puro, **sin React ni DOM**. Usable desde cualquier librería de interfaz o desde un script de Node. Incluye el subsistema de E/S (solo para VRR) y `runFrom` (what-if).
+2. **Componente React (`src/react`)** — **consume** el simulador y **renderiza** los resultados. Añade edición (`ProcessForm`, `AlgorithmParamsForm`) y persistencia por sesión (`sessionStorage`).
 3. **Documentación (`docs/`)** — subproyecto Astro + Starlight: documentación para desarrolladores (cómo usar, configurar y crear algoritmos) que embebe el componente como isla, con un ejemplo de uso por algoritmo.
 
 ---
@@ -25,18 +19,18 @@ revés. El valor (el simulador) no queda atado a una vista.
 
 **Proyecto principal (componente + simulador):**
 
-- **Simulador:** TypeScript puro, sin dependencias de interfaz.
-- **Componente:** React. Consume el simulador y renderiza.
-- **Build:** se construye y se publica como **librería** (Vite en modo lib o `tsup`).
-  **Astro no interviene en el proyecto principal.**
+- **Simulador:** TypeScript puro, sin dependencias de interfaz ni del navegador (agnóstico).
+- **Componente:** React. Consume el simulador, renderiza la interfaz y gestiona el estado local.
+- **Persistencia de sesión:** Implementada en la capa de React. El escenario actual (procesos, algoritmo y parámetros) se guarda en el `sessionStorage` del navegador. Funciona sin servidor y los datos se descartan automáticamente al cerrar la pestaña.
+- **Build:** se construye y se publica como **librería** (Vite en modo lib o `tsup`). **Astro no interviene en el proyecto principal.**
 - **Vitest** (simulador) y **Testing Library** (componente).
 
 **Subproyecto de documentación (`docs/`):**
 
-- **Astro** con **Starlight**. Documentación para desarrolladores: cómo usar el componente, cómo configurarlo, cómo crear un algoritmo (`IAlgorithm`) y un ejemplo en vivo por algoritmo (una página `.mdx` cada uno, embebido como isla).
+- **Astro** con **Starlight**. Documentación para desarrolladores: cómo usar el componente, cómo configurarlo, y cómo crear un algoritmo (`IAlgorithm`) indicando dónde se deben modificar sus configuraciones.
+- **Ejemplos en vivo (Islas React):** Una página `.mdx` por cada algoritmo que embebe el componente interactivo. Al renderizar el componente, estas páginas de demostración heredan automáticamente la funcionalidad de persistencia en `sessionStorage`.
 - **Vive en el mismo repositorio**, como subdirectorio `docs/` con su propio `package.json`.
 - **La documentación se mantiene al día con el código:** cada funcionalidad o algoritmo actualiza su página en `docs/` en el mismo cambio.
-- Sin backend ni persistencia.
 
 ---
 
@@ -49,11 +43,13 @@ revés. El valor (el simulador) no queda atado a una vista.
       types/
         process.ts             # Process
         scheduler-state.ts     # SchedulerState
-        algorithm.ts           # IAlgorithm + ReadyProcess + PreemptionMode
-        history.ts             # HistoryEvent, History, Interval
+        io.ts                  # IOOperation, DeviceState (solo VRR)       (v2)
+        algorithm.ts           # IAlgorithm + ReadyProcess + PreemptionMode + SchedulerEvent
+        history.ts             # HistoryEvent(+ E/S para VRR), History, Interval
         simulation-result.ts   # SimulationResult, ProcessMetrics, AggregateMetrics
       registry.ts              # registro de algoritmos por name
-      simulate.ts              # run(): history + intervals + metrics
+      simulate.ts              # run(scenario) + runFrom(state) 
+      io-subsystem.ts          # subsistema E/S de VRR (mecánica) 
       player.ts                # cursor sobre el history (tiempo lógico, puro)
       algorithms/              # cada algoritmo implementa IAlgorithm en su propia clase
         non-preemptive/
@@ -65,13 +61,17 @@ revés. El valor (el simulador) no queda atado a una vista.
           srtf.ts
           round-robin.ts
           priority-p.ts
+          virtual-round-robin.ts
+          multilevel-feedback.ts
     react/                     # componente (islas React)
       SimulationProvider.tsx
       GanttChart.tsx
       ProcessTable.tsx
       PlaybackControls.tsx     # ÚNICO sitio con deltaTime / requestAnimationFrame
       MetricsTable.tsx
-      ProcessForm.tsx          # edición de procesos -> fuera de v1
+      ProcessForm.tsx          # panel desplegable: todos los procesos con campos
+                               # editables, cerrado por defecto, rederiva al instante 
+      AlgorithmParamsForm.tsx  # editar quantum/quanta/boostInterval + botón Aplicar
     style/
       *.module.css             # CSS Modules
     index.ts                   # exporta el simulador (headless) y el componente
@@ -93,6 +93,8 @@ docs/                          # subproyecto Astro + Starlight (documentación)
       round-robin.mdx
       srtf.mdx
       prio-p.mdx
+      virtual-round-robin.mdx
+      multilevel-feedback.mdx
   astro.config.mjs
   package.json                 # depende del módulo
   tsconfig.json                # extends astro/tsconfigs/strictest
@@ -100,56 +102,248 @@ docs/                          # subproyecto Astro + Starlight (documentación)
 
 ---
 
+## Modelo de E/S (solo para algoritmos con `requires.io`)
+
+La E/S es un subsistema del **motor**, no del algoritmo. Solo se activa cuando el algoritmo declara `requires.io = true` (**ÚNICAMENTE Round Robin Virtual**). Los demás, incluido `mlfq`, son estrictamente de CPU: su `SchedulerState`/`HistoryEvent` no llevan estado de E/S.
+
+**Contención:** hay **un único dispositivo de E/S** (`device` por defecto). Sirve a **un proceso a la vez**. Cuando un proceso alcanza su `io_entry`:
+- si el dispositivo está **libre**, entra directo a servicio;
+- si está **ocupado** (sirviendo a otro proceso, sea desde este mismo tick o desde varios ticks antes), entra al final de la **cola FCFS** del dispositivo y espera su turno.
+
+Si **dos o más procesos** alcanzan su `io_entry` en el **mismo tick** y el dispositivo está libre, el motor decide a cuál admite primero por el desempate global (menor `arrival_time` y, si persiste, menor `id`); el resto entra en la cola. La cola puede acumular **más de un proceso** mientras el dispositivo sigue ocupado a lo largo de varios ticks, no solo en el caso de empate exacto.
+
+```ts
+// types/io.ts
+interface IOOperation {
+  readonly io_entry: number;   // CPU acumulada ejecutada antes de bloquearse (>0, <burst_time)
+  readonly io_time: number;    // duración del servicio (>0)
+  readonly device?: string;    // dispositivo destino; por defecto el único
+}                              // io_exit es DERIVADO (no se almacena en la entrada)
+
+// UN único dispositivo; el campo `device` en IOOperation queda reservado
+// para una extensión futura a varios dispositivos, sin tocar este tipo.
+interface DeviceState {
+  readonly id: string;
+  readonly serving: string | null;     // pid en servicio
+  readonly remaining: number;          // ticks de servicio restantes
+  readonly queue: readonly string[];   // cola FCFS de pids esperando
+}
+```
+
+```ts
+// types/process.ts
+interface Process {
+  readonly id: string;
+  readonly arrival_time: number;       // >= 0
+  readonly burst_time: number;         // > 0  (demanda total de CPU)
+  readonly priority?: number;
+  readonly io?: readonly IOOperation[]; // io_entry estrictamente crecientes; solo io algos
+}
+```
+
+```ts
+// types/scheduler-state.ts
+interface SchedulerState {
+  readonly tick: number;
+  readonly onCPU: string | null;
+  readonly ready: readonly string[];
+  readonly pending: readonly string[];
+  readonly completed: readonly string[];
+  readonly devices?: readonly DeviceState[];  // ausente/[] en algoritmos clásicos
+ 
+}
+```
+
+`io-subsystem.ts` posee la mecánica de dispositivos: avanzar servicios, admitir cabezas de cola (FCFS), devolver a `ready` al terminar. Es puro y determinista (sin `Math.random`/`Date.now`).
+
+---
 ## Contrato del algoritmo (`IAlgorithm`)
 
 Es el **único punto de acoplamiento** entre un algoritmo y el simulador. Cada algoritmo va en **su propia clase**, implementa este contrato y **no accede a los internos del motor** (ni al history, ni a las metrics, ni al `Player`, ni al tipo de estado interno).
 
 ```ts
-type PreemptionMode = 'none' | 'on-better' | 'on-quantum';
+// types/algorithm.ts
 
-interface ReadyProcess {            // vista de solo lectura que entrega el motor
+export interface ReadyProcess {
   readonly id: string;
   readonly arrival_time: number;
   readonly burst_time: number;
-  readonly remaining: number;       // ráfaga que le queda
+  readonly remaining: number;
   readonly priority?: number;
 }
 
-interface IAlgorithm {
-  readonly name: string;                  // identificador del algoritmo
-  readonly preemptionMode: PreemptionMode;
-  readonly requires: { priority?: boolean; quantum?: boolean };
+// ── Modo de expropiación ───────────────────────────────────────────────────
+// Cada algoritmo declara UN modo. El motor lo usa para saber CUÁNDO llamar
+// a select() y si debe expropiar al proceso en CPU.
 
-  select(ready: readonly ReadyProcess[]): ReadyProcess;   // única firma obligatoria
+type PreemptionMode =
+  | 'none'                     // no expropia; select() solo cuando la CPU queda libre
+  | 'on-better'                // reevalúa select() cada tick; expropia si cambia el elegido
+  | 'on-quantum'               // expropia al agotar el slice de quantumFor()
+  | 'io-return'                // expropia  (VRR); select() da prioridad a auxQueue
+  | 'on-quantum-and-better';   // expropia por AMBOS motivos a la vez (MLFQ: quantum del nivel Y llegada a nivel superior)
+
+// ── Eventos del motor → algoritmo ──────────────────────────────────────────
+// El motor emite estos eventos vía onEvent() para que el algoritmo mantenga
+// su estado interno (colas, niveles, sobrante). El algoritmo los RECIBE,
+// nunca los genera.
+
+type SchedulerEvent =
+  | { readonly type: 'arrival';        readonly id: string; readonly tick: number }
+  | { readonly type: 'dispatch';       readonly id: string; readonly tick: number;
+      readonly slice: number | null }
+  | { readonly type: 'quantum-expiry'; readonly id: string; readonly tick: number;
+      readonly ranFor: number }
+  | { readonly type: 'preempted';      readonly id: string; readonly tick: number;
+      readonly ranFor: number }
+  | { readonly type: 'io-start';       readonly id: string; readonly tick: number;
+      readonly ranFor: number; readonly device: string }
+  | { readonly type: 'io-return';      readonly id: string; readonly tick: number }
+  | { readonly type: 'completed';      readonly id: string; readonly tick: number }
+  | { readonly type: 'priority-boost'; readonly tick: number;
+      readonly ids: readonly string[] };
+
+
+interface IAlgorithm {
+  readonly name: string;
+  readonly preemptionMode: PreemptionMode;           // + 'io-return' y 'on-quantum-and-better'
+  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean };
+  select(ready: readonly ReadyProcess[]): ReadyProcess;
+  quantumFor?(p: ReadyProcess): number | null;       // quantum variable (sobrante / nivel)
+  onEvent?(e: SchedulerEvent): string | null;      
+}
+```
+### Qué hace cada campo
+
+| Campo | Obligatorio | Quién lo usa | Para qué |
+|-------|:-----------:|:------------:|----------|
+| `name` | sí | registro | identificar el algoritmo (`'fcfs'`, `'mlfq'`, etc.) |
+| `preemptionMode` | sí | motor | saber CUÁNDO llamar a `select()` y si expropiar |
+| `requires` | sí | motor + UI | validar la config y mostrar/ocultar campos en la demo |
+| `select()` | sí | motor | elegir qué proceso ocupa la CPU |
+| `quantumFor()` | no | motor | saber cuánto dura el turno de un proceso concreto |
+| `onEvent()` | no | motor | notificar al algoritmo + obtener el motivo rico |
+
+### Patrón 1: Algoritmos Sin Estado (Clásicos)
+Algoritmos que toman decisiones basadas puramente en la `readyQueue` actual, sin memoria de eventos pasados. Solo implementan `name`, `preemptionMode`, `requires` y `select()`. Está prohibido implementar métodos opcionales.
+
+```ts
+// Prioridad expropiativa — idéntico a v01, sin cambios
+export class PriorityP implements IAlgorithm {
+  readonly name = 'priority-p';
+  readonly preemptionMode = 'on-better' as const;
+  readonly requires = { priority: true as const };
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    let best = ready[0]!;
+    for (const p of ready) {
+      if ((p.priority ?? Infinity) < (best.priority ?? Infinity)) best = p;
+    }
+    return best;
+  }
+}
+```
+### Patrón 2: Algoritmos Con Estado Interno (Complejos)
+Algoritmos que mantienen estructuras de datos internas (colas multinivel, tiempos sobrantes) o reaccionan a interrupciones (E/S). Utilizan los métodos opcionales `quantumFor` y `onEvent`. El motor no tiene acceso a este estado interno.
+```ts
+// VRR — esquema, no implementación completa
+export class VirtualRoundRobin implements IAlgorithm {
+  readonly name = 'virtual-round-robin';
+  readonly preemptionMode = 'io-return' as const;
+  readonly requires = { quantum: true, io: true } as const;
+
+  // Estado interno (el motor no lo ve)
+  private readonly mainQueue = new FifoQueue<string>();
+  private readonly auxQueue = new FifoQueue<string>();
+  private readonly remainingSlice = new Map<string, number>();
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    // auxQueue tiene prioridad sobre mainQueue
+    const nextId = !this.auxQueue.isEmpty
+      ? this.auxQueue.peek()
+      : this.mainQueue.peek();
+    return ready.find(p => p.id === nextId)!;
+  }
+
+  quantumFor(p: ReadyProcess): number {
+    // Desde auxQueue → sobrante; desde mainQueue → quantum completo
+    return this.remainingSlice.get(p.id) ?? this.quantum;
+  }
+
+  onEvent(e: SchedulerEvent): string | null {
+    switch (e.type) {
+      case 'arrival':
+        this.mainQueue.enqueue(e.id);
+        return null;                          // frase genérica del motor
+      case 'io-return':
+        this.auxQueue.enqueue(e.id);
+        const s = this.remainingSlice.get(e.id) ?? 0;
+        return `entra en la cola auxiliar con sobrante de ${s}`;
+      case 'quantum-expiry':
+        this.mainQueue.enqueue(e.id);
+        return 'se reencola en la cola principal';
+      // ... otros eventos
+      default:
+        return null;
+    }
+  }
 }
 ```
 
-La clase puede tener miembros propios adicionales (p. ej. `version`); el contrato solo exige lo anterior. **El motor** (`simulate.ts`) posee la mecánica; el algoritmo solo aporta la **política de selección**:
+La clase puede tener miembros propios adicionales el contrato solo exige lo anterior. **El motor** (`simulate.ts`) posee la mecánica; el algoritmo solo aporta la **política de selección**:
 
 - `'none'` → el motor pide selección solo cuando la CPU queda libre (FCFS, SJF, LJF,
   Prioridad no expropiativa).
-- `'on-better'` → reevalúa cada tick y expropia si `select()` devuelve otro proceso (SRTF,
-  Prioridad expropiativa).
+- `'on-better'` → reevalúa cada tick y expropia si `select()` devuelve otro proceso (SRTF, Prioridad expropiativa).
 - `'on-quantum'` → expropia al agotar el `quantum`; `select()` es FIFO (Round Robin).
+- `'io-return'` → reevalúa la expropiación en el momento exacto en que un proceso finaliza su E/S y retorna a la cola de listos; `select()` aplica la preferencia correspondiente (p. ej., cola auxiliar en Virtual Round Robin).
+- `'on-quantum-and-better'` → combina tiempo y jerarquía (exclusivo para MLFQ).
+
 
 El motor entrega `ready` ya ordenado por el desempate global (`arrival_time`, luego `id`); cada algoritmo solo aplica su criterio principal.
 
-> No es un `simulate(processes, config): Result`: eso obligaría a cada algoritmo a
-> reimplementar la lógica del simulador y mezclarse con ella. La política lo mantiene
-> desacoplado.
+> **Decisión consciente:** `PreemptionMode` es un enum de 5 valores (no flags booleanos). Esto exige un valor nuevo por cada combinación futura de motivos de expropiación (p. ej. `'on-quantum-and-io-return'` si algún día se necesita). Con flags (`{onQuantum, onBetter, onIoReturn}`) una combinación nueva no exigiría tocar el tipo. Se mantiene el enum porque para 9 algoritmos los 5 valores cubren todos los casos.
 
+### Mensajes ricos — cómo `onEvent` alimenta `HistoryEvent.message`
+
+El campo `HistoryEvent.message` ya existía en v01 con frases genéricas del motor ("P1 entra en CPU", "CPU inactiva"). En v02, el mensaje se enriquece con la mecánica interna del algoritmo, **sin añadir tipos nuevos al contrato**:
+
+1. El motor resuelve el tick y emite cada `SchedulerEvent` vía `onEvent()`.
+2. Si `onEvent` devuelve un **string** (p. ej. `"se degrada al nivel 1"`), el motor lo
+   combina con su propia información (pid, tick) para componer el `message` final.
+3. Si devuelve **null**, el motor usa su frase genérica de siempre.
+
+Ejemplos de lo que devuelve `onEvent` en cada algoritmo:
+
+| Algoritmo | Evento | `onEvent` devuelve |
+|-----------|--------|--------------------|
+| FCFS/SJF/etc. | cualquiera | no implementa `onEvent` → `null` → frase genérica |
+| Round Robin | `quantum-expiry` | `"se reencola"` (o `null`, la frase genérica ya lo dice) |
+| VRR | `io-return` | `"entra en la cola auxiliar con sobrante de 2"` |
+| VRR | `dispatch` | `"desde la cola auxiliar (sobrante 2)"` o `"desde la cola principal"` |
+| MLFQ | `quantum-expiry` | `"se degrada al nivel 1"` |
+| MLFQ | `preempted` | `"llega al nivel 0"` |
+| MLFQ | `priority-boost` | `"todos los procesos suben al nivel 0"` |
+
+El motor entrega `ready` ya ordenado por el desempate global (`arrival_time`, luego `id`);
+cada algoritmo solo aplica su criterio principal.
+
+> No es un `simulate(processes, config): Result`: eso obligaría a cada algoritmo a reimplementar la lógica del simulador y mezclarse con ella. La política lo mantiene desacoplado.
 ---
 
 ## Contrato del historial (`History`)
 
 ```ts
+
 interface HistoryEvent {
   readonly tick: number;
-  readonly onCPU: string | null;            // id del proceso en CPU, o null si inactiva
+  readonly onCPU: string | null;            
   readonly ready: readonly string[];
   readonly pending: readonly string[];
   readonly completed: readonly string[];
-  readonly message: string;                 // "P2 entra en CPU", "P1 finaliza", ...
+  readonly inIO: string | null;             // pid en servicio en el dispositivo, o null
+  readonly waitingIO: readonly string[];    // cola FCFS del dispositivo
+  readonly message: string;                 
 }
 
 type History = readonly HistoryEvent[];     // índice = tick
@@ -212,9 +406,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 
 ## Plan de implementación paso a paso
 
-> El desglose en tareas atómicas está en `specs/PLAN.md`. Orden de abajo arriba
-> (simulador → componente → documentación). Cada fase que añade funcionalidad o un
-> algoritmo actualiza su documentación en `docs/` en el mismo cambio.
+> El desglose en tareas atómicas está en `specs/PLAN.md`. Orden de abajo arriba (simulador → componente → documentación). Cada fase que añade funcionalidad o un algoritmo actualiza su documentación en `docs/` en el mismo cambio.
 
 - **Fase 0 — Andamiaje:** proyecto principal + subproyecto `docs/`; TypeScript estricto, ESLint con fronteras, Vitest.
 - **Fase 1 — Tipos y contratos:** `Process`, `SchedulerState`, `IAlgorithm`/`ReadyProcess`/ `PreemptionMode`, `History`/`HistoryEvent`/`Interval`, `SimulationResult`.
@@ -223,18 +415,37 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 - **Fase 4 — Player (`player.ts`):** cursor sobre el `history` con límites.
 - **Fase 5 — Algoritmos, uno a uno con su test:**
 
-| Algoritmo        | `preemptionMode` | `select` elige…            |
-|------------------|------------------|----------------------------|
-| FCFS             | `'none'`         | menor `arrival_time` (FIFO)|
-| SJF              | `'none'`         | menor `remaining`          |
-| LJF              | `'none'`         | mayor `burst_time`         |
-| Prioridad (NP)   | `'none'`         | menor `priority`           |
-| SRTF             | `'on-better'`    | menor `remaining`          |
-| Prioridad (P)    | `'on-better'`    | menor `priority`           |
-| Round Robin      | `'on-quantum'`   | FIFO                       |
+| Algoritmo        | `preemptionMode` | `select` elige…                      |
+|------------------|------------------|--------------------------------------|
+| FCFS             | `'none'`         | menor `arrival_time`, sino menor `id`|
+| SJF              | `'none'`         | menor `remaining`                    |
+| LJF              | `'none'`         | mayor `burst_time`                   |
+| Prioridad (NP)   | `'none'`         | menor `priority`                     |
+| SRTF             | `'on-better'`    | menor `remaining`                    |
+| Prioridad (P)    | `'on-better'`    | menor `priority`                     |
+| Round Robin      | `'on-quantum'`   | FIFO                                 |
 
 - **Fase 6 — Componente React (`src/react`):** `SimulationProvider.tsx` orquesta (config → `run` → índice → subcomponentes).
 - **Fase 7 — Documentación (`docs/`):** guías (usar, configurar, crear algoritmo) y una página por algoritmo que embebe el componente.
+
+**Fases v2** (desglose detallado en `specs/PLANv-02.md`):
+
+- **Fase 9 — Tipos de E/S y contrato:** `IOOperation`, `DeviceState`, `SchedulerEvent`, ampliar `IAlgorithm` con `quantumFor`/`onEvent`.
+- **Fase 10 — Subsistema de E/S:** `io-subsystem.ts`.
+- **Fase 11 — Adaptación de clásicos:** `requires.io = false` explícito en los 7.
+- **Fase 12 — VRR y MLFQ:**
+
+| Algoritmo              | `preemptionMode`          | `select` elige…                          |
+|------------------------|---------------------------|------------------------------------------|
+| Round Robin Virtual    | `'io-return'`             | `auxQueue` → `mainQueue`; slice = sobrante |
+| MLFQ                   | `'on-quantum-and-better'` | nivel no vacío de menor índice             |
+
+- **Fase 13 — Rederivación:** what-if (`runFrom`) e inyección en vivo.
+- **Fase 14 — Edición y render de E/S:** `ProcessForm`, `AlgorithmParamsForm`, columnas condicionales.
+- **Fase 15 — Persistencia por sesión:** `sessionStorage`, clave por algoritmo.
+- **Fase 16 — Estética:** tokens de diseño, CSS Modules.
+- **Fase 17 — Docs y verificación v2:** páginas VRR/MLFQ, guía "crear algoritmo".
+
 
 ---
 
@@ -266,6 +477,112 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 
 ---
 
+## Funcionamiento de los algoritmos (paso a paso)
+
+> Detalle de la **política** de cada algoritmo nuevo. La **mecánica** (tiempo, E/S, history, métricas) la pone el motor; aquí se describe lo que decide la clase del algoritmo.
+
+### Round Robin Virtual (`virtual-round-robin.ts`, `name: 'rrv'`)
+
+Modela E/S (`requires.io = true`). Mantiene **dos colas FIFO** —principal y auxiliar— y un **sobrante** por proceso; la auxiliar tiene prioridad. **Identificadores de código (inglés):**
+- `mainQueue: FifoQueue<string>` (la principal, round robin, priorida 1 )
+- `auxQueue: FifoQueue<string>` (la auxiliar, fcfs, prioridad 0)
+- `remainingSlice: Map<string, number>` (el sobrante por `pid`).
+
+1. Una **llegada nueva** entra al final de la cola **principal** (`mainQueue`).
+2. Un proceso que **agota el quantum** sin bloquearse ni completar vuelve al final de la **prioridad 1** (`mainQueue`).
+3. Un proceso que **se bloquea por E/S antes de agotar el quantum**: al volver de la E/S entra al final de la cola **auxiliar** (`auxQueue`) y se recuerda su **sobrante** (`remainingSlice.set(pid, quantum − ticks ejecutados)`) en ese turno. 
+  - Si se bloqueó justo al agotar el quantum, sobrante = 0 → entra en la **prioridad 1**, sino(else) en la auxiliar **prioridad 0**
+4. **Selección (`select`):** si `auxQueue` no está vacía, su cabeza; si no, la cabeza de `mainQueue`. FIFO dentro de cada cola.
+5. **Duración del turno (`quantumFor`):** desde `auxQueue`, el **sobrante** (`remainingSlice.get(pid)`); desde `mainQueue`, el **quantum** completo. Si un proceso de `auxQueue` no completa en su sobrante, pasa a `mainQueue`.
+6. Sí expropia al proceso en CPU cuando aparece un retorno de E/S (`preemptionMode = 'io-return'`). Si la CPU está ejecutando un proceso proveniente de la `mainQueue` (prioridad 1) y un proceso termina su E/S ingresando a la `auxQueue` (prioridad 0), el proceso en ejecución es interrumpido de inmediato y devuelto a la `mainQueue`, permitiendo que el proceso recién llegado a la auxQueue tome el control de la CPU en ese mismo tick.
+
+Estado interno (vía `onEvent`): `mainQueue`, `auxQueue` y `remainingSlice`. `io-start` / `quantum-expiry` actualizan `remainingSlice`; `io-return` mete el proceso en `auxQueue`. `validateParams`: `quantum` entero `> 0`. **(v2)** `paramSchema`: un campo `integer` (`key:'quantum'`, `min: 1`) → editable desde la demo vía `AlgorithmParamsForm`. **(v2)** `reasonFor`:en `io-return` devuelve `{ text: "se inserta en la cola auxiliar con sobrante de ${remainingSlice.get(id)}" }`; en `dispatch` devuelve `{ text: "desde la cola auxiliar (sobrante ${remainingSlice.get(id)})" }` si `id` viene de `auxQueue`, o `{ text: "desde la cola principal" }` si viene de `mainQueue`; en `quantum-expiry` devuelve `{ text: "se reencola en la cola principal" }` (mensaje rico — ver § Mensajes ricos más abajo).
+
+
+### Cola de realimentación — MLFQ (`multilevel-feedback.ts`, `name: 'mlfq'`)
+
+**Solo CPU** (`requires.io = false`). **Cada nivel es internamente una cola Round Robin con su propio quantum:** mantiene una cola FIFO por nivel (`levels`) y el mapa `processLevel` (`pid → índice de nivel`, nivel 0 = mayor prioridad); dentro de un nivel se reparte exactamente como Round Robin, usando el quantum de ese nivel. **Identificadores de código (inglés):** `levels: FifoQueue<string>[]` — un array donde `levels[0]` es el nivel 0, `levels[1]` el nivel 1, etc. (tantos como entradas tenga `quanta`); y `processLevel: Map<string, number>` (`pid → índice de nivel`). Se usa un **array indexado**, no campos fijos `level0`/`level1`/`level2`, porque `quanta` tiene longitud variable (el usuario puede añadir o quitar niveles desde `AlgorithmParamsForm`); `levels[i]` cubre cualquier número de niveles sin declarar un campo por cada uno.
+
+1. Una **llegada nueva** entra al **nivel 0** (`levels[0]`).
+2. **Selección (`select`):** la cabeza de `levels[i]` para el menor `i` tal que `levels[i]` no esté vacío; dentro del nivel, FIFO (política de Round Robin de ese nivel).
+3. **Duración del turno (`quantumFor`):** `quanta[processLevel.get(pid)]` (es el "quantum del RR" de ese nivel).
+4. Un proceso que **agota el quantum** de su nivel sin completar se **degrada** (`preemptionMode = 'on-quantum-and-better'` cubre también esta mitad, la del quantum): `processLevel.set(pid, min(nivel + 1, quanta.length - 1))` y entra al final de `levels[nivel + 1]` (al RR del nivel siguiente).
+5. **Expropiación por prioridad** (la otra mitad de `'on-quantum-and-better'`): si **llega** un proceso a `levels[0]` (estrictamente superior al del proceso en CPU), este es expropiado y vuelve a la **cabeza de su nivel** (no se degrada, porque no agotó su quantum).
+6. **Envejecimiento — *priority boost*:** cada `boostInterval` ticks (si se configura), **todos** los procesos se mueven a `levels[0]` (`processLevel.set(pid, 0)` para todos), reseteando la degradación; evita la inanición. **Incluye al proceso en CPU en ese instante:** si hay uno ejecutando, también sube a nivel 0 y se **reevalúa `select()`** de inmediato (mismo mecanismo que la regla 5); no termina su turno actual si deja de ser el elegido. Empate al reencolar tras el boost: por menor `id`. Sin `boostInterval` no hay boost.
+
+Estado interno (vía `onEvent`): `levels` y `processLevel`. `quantum-expiry` degrada (incrementa `processLevel`); `arrival` coloca en `levels[0]` (`processLevel.set(pid, 0)`). `validateParams`: `quanta` lista no vacía de enteros `> 0`; `boostInterval`, si está, entero `> 0`. **(v2)** `paramSchema`: un campo `integer-list` (`key: 'quanta'`, `min: 1`, `minLength: 1`, **uno por cola RR/nivel**) **y** un campo `integer` con `optional: true` (`key: 'boostInterval'`, `min: 1`) → **ambos editables desde la demo** vía `AlgorithmParamsForm`. Si en el formulario se deja vacío, equivale a omitir `boostInterval` (sin *priority boost*), no a un error de validación. **(v2)** `reasonFor`: en `quantum-expiry` devuelve `{ text: "se degrada al nivel ${processLevel.get(id)}" }` (con el nuevo nivel, ya incrementado); en `preempted` devuelve `{ text: "llega al nivel 0" }`; en `priority-boost` devuelve `{ text: "todos los procesos suben al nivel 0" }` (mensaje rico — ver § Mensajes ricos más abajo).
+
+---
+
+## `ProcessForm` — implementación
+
+**Cableado con el motor:** cada cambio de campo válido dispara
+`SimulationProvider.run()` (o `runFrom()` si el reproductor está a mitad). Si el valor es inválido, se marca el campo con error y **no se rederiva**. No hay estado `draft` separado del `applied` (a diferencia de `AlgorithmParamsForm`): el estado del formulario **es** el escenario actual en el contexto de React.
+
+**Añadir:** valores por defecto (`arrival_time: 0`, `burst_time: 1`, `id` autoincremental) → rederiva. **Eliminar:** rederiva al instante; si queda vacío → estado vacío sin error.
+
+**Inyección en vivo:** si `arrival_time ≥ tick_actual` → `runFrom(state_at_T)`. Si `arrival_time < tick_actual` → error en el campo, sin rederivación.
+
+**Campos condicionales:** `priority` solo si `requires.priority`; `io_entry`/`io_time` solo si `requires.io`. `io_exit` es derivado, no editable (se muestra en `ProcessTable`).
+
+**No usa `sessionStorage` directamente.** El estado vive en el contexto de React; la persistencia la gestiona el `SimulationProvider`.
+
+---
+
+## `AlgorithmParamsForm` — implementación
+
+Lee `algorithm.paramSchema` y renderiza un campo por entrada. Si `paramSchema` está vacío o ausente, no se monta. Si tiene entradas, se monta **visible desde el primer render** con valores iniciales del escenario.
+
+**Estado `draft` vs `applied`:** el formulario mantiene `draft` (lo que el usuario edita) separado de `applied` (los `params` con los que se simuló). Mientras `draft !== applied`, los campos se marcan pendientes. La simulación mostrada sigue siendo la de `applied` → **no rederiva tecla a tecla**. Al pulsar "Aplicar": llama a `algorithm.validateParams(draft)`; si devuelve un string → muestra error, `applied` no cambia; si devuelve `null` → `applied = draft`, dispara `run`/`runFrom`.
+
+Cambiar el algoritmo activo resetea `draft` al `paramSchema`/valores del algoritmo entrante.
+
+---
+
+## Mensajes ricos — mecanismo de ensamblado
+
+`HistoryEvent.message` sigue siendo un **string único**. El motor es el único que lo escribe. El mecanismo simplificado:
+
+1. El motor resuelve el tick y emite `SchedulerEvent` vía `onEvent()`.
+2. `onEvent` devuelve `string | null`. Si devuelve un string (p. ej. `"se degrada al nivel 1"`), el motor lo incorpora al mensaje del tick. Si devuelve `null`, el motor usa su frase genérica (`"P2 entra en CPU"`, `"CPU inactiva"`).
+3. El motor decide el fraseo final; el algoritmo solo aporta el fragmento de motivo.
+4. Si hay varios eventos en un tick, se concatenan en el orden intra-tick (io-return → llegadas → quantum), separados por ". ".
+
+**Sin `reasonFor`, sin `AlgorithmReason`:** el motivo sale directamente del `string | null` de `onEvent`. Un solo canal para estado interno + mensaje rico.
+
+---
+
+## Motor (`simulate.ts`)
+
+- **`run(scenario): SimulationResult`** — bucle por ticks. Para clásicos: ruta de CPU pura (idéntica a v01). Para algoritmos con E/S: además avanza `io-subsystem`.
+- **`runFrom(state, algorithm, params): SimulationResult`** — rederivación para *what-if*: toma un `SchedulerState` como condición inicial y simula hacia delante. Determinista.
+- **Inyección en vivo:** añadir un proceso con `arrival_time ≥ tick` y rederivar desde ese tick (caso de `runFrom`).
+- **Orden intra-tick:** consumo de CPU y servicios de E/S → fin de tramo de CPU (completar / iniciar E/S) → fin de servicio de E/S (vuelve a `ready`; dispositivo admite cabeza de cola) → inserciones en `ready`: **io-return → llegadas → reencolado por quantum** (cada grupo por `id`) → decisión de reparto.
+- **Empate ráfaga/quantum:** si coinciden fin de tramo y expiración de quantum, manda el fin de tramo (bloqueo/finalización).
+
+`intervals` y `metrics` se **derivan** del `history` con funciones puras. 
+`waiting = turnaround − CPU_total − blocked_total` (en clásicos `blocked_total = 0`).
+
+---
+
+## Escenario y persistencia por sesión
+
+```ts
+// types/scenario.ts
+interface Scenario {
+  readonly name?: string;
+  readonly processes: readonly Process[];
+  readonly algorithm: string;
+  readonly params: AlgorithmParams;
+  readonly whatIf?: { fromTick: number; state: SchedulerState };
+}
+```
+
+- **Persistencia:** `sessionStorage` del navegador; al recargar dentro de la misma pestaña se restaura. Se pierde al cerrar la pestaña; no se comparte entre pestañas.
+- **Clave por página:** `scheduler-scenario:${algorithmName}`. Navegar entre páginas no borra ni mezcla claves.
+- El **resultado de la simulación no se persiste:** se rederiva del escenario al cargar.
+
+---
 ## Scripts
 
 ```

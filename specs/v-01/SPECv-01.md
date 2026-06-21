@@ -227,9 +227,7 @@ usuario.
 
 - **Modificar soluciones parciales de la simulación:** ir a un tick pasado, cambiar un estado y re-derivar un futuro distinto (escenarios *what-if*). Excluido de v1.
 - Inyección de procesos en vivo durante una ejecución en curso.
-- Multiprocesador, múltiples núcleos afinidad de CPU.
 - Ráfagas de E/S y estados de bloqueo (espera por E/S).
 - Envejecimiento de prioridades y colas multinivel.
 - Persistencia del escenario entre sesiones (localStorage).
-- Backend, colaboración multiusuario, compartir escenarios en la nube y exportación de resultados.
 - Estetica más bonito, definido  (colores exacto y tamaño y estilo, etc.) en los componentes de react

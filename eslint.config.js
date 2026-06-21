@@ -1,31 +1,34 @@
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
-import jsxA11y from 'eslint-plugin-jsx-a11y';
+import { fileURLToPath } from 'node:url';
 
 export default tseslint.config(
+  // Ignorar directorios generados
   {
-    ignores: ['dist/**', 'docs/**', 'node_modules/**'],
+    ignores: ['dist/**', 'docs/**', 'node_modules/**', 'coverage/**', 'eslint.config.js'],
   },
+
+  // Base: TypeScript estricto
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
+
+  // Configuración general
   {
     languageOptions: {
       parserOptions: {
         projectService: true,
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: fileURLToPath(new URL('.', import.meta.url)),
       },
     },
-  },
-  {
     plugins: {
       'react-hooks': reactHooks,
-      'jsx-a11y': jsxA11y,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
     },
   },
-  // Frontera: src/core/** no puede importar React/DOM ni src/react/**
+
+  // Frontera 1: src/core/** no puede importar React, DOM ni src/react/**
   {
     files: ['src/core/**/*.ts'],
     rules: {
@@ -33,20 +36,15 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            {
-              group: ['react', 'react-dom', 'react/*'],
-              message: 'src/core no puede importar React ni DOM',
-            },
-            {
-              group: ['*/react/*', '../react/*', '../../react/*'],
-              message: 'src/core no puede importar src/react',
-            },
+            { group: ['react', 'react-dom', 'react/*'], message: 'src/core no puede importar React.' },
+            { group: ['*/react/*', '../react/*', '../../react/*'], message: 'src/core no puede importar src/react.' },
           ],
         },
       ],
     },
   },
-  // Frontera: src/core/algorithms/** solo puede importar types/algorithm.ts
+
+  // Frontera 2: src/core/algorithms/** solo puede importar types/algorithm.ts, types/io.ts y algorithms/shared/**
   {
     files: ['src/core/algorithms/**/*.ts'],
     rules: {
@@ -54,18 +52,9 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            {
-              group: ['react', 'react-dom', 'react/*'],
-              message: 'Los algoritmos no pueden importar React',
-            },
-            {
-              group: ['*/react/*', '../react/*'],
-              message: 'Los algoritmos no pueden importar src/react',
-            },
-            {
-              group: ['*/core/registry*', '*/core/simulate*', '*/core/player*'],
-              message: 'Los algoritmos solo pueden importar types/algorithm.ts',
-            },
+            { group: ['react', 'react-dom', 'react/*'], message: 'Los algoritmos no pueden importar React.' },
+            { group: ['*/core/registry*', '*/core/simulate*', '*/core/player*', '*/core/io-subsystem*'], message: 'Los algoritmos solo importan types/algorithm.ts, types/io.ts y algorithms/shared/**.' },
+            { group: ['*/types/process*', '*/types/history*', '*/types/simulation-result*', '*/types/scheduler-state*'], message: 'Los algoritmos solo importan types/algorithm.ts y types/io.ts.' },
           ],
         },
       ],
