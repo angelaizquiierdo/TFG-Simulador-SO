@@ -1,0 +1,191 @@
+---
+title: Desarrollo de Nuevos Algoritmos
+description: Manual técnico para implementar el contrato IAlgorithm y registrar un nuevo algoritmo en el simulador.
+---
+
+## El Contrato `IAlgorithm`
+
+Todo algoritmo de planificación implementa la interfaz `IAlgorithm`:
+
+```ts
+interface IAlgorithm {
+  readonly name: string;                  // identificador de registro (p. ej. 'fcfs')
+  readonly preemptionMode: PreemptionMode;
+  readonly requires: {
+    priority?: boolean;    // true si el algoritmo necesita el campo priority
+    quantum?: boolean;     // true si el algoritmo necesita quantum
+    io?: boolean;          // true SOLO para Round Robin Virtual
+  };
+  select(ready: readonly ReadyProcess[]): ReadyProcess;
+  quantumFor?(p: ReadyProcess): number | null;    // opcional
+  onEvent?(e: SchedulerEvent): string | null;     // opcional
+}
+```
+
+**Modos de expropiación disponibles (`PreemptionMode`):**
+
+| Valor | Cuándo llama el motor a `select()` |
+|---|---|
+| `'none'` | Solo cuando la CPU está libre |
+| `'on-better'` | Cada tick (incluye al proceso actual en la lista para comparar) |
+| `'on-quantum'` | Al agotar el quantum |
+| `'io-return'` | Al volver un proceso de E/S |
+| `'on-quantum-and-better'` | Combina quantum y llegada de proceso superior |
+
+## Patrones Arquitectónicos Permitidos
+
+### Patrón 1 — Sin Estado (algoritmos clásicos)
+
+Para algoritmos que no necesitan colas internas. `select()` decide solo a partir de
+la lista `ready` recibida.
+
+```ts
+// src/core/algorithms/non-preemptive/fcfs.ts
+import type { IAlgorithm, ReadyProcess } from '../../types/algorithm.js';
+
+export class FCFS implements IAlgorithm {
+  readonly name = 'fcfs';
+  readonly preemptionMode = 'none' as const;
+  readonly requires = {} as const;
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    // El motor ya entrega la lista ordenada por arrival_time y luego por id.
+    // FCFS toma el primero.
+    const first = ready[0];
+    if (first === undefined) throw new Error('select() llamado con lista vacía');
+    return first;
+  }
+}
+```
+
+### Patrón 2 — Con Estado Interno (algoritmos complejos)
+
+Para algoritmos que necesitan estructuras propias (colas, mapas de tiempo sobrante,
+niveles). El estado es **privado**; el motor nunca lo toca directamente.
+
+```ts
+// Esquema para Round Robin Virtual
+import type { IAlgorithm, ReadyProcess, SchedulerEvent } from '../../types/algorithm.js';
+import { FifoQueue } from '../shared/fifo-queue.js';
+
+export class VirtualRoundRobin implements IAlgorithm {
+  readonly name = 'vrr';
+  readonly preemptionMode = 'io-return' as const;
+  readonly requires = { quantum: true, io: true } as const;
+
+  // Estado interno privado
+  private readonly mainQueue = new FifoQueue<string>();
+  private readonly auxQueue  = new FifoQueue<string>();
+  private readonly remainingSlice = new Map<string, number>();
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    // Consulta las colas internas para decidir quién va primero.
+    // ...
+  }
+
+  quantumFor(p: ReadyProcess): number | null {
+    // Devuelve el sobrante si viene de auxQueue; quantum completo si viene de mainQueue.
+    // ...
+    return null;
+  }
+
+  onEvent(e: SchedulerEvent): string | null {
+    // Actualiza las colas y devuelve un fragmento de texto para el mensaje rico.
+    // ...
+    return null;
+  }
+}
+```
+
+## Métodos Opcionales y su Uso
+
+### `quantumFor(p: ReadyProcess): number | null`
+
+El motor llama a `quantumFor` para saber cuántos ticks puede ejecutar el proceso `p`
+antes de ser expropiado. Si devuelve `null`, el motor usa el valor de `config.quantum`.
+
+Casos de uso:
+- **Round Robin Virtual**: devuelve el tiempo sobrante del proceso si viene de `auxQueue`.
+- **MLFQ**: devuelve el quantum del nivel actual del proceso.
+
+### `onEvent(e: SchedulerEvent): string | null`
+
+El motor emite un `SchedulerEvent` en cada transición relevante (`arrival`, `dispatch`,
+`quantum-expiry`, `preempted`, `io-start`, `io-return`, `completed`, `priority-boost`).
+El algoritmo puede:
+
+1. **Actualizar su estado interno** (p. ej. mover un proceso entre colas).
+2. **Devolver un fragmento de texto** que el motor añade al campo `message` del
+   `HistoryEvent` visible en la interfaz (mensajes ricos).
+
+```ts
+onEvent(e: SchedulerEvent): string | null {
+  if (e.type === 'io-return') {
+    // Mover el proceso de vuelta a la cola auxiliar con el sobrante
+    this.auxQueue.enqueue(e.id);
+    return `${e.id} vuelve a la cola auxiliar con sobrante`;
+  }
+  return null;  // el motor usa su mensaje por defecto
+}
+```
+
+**Importante:** el algoritmo solo devuelve el fragmento de texto; el motor lo concatena al
+resto del mensaje. El algoritmo **nunca escribe directamente en `HistoryEvent`**.
+
+## Reglas Estrictas (Guardarraíles)
+
+Estas prohibiciones son innegociables y algunas están forzadas por ESLint:
+
+- **No acceder al historial global.** El algoritmo recibe solo la lista `ready` en
+  `select()` y los eventos en `onEvent()`. No puede leer `history` ni `intervals`.
+- **No mutar la lista `ready`.** La lista es `readonly`. Si necesitas ordenarla o
+  filtrarla, crea una copia local.
+- **No gestionar dispositivos de E/S.** La mecánica de E/S (cola, servicio, contención)
+  es exclusiva del motor. Solo `vrr` con `requires.io = true` activa esa mecánica, pero
+  la implementa el motor, no el algoritmo.
+- **No importar otros algoritmos.** Los algoritmos no se importan entre sí. Las
+  utilidades compartidas (p. ej. `FifoQueue`) viven en `src/core/algorithms/shared/`.
+- **No usar `Math.random()` ni `Date.now()`.** El simulador debe ser determinista.
+
+## Registrar el Algoritmo
+
+Una vez implementado, regístralo en `src/index.ts`:
+
+```ts
+// src/index.ts
+import { register } from './core/registry.js';
+import { MiAlgoritmo } from './core/algorithms/preemptive/mi-algoritmo.js';
+
+register(new MiAlgoritmo());
+```
+
+El registro se hace **siempre en `src/index.ts`**, nunca dentro de `registry.ts` ni
+dentro del propio archivo del algoritmo.
+
+## Añadir la Página de Documentación
+
+Crea una página en `docs/src/content/docs/cpu-scheduler/` con un ejemplo de uso:
+
+```mdx
+---
+title: Mi Algoritmo
+description: Descripción breve.
+---
+
+import { SimulationProvider, GanttChart, PlaybackControls, MetricsTable } from 'cpu-scheduler';
+
+<SimulationProvider
+  algorithm="mi-algoritmo"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 4 },
+    { id: 'P2', arrival_time: 1, burst_time: 2 },
+  ]}
+  client:only="react"
+>
+  <GanttChart />
+  <PlaybackControls />
+  <MetricsTable />
+</SimulationProvider>
+```
+
+Y añade el enlace en el sidebar de `docs/astro.config.mjs`.
