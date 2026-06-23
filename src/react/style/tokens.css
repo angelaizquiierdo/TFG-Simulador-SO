@@ -1,0 +1,102 @@
+/* Tokens visuales compartidos del simulador CPU */
+
+:root {
+  /* Colores semánticos — modo claro */
+  --scheduler-bg:               #f8f9fa;
+  --scheduler-surface:          #ffffff;
+  --scheduler-surface-raised:   #f0f2f5;
+  --scheduler-text-primary:     #1a1a2e;
+  --scheduler-text-secondary:   #6c757d;
+  --scheduler-border:           #dee2e6;
+  --scheduler-focus:            #4361ee;
+  --scheduler-accent:           #4361ee;
+  --scheduler-danger:           #ef233c;
+  --scheduler-warning:          #f4a261;
+  --scheduler-success:          #2ec4b6;
+
+  /* Estados del simulador */
+  --scheduler-state-cpu:        #4361ee;
+  --scheduler-state-waiting:    rgba(67, 97, 238, 0.25);
+  --scheduler-state-idle:       #adb5bd;
+  --scheduler-state-io-serving: #e76f51;
+  --scheduler-state-io-waiting: rgba(231, 111, 81, 0.30);
+
+  /* Paleta de procesos — 10 colores distinguibles */
+  --scheduler-process-0:  #4361ee;
+  --scheduler-process-1:  #e63946;
+  --scheduler-process-2:  #2ec4b6;
+  --scheduler-process-3:  #f4a261;
+  --scheduler-process-4:  #8338ec;
+  --scheduler-process-5:  #06d6a0;
+  --scheduler-process-6:  #ff6b6b;
+  --scheduler-process-7:  #ffd166;
+  --scheduler-process-8:  #118ab2;
+  --scheduler-process-9:  #ef476f;
+
+  /* Espaciado */
+  --scheduler-space-xs:   4px;
+  --scheduler-space-sm:   8px;
+  --scheduler-space-md:   12px;
+  --scheduler-space-lg:   16px;
+  --scheduler-space-xl:   24px;
+
+  /* Radio de borde */
+  --scheduler-radius-sm:  4px;
+  --scheduler-radius-md:  6px;
+  --scheduler-radius-lg:  8px;
+
+  /* Botones */
+  --scheduler-btn-height-sm:  28px;
+  --scheduler-btn-height-md:  36px;
+  --scheduler-btn-padding-x:  12px;
+
+  /* Iconos */
+  --scheduler-icon-size-sm:  14px;
+  --scheduler-icon-size-md:  20px;
+  --scheduler-icon-size-lg:  24px;
+
+  /* Filas de tabla */
+  --scheduler-row-min-height: 36px;
+  --scheduler-row-alt-bg:     rgba(0, 0, 0, 0.03);
+
+  /* Celdas del Gantt */
+  --scheduler-gantt-cell-width:  28px;
+  --scheduler-gantt-cell-height: 24px;
+  --scheduler-gantt-cell-gap:    2px;
+}
+
+/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --scheduler-bg:               #0d1117;
+    --scheduler-surface:          #161b22;
+    --scheduler-surface-raised:   #21262d;
+    --scheduler-text-primary:     #e6edf3;
+    --scheduler-text-secondary:   #8b949e;
+    --scheduler-border:           #30363d;
+    --scheduler-focus:            #58a6ff;
+    --scheduler-accent:           #58a6ff;
+    --scheduler-danger:           #ff7b72;
+    --scheduler-warning:          #ffa657;
+    --scheduler-success:          #3fb950;
+
+    --scheduler-state-cpu:        #58a6ff;
+    --scheduler-state-waiting:    rgba(88, 166, 255, 0.20);
+    --scheduler-state-idle:       #484f58;
+    --scheduler-state-io-serving: #ffa657;
+    --scheduler-state-io-waiting: rgba(255, 166, 87, 0.25);
+
+    --scheduler-process-0:  #58a6ff;
+    --scheduler-process-1:  #ff7b72;
+    --scheduler-process-2:  #3fb950;
+    --scheduler-process-3:  #ffa657;
+    --scheduler-process-4:  #d2a8ff;
+    --scheduler-process-5:  #56d364;
+    --scheduler-process-6:  #ff6e6e;
+    --scheduler-process-7:  #ffd700;
+    --scheduler-process-8:  #79c0ff;
+    --scheduler-process-9:  #f78166;
+
+    --scheduler-row-alt-bg: rgba(255, 255, 255, 0.04);
+  }
+}

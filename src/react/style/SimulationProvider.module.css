@@ -1,0 +1,22 @@
+@import './tokens.css';
+
+.provider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-lg);
+  background: var(--scheduler-bg);
+  color: var(--scheduler-text-primary);
+  font-family: inherit;
+}
+
+.error {
+  padding: var(--scheduler-space-md);
+  background: var(--scheduler-danger);
+  color: #fff;
+  border-radius: var(--scheduler-radius-md);
+}
+
+.empty {
+  padding: var(--scheduler-space-lg);
+  color: var(--scheduler-text-secondary);
+}

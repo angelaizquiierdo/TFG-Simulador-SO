@@ -1,0 +1,134 @@
+@import './tokens.css';
+
+.wrapper {
+  overflow-x: auto;
+}
+
+.message {
+  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
+  font-size: 0.875em;
+  color: var(--scheduler-text-secondary);
+  min-height: 1.5em;
+  background: var(--scheduler-surface-raised);
+  border-radius: var(--scheduler-radius-sm);
+  margin-bottom: var(--scheduler-space-sm);
+}
+
+.matrix {
+  display: grid;
+  gap: var(--scheduler-gantt-cell-gap);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-gantt-cell-gap);
+}
+
+.label {
+  width: 40px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--scheduler-text-secondary);
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: var(--scheduler-space-sm);
+}
+
+.cell {
+  width: var(--scheduler-gantt-cell-width);
+  height: var(--scheduler-gantt-cell-height);
+  border-radius: var(--scheduler-radius-sm);
+  flex-shrink: 0;
+}
+
+.cell.empty {
+  background: transparent;
+}
+
+.cell.idle {
+  background: var(--scheduler-state-idle);
+}
+
+.cell.cpu {
+  /* color definido inline */
+}
+
+.cell.waiting {
+  opacity: 0.3;
+}
+
+.cell.io-serving {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.3) 3px,
+    rgba(0, 0, 0, 0.3) 5px
+  );
+}
+
+.cell.io-waiting {
+  background-image: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0.4) 1px,
+    transparent 1px
+  );
+  background-size: 5px 5px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--scheduler-space-md);
+  margin-top: var(--scheduler-space-md);
+  font-size: 0.8em;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-space-xs);
+  color: var(--scheduler-text-secondary);
+}
+
+.legendSwatch {
+  width: var(--scheduler-gantt-cell-width);
+  height: var(--scheduler-gantt-cell-height);
+  border-radius: var(--scheduler-radius-sm);
+  flex-shrink: 0;
+}
+
+.legendSwatch.idle {
+  background: var(--scheduler-state-idle);
+}
+
+.legendSwatch.cpu {
+  background: var(--scheduler-process-0);
+}
+
+.legendSwatch.waiting {
+  background: var(--scheduler-process-0);
+  opacity: 0.3;
+}
+
+.legendSwatch.io-serving {
+  background: var(--scheduler-process-0);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.3) 3px,
+    rgba(0, 0, 0, 0.3) 5px
+  );
+}
+
+.legendSwatch.io-waiting {
+  background: var(--scheduler-process-0);
+  background-image: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0.4) 1px,
+    transparent 1px
+  );
+  background-size: 5px 5px;
+}

@@ -1,0 +1,40 @@
+@import './tokens.css';
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--scheduler-surface);
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-md);
+  overflow: hidden;
+}
+
+.table th {
+  background: var(--scheduler-surface-raised);
+  color: var(--scheduler-text-secondary);
+  font-weight: 600;
+  font-size: 0.85em;
+  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
+  text-align: left;
+  border-bottom: 1px solid var(--scheduler-border);
+}
+
+.table th.numeric,
+.table td.numeric {
+  text-align: right;
+}
+
+.table td {
+  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
+  border-bottom: 1px solid var(--scheduler-border);
+  min-height: var(--scheduler-row-min-height);
+  color: var(--scheduler-text-primary);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:nth-child(even) td {
+  background: var(--scheduler-row-alt-bg);
+}
