@@ -1,17 +1,18 @@
 {
   "name": "cpu-scheduler",
-  "version": "0.1.0",
   "type": "module",
+  "version": "0.0.1",
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "workspaces": [
-    "docs"
-  ],
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "workspaces": ["docs"],
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
@@ -22,30 +23,23 @@
     "docs:build": "npm run build --workspace=docs",
     "docs:preview": "npm run preview --workspace=docs"
   },
-  "peerDependencies": {
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
-  },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^26.0.0",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "@vitest/coverage-v8": "^4.1.9",
-    "eslint": "^9.39.4",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "jiti": "^2.7.0",
-    "jsdom": "^29.1.1",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1",
-    "vite": "^8.0.16",
-    "vite-plugin-dts": "^5.0.2",
-    "vitest": "^4.1.9"
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "jsdom": "^24.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.0.0",
+    "vitest": "^1.0.0"
   }
 }

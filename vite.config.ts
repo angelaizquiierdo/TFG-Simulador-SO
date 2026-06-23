@@ -1,10 +1,6 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import dts from 'vite-plugin-dts';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   plugins: [
@@ -13,8 +9,7 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'CpuScheduler',
+      entry: 'src/index.ts',
       formats: ['es'],
       fileName: 'index',
     },
@@ -23,23 +18,9 @@ export default defineConfig({
     },
   },
   test: {
-    projects: [
-      {
-        test: {
-          name: 'core',
-          include: ['tests/core/**/*.test.ts'],
-          environment: 'node',
-        },
-      },
-      {
-        plugins: [react()],
-        test: {
-          name: 'react',
-          include: ['tests/react/**/*.test.tsx'],
-          environment: 'jsdom',
-          setupFiles: ['./tests/setup.ts'],
-        },
-      },
+    environmentMatchGlobs: [
+      ['tests/core/**', 'node'],
+      ['tests/react/**', 'jsdom'],
     ],
     coverage: {
       provider: 'v8',

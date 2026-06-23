@@ -1,13 +1,6 @@
 {
   "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "baseUrl": ".",
-    "paths": {
-      "cpu-scheduler": ["../src/index.ts"]
-    }
-  },
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
+    "paths": { "cpu-scheduler": ["../src/index.ts"] }
+  }
 }

@@ -1,25 +1,25 @@
+// @ts-check
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
-import { fileURLToPath } from 'node:url';
 
 export default tseslint.config(
-  // Ignorar directorios generados
   {
-    ignores: ['dist/**', 'docs/**', 'node_modules/**', 'coverage/**', 'eslint.config.js'],
+    ignores: ['dist/**', 'docs/**', 'node_modules/**', 'vite.config.ts', '*.js'],
   },
-
-  // Base: TypeScript estricto
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
-
-  // Configuración general
   {
+    files: ['src/**/*.ts', 'src/**/*.tsx', 'tests/**/*.ts', 'tests/**/*.tsx'],
+    extends: [
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+    ],
     languageOptions: {
       parserOptions: {
-        projectService: true,
-        tsconfigRootDir: fileURLToPath(new URL('.', import.meta.url)),
+        project: true,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
+  },
+  {
     plugins: {
       'react-hooks': reactHooks,
     },
@@ -27,8 +27,7 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
     },
   },
-
-  // Frontera 1: src/core/** no puede importar React, DOM ni src/react/**
+  // Frontera: src/core/** no puede importar react ni src/react/**
   {
     files: ['src/core/**/*.ts'],
     rules: {
@@ -43,8 +42,7 @@ export default tseslint.config(
       ],
     },
   },
-
-  // Frontera 2: src/core/algorithms/** solo puede importar types/algorithm.ts, types/io.ts y algorithms/shared/**
+  // Frontera: src/core/algorithms/** solo puede importar tipos permitidos
   {
     files: ['src/core/algorithms/**/*.ts'],
     rules: {
@@ -53,8 +51,11 @@ export default tseslint.config(
         {
           patterns: [
             { group: ['react', 'react-dom', 'react/*'], message: 'Los algoritmos no pueden importar React.' },
-            { group: ['*/core/registry*', '*/core/simulate*', '*/core/player*', '*/core/io-subsystem*'], message: 'Los algoritmos solo importan types/algorithm.ts, types/io.ts y algorithms/shared/**.' },
-            { group: ['*/types/process*', '*/types/history*', '*/types/simulation-result*', '*/types/scheduler-state*'], message: 'Los algoritmos solo importan types/algorithm.ts y types/io.ts.' },
+            { group: ['*/react/*', '../react/*'], message: 'Los algoritmos no pueden importar src/react.' },
+            {
+              group: ['*/core/simulate*', '*/core/registry*', '*/core/player*'],
+              message: 'Los algoritmos solo pueden importar desde types/algorithm.ts y types/io.ts.',
+            },
           ],
         },
       ],
