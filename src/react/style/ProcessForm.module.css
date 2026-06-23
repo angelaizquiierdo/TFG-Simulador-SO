@@ -71,9 +71,14 @@
   font-size: 0.875em;
 }
 
-.field input:focus {
+.field input:focus-visible {
   outline: 2px solid var(--scheduler-focus);
   outline-offset: 1px;
+}
+
+.field input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .field input.invalid {
@@ -96,9 +101,14 @@
   font-size: 0.8em;
 }
 
-.removeBtn:hover {
+.removeBtn:hover:not(:disabled) {
   background: var(--scheduler-danger);
   color: #fff;
+}
+
+.removeBtn:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 2px;
 }
 
 .addBtn {
@@ -113,7 +123,12 @@
   width: 100%;
 }
 
-.addBtn:hover {
+.addBtn:hover:not(:disabled) {
   background: var(--scheduler-accent);
   color: #fff;
+}
+
+.addBtn:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 2px;
 }

@@ -17,6 +17,7 @@
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
   text-align: left;
   border-bottom: 1px solid var(--scheduler-border);
+  vertical-align: middle;
 }
 
 .table th.numeric,
@@ -24,11 +25,15 @@
   text-align: right;
 }
 
+.table tr {
+  height: var(--scheduler-row-min-height);
+}
+
 .table td {
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
   border-bottom: 1px solid var(--scheduler-border);
-  min-height: var(--scheduler-row-min-height);
   color: var(--scheduler-text-primary);
+  vertical-align: middle;
 }
 
 .table tr:last-child td {

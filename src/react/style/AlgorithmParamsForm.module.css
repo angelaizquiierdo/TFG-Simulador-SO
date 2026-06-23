@@ -48,9 +48,14 @@
   font-size: 0.875em;
 }
 
-.field input:focus {
+.field input:focus-visible {
   outline: 2px solid var(--scheduler-focus);
   outline-offset: 1px;
+}
+
+.field input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .field input.invalid {
@@ -80,8 +85,18 @@
   font-weight: 600;
 }
 
-.applyBtn:hover {
+.applyBtn:hover:not(:disabled) {
   opacity: 0.85;
+}
+
+.applyBtn:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 2px;
+}
+
+.applyBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .pending {

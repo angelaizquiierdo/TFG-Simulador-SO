@@ -23,6 +23,10 @@
   overflow: hidden;
 }
 
+.table tr {
+  height: var(--scheduler-row-min-height);
+}
+
 .table th {
   background: var(--scheduler-surface-raised);
   color: var(--scheduler-text-secondary);
@@ -31,6 +35,7 @@
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
   text-align: right;
   border-bottom: 1px solid var(--scheduler-border);
+  vertical-align: middle;
 }
 
 .table th:first-child {
@@ -43,6 +48,7 @@
   text-align: right;
   color: var(--scheduler-text-primary);
   font-variant-numeric: tabular-nums;
+  vertical-align: middle;
 }
 
 .table td:first-child {
