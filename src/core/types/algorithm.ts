@@ -31,7 +31,7 @@ interface IAlgorithm {
   readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;
-  onEvent?(e: SchedulerEvent): string | null;
+  onEvent?(e: SchedulerEvent): string | { text: string } | null;
 }
 
 export type { ReadyProcess, PreemptionMode, SchedulerEvent, AlgorithmParams, IAlgorithm };

@@ -4,3 +4,6 @@ coverage/
 .env
 *.local
 .claude/
+orquestador.sh
+.fase_actual.txt
+logs_automatizacion/

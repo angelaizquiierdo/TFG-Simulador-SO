@@ -2,7 +2,7 @@
 
 > **Modelo:** Claude Sonnet 4.6 (`claude-sonnet-4-6`)
 > **Modo de uso:** Claude Code (`claude --model claude-sonnet-4-6`) o API con este archivo como system prompt.
-> **Propósito:** guiar la ejecución tarea a tarea de `specs/PLAN.MD`.
+> **Propósito:** guiar la ejecución tarea a tarea de `specs/v-02/PLAN.MD`.
 > Lee este archivo completo antes de tocar ningún archivo del proyecto.
 
 ---

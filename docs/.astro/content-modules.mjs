@@ -1,0 +1,16 @@
+
+export default new Map([
+["src/content/docs/guide/01-integracion-del-componente.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguide%2F01-integracion-del-componente.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/non-preemptive/fcfs.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fnon-preemptive%2Ffcfs.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/non-preemptive/ljf.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fnon-preemptive%2Fljf.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/non-preemptive/prio-n.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fnon-preemptive%2Fprio-n.mdx&astroContentModuleFlag=true")],
+["src/content/docs/guide/02-configuracion-y-escenarios.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguide%2F02-configuracion-y-escenarios.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/preemptive/mlfq.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fmlfq.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/preemptive/prio-p.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fprio-p.mdx&astroContentModuleFlag=true")],
+["src/content/docs/index.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Findex.mdx&astroContentModuleFlag=true")],
+["src/content/docs/guide/03-crear-nuevo-algoritmo.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguide%2F03-crear-nuevo-algoritmo.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/non-preemptive/sjf.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fnon-preemptive%2Fsjf.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/preemptive/round-robin.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fround-robin.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/preemptive/srtf.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fsrtf.mdx&astroContentModuleFlag=true")],
+["src/content/docs/cpu-scheduler/preemptive/virtual-round-robin.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fcpu-scheduler%2Fpreemptive%2Fvirtual-round-robin.mdx&astroContentModuleFlag=true")]]);
+		

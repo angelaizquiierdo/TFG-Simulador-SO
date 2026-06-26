@@ -36,7 +36,7 @@ El simulador es una herramienta didáctica: su valor está en *ver y entender* c
 
 - **Dispositivos de E/S:** la configuración puede declarar los **dispositivos** de E/S (por defecto, **uno**). Cada dispositivo sirve a un proceso a la vez y tiene una cola FCFS; los procesos **compiten** por él (ver *Simulación*). Cada ráfaga de E/S se dirige a un dispositivo (al único por defecto, o a uno indicado si hay varios).
 
-- **Entrada editable:** la configuración **deja de ser fija**. Desde la interfaz se pueden **añadir, modificar y eliminar procesos** y cambiar el algoritmo y sus parámetros; al hacerlo, el escenario se vuelve a simular (rederivación, ver *Simulación*). Casos especiales: **escenarios *what-if*** (editar el estado en un tick pasado y rederivar un futuro distinto a partir de ahí) e **inyección de procesos en vivo** (añadir un proceso con llegada en el tick actual o futuro durante la reproducción). Un escenario sin editar mantiene el comportamiento determinista de v01.
+- **Entrada editable:** la configuración **deja de ser fija**. Desde la interfaz se pueden **añadir, modificar y eliminar procesos** y cambiar el algoritmo y sus parámetros; al hacerlo, el escenario se vuelve a simular (rederivación, ver *Simulación*). Casos especiales: **escenarios *what-if*** (editar el estado en un tick pasado y rederivar un futuro distinto a partir de ahí) e **inyección de procesos en vivo** (añadir un proceso con llegada en el tick actual o futuro durante la reproducción). Los algoritmos que tiene dispositivos E/S puede **añadir, modificar y eliminar** los dispositivos.
 
 ### Componentes visuales 
 El módulo expone **componentes visuales independientes**. Cada uno muestra un aspecto del resultado de la simulación:
@@ -45,7 +45,7 @@ El módulo expone **componentes visuales independientes**. Cada uno muestra un a
 - **Diagrama de Gantt (`GanttChart`)** — renderiza la línea temporal mediante una **matriz** (filas: procesos, columnas: ticks) según el historial. Como el historial está **precalculado** (se conoce el número total de ticks), la **tabla aparece desde el principio con su tamaño correcto** (todas las filas y columnas); **no cambia de tamaño al reproducir**. Cada celda indica el estado del proceso en ese tick (en CPU, en espera, en E/S, no llegado, completado). **Al avanzar/retroceder solo cambia el color de las celdas:** las celdas hasta el tick actual están coloreadas y las posteriores quedan vacías (sin revelar el futuro). El diagrama está sincronizado con los controles de reproducción.
 - **Controles del simulador (`PlaybackControls`)** — reproducir/pausar, paso a paso, barra de desplazamiento.
 - **Tabla de métricas (`MetricsTable`)** — métricas por proceso y agregadas.
-- **Formulario de procesos (`ProcessForm`)** — añade, edita y elimina procesos (incluidas sus ráfagas de E/S) y dispara la rederivación. Es el componente de **edición** e **inyección en vivo**.
+- **Formulario de procesos (`ProcessForm`)** — añade, edita y elimina procesos (incluidas sus ráfagas de E/S) y **no se dispara la rederivación hasta pulsar "Simular"**. Es el componente de **edición** e **inyección en vivo**.
 - **Formulario de parámetros del algoritmo (`AlgorithmParamsForm`)** — control para los parámetros configurables desde la demo: `quantum` (Round Robin y Round Robin Virtual) y `quanta` + `boostInterval` (MLFQ). El valor se edita libremente en el control, pero **no se aplica hasta pulsar "Aplicar"**: solo entonces se valida y se rederiva. Mientras el valor editado no coincide con el aplicado, se señala visualmente como **pendiente de aplicar** (no se simula con el valor a medio escribir). Si el algoritmo seleccionado no tiene parámetros configurables desde la demo, el componente no muestra nada.
 
 Todos los componentes se conectan a través de un **contexto de simulación** (uno por simulación, para no mezclar datos). El proveedor (`SimulationProvider`) ejecuta la simulación y la comparte. Los componentes de visualización solo **leen** del contexto; los de edición (`ProcessForm`, `AlgorithmParamsForm`) pueden **modificar el escenario**, lo que provoca una **rederivación** determinista y la actualización del contexto.
@@ -80,11 +80,14 @@ El algoritmo se indica al componente mediante un identificador (o el nombre de l
  - SRTF (Shortest Remaining Time First) — **solo CPU**, sin E/S
  - Prioridad (expropiativa) — **solo CPU**, sin E/S
  - **Round Robin Virtual** (con quantum configurable) — **modela E/S**: los procesos se bloquean, hay cola de E/S y favorece a los procesos intensivos en E/S.
- - **Cola de realimentación — MLFQ** (varios niveles, **cada nivel es una cola Round Robin con su propio quantum**) — **solo CPU**, sin E/S; degradación por quantum y *priority boost*.
+ - **Cola de realimentación — MLFQ** (**3 niveles fijos**: nivel 0 y 1 son Round Robin con quantum editable; nivel 2 es FCFS) — **solo CPU**, sin E/S; degradación por quantum y *priority boost*.
 
 **Modelo de E/S por algoritmo.** El **único** algoritmo que modela E/S (`requires.io = true`) es **Round Robin Virtual**: tiene cola de E/S, estado de bloqueo y dispositivos. **Todos los demás (incluido MLFQ) son estrictamente de CPU:** su estado por tick no tiene cola de E/S ni bloqueados, e **ignoran** los campos de E/S de los procesos. La interfaz solo muestra y valida los campos de E/S cuando el algoritmo seleccionado los modela (es decir, solo en Round Robin Virtual).
 
-Cada algoritmo declara qué campos de proceso requiere (p. ej. prioridad; E/S) y qué parámetros necesita (p. ej. quantum; `quanta` y `boostInterval` en MLFQ, ambos configurables desde la demo). El componente usa esa declaración para validar la configuración y mostrar la información pertinente.
+Cada algoritmo declara qué campos de proceso requiere (p. ej. prioridad; E/S) y qué parámetros necesita (p. ej. quantum en RR/VRR; `quanta` —dos enteros, uno por nivel Round Robin— y `boostInterval` en MLFQ, ambos configurables desde la demo).
+El componente usa esa declaración para validar la configuración y mostrar la información pertinente.
+
+
 
 ### Simulación 
 A partir de la entrada y el algoritmo, el simulador calcula de una sola vez la línea temporal completa del **escenario actual**. Su salida son datos, no elementos visuales:
@@ -120,7 +123,10 @@ En cada instante se visualiza el estado del algoritmo: proceso en CPU, cola de l
 
 ### Demos (una página por algoritmo)
 
-- Para probar el componente se crea un sitio con una página por algoritmo, cada una con un escenario de ejemplo precargado y, junto a él, el `AlgorithmParamsForm` ya mostrando sus parámetros con los valores iniciales puestos (a diferencia de `ProcessForm`, que está cerrado por defecto, `AlgorithmParamsForm` se ve desde el primer momento si el algoritmo tiene parámetros configurables), de modo que la página sea útil y comprensible de inmediato sin que el usuario tenga que abrir nada. (v2) Se añaden las páginas de Round Robin Virtual y Cola de realimentación (mlfq). La de Round Robin Virtual lleva un escenario con dos procesos con E/S (para que se note la diferencia entre la cola principal y la auxiliar); la de mlfq (solo CPU) no necesita procesos con E/S.
+- Para probar el componente se crea un sitio con una página por algoritmo, cada una con un escenario de ejemplo precargado, con `ProcessForm` que abierta por defecto. Si es Round Robin Virtual y Cola de realimentación (mlfq) añadir debajo `AlgorithmParamsForm` ya mostrando sus parametros con los valores iniciales puestos. 
+    - La de Round Robin Virtual lleva procesos con E/S, `ProcessForm` añadir los campos de E/S que son editables.
+    - La de mlfq (solo CPU) no necesita procesos con E/S. 
+  
 - Cada página permite **editar** el escenario; al recargar, si hay un escenario guardado en `localStorage` en la session se restaura. El escenario de ejemplo es el punto de partida por defecto. Las páginas de Round Robin, Round Robin Virtual y `mlfq` incluyen el `AlgorithmParamsForm` para ajustar `quantum`/`quanta`/`boostInterval` y pulsar "Aplicar".
 
 ### Persistencia 
@@ -136,19 +142,28 @@ La estética deja de ser solo "básica": se definen **tokens de diseño** (palet
 
 ### ProcessForm — comportamiento observable
 
-- **Panel desplegable**, cerrado por defecto. Un control visible en la demo lo abre y lo cierra.
-- Al abrir, muestra **todos los procesos** del escenario con sus campos editables: `id`, `arrival_time`, `burst_time`. Si el algoritmo requiere `priority`, aparece; si modela E/S (Round Robin Virtual), aparecen `io_entry` e `io_time`. `io_exit` es derivado y no se edita — se muestra solo en la `ProcessTable`.
-- Los valores iniciales son los del escenario de ejemplo (o los que el usuario haya editado antes, si hay algo guardado en `sessionStorage`).
+- **Panel desplegable**, abierto por defecto. Un control visible en la demo lo abre y lo cierra.
+- Al abrir, muestra **todos los procesos** del escenario con sus campos editables: `id`, `arrival_time`, `burst_time`. Si el algoritmo requiere `priority`, aparece el campo.
+- Si el algoritmo modela E/S (Round Robin Virtual), cada proceso muestra además su **lista de operaciones de E/S**, con los campos `io_entry` e `io_time` por operación:
+  - Un control por proceso permite **añadir una operación de E/S** al final de su lista.
+  - Cada operación tiene un control para **eliminarla** individualmente.
+  - `io_entry` e `io_time` son editables; `io_exit` es derivado y no se edita — se muestra solo en la `ProcessTable`.
+  - **Validación de cada operación:** `io_entry` entero `> 0` y `< burst_time`; `io_time` entero `> 0`.
+  - **Validación entre operaciones:** los `io_entry` del mismo proceso deben ser **estrictamente crecientes**. Si se viola, se señala el error.
+  - Si se reduce `burst_time` y algún `io_entry` existente queda `≥ burst_time`, se señala el error en la operación afectada.
+  - Un proceso puede tener **cero o más** operaciones de E/S. Sin operaciones, se comporta como solo CPU dentro de VRR.
+- Los valores iniciales son los del escenario de ejemplo (o los guardados en `sessionStorage`).
 - **Rederiva al instante:** cualquier cambio válido en un campo actualiza el Gantt y las métricas de inmediato. No hay botón "Aplicar" separado.
 - Si un valor es inválido (`burst_time ≤ 0`, `id` duplicado, `arrival_time < 0`), se señala el error en el campo y la simulación **no rederiva** hasta corregirlo.
-- Un control al final permite **añadir un proceso nuevo**; otro control por proceso permite **eliminar** uno existente. Ambas acciones rederivan al instante. Si se eliminan todos los procesos, la simulación muestra estado vacío sin error.
+-  Un control al final permite **añadir un proceso nuevo**; otro control por proceso permite **eliminar** uno existente. Ambas acciones rederivan al instante. Si se eliminan todos los procesos, la simulación muestra estado vacío sin error.
 - **Inyección en vivo:** si el reproductor está en el tick `T` y se añade un proceso con `arrival_time ≥ T`, la simulación rederiva desde ese tick. Si `arrival_time < T`, se muestra error y no se acepta.
 
 ---
 
 ### AlgorithmParamsForm — comportamiento observable
 
-- **Visible desde el primer momento** (no hay que abrirlo ni desplegarlo), siempre que el algoritmo activo tenga parámetros configurables (`quantum` en Round Robin / VRR; `quanta` + `boostInterval` en MLFQ). Si el algoritmo no tiene parámetros, no aparece.
+- **Visible desde el primer momento** (no hay que abrirlo ni desplegarlo), siempre que el algoritmo activo tenga parámetros configurables (`quantum` en Round Robin / VRR; `quanta` —2 campos: quantum del nivel 0 y quantum del nivel 1— + `boostInterval` en MLFQ). El nivel 2 es FCFS y no tiene quantum.
+
 - Los campos muestran los valores iniciales del escenario de ejemplo ya rellenos.
 - **No rederiva tecla a tecla:** el valor editado queda "pendiente" (visualmente distinto del aplicado) hasta que el usuario pulsa **"Aplicar"**.
 - Al pulsar "Aplicar" con un valor inválido: muestra el error y **no rederiva**.
@@ -266,7 +281,9 @@ Junto a los campos, un botón **"Aplicar"**. Mientras el valor editado difiere d
  - **`io`:** lista de operaciones, cada una con `io_entry` (CPU acumulada ejecutada antes de bloquearse; entero `> 0` y `< burst_time`), `io_time` (duración del servicio de E/S, entero `> 0`) y `device` (opcional; dispositivo destino, por defecto el único). `io_entry` e `io_time` son **ambos obligatorios** en cada operación: declarar uno sin el otro (p. ej.
  `io_entry` sin `io_time`) es una **operación incompleta → configuración inválida**. `io_exit` (instante de retorno) es **derivado** (entrada + espera de dispositivo + servicio). Los `io_entry` de la lista son **estrictamente crecientes**. Internamente equivale a una secuencia alternada CPU/E·S. **Solo lo usan los algoritmos con `requires.io = true`**; los clásicos lo ignoran.
 - **Dispositivo de E/S:** `id`; sirve a un proceso a la vez y tiene una cola FCFS.
-- **Configuración:** algoritmo seleccionado y sus parámetros (`quantum`; `quanta` y `boostInterval` en MLFQ, ambos configurables desde la demo); lista de **dispositivos de E/S** (por defecto, uno; solo relevante en algoritmos que modelan E/S).
+- **Configuración:** 
+    - Algoritmo seleccionado y sus parámetros (`quantum`; `quanta` [2 enteros] y `boostInterval` en MLFQ, ambos configurables desde la demo); 
+    - Lista de **dispositivos de E/S** (por defecto, uno pero se puede añadir más E/S solo relevante en algoritmos que modelan E/S).
 - **Estado del planificador (por tick):** instante actual, proceso en CPU (o inactivo), cola de listos, ráfagas restantes, procesos pendientes de llegar y procesos completados con su información de finalización. **Solo en algoritmos que modelan E/S:** por cada **dispositivo de E/S**, el proceso en servicio (o ninguno), su tiempo de servicio restante y - **Estado del planificador (por tick):** instante actual, proceso en CPU (o inactivo), cola de listos, ráfagas restantes, procesos pendientes de llegar y procesos completados con su información de finalización. **Solo en Round Robin Virtual** (único algoritmo con E/S): el estado incluye también el proceso en E/S (si lo hay) y el tiempo de servicio restante. En los clásicos y en MLFQ el estado es el mismo que en v01.
 - **Resultado de la simulación:** diagrama de Gantt (intervalos), historial de estados y métricas por proceso y agregadas.
 - **Escenario (unidad de persistencia local):** procesos + algoritmo + parámetros (+ rama *what-if* si la hay). Es lo que se guarda en `localStorage` y se restaura al recargar. El resultado de la simulación **no** se persiste: se rederiva del escenario en el cliente.
@@ -295,7 +312,7 @@ Junto a los campos, un botón **"Aplicar"**. Mientras el valor editado difiere d
 
 ## Fuera de alcance (v2)
 
-**Entran en alcance** respecto a v01: ráfagas de E/S y estado de bloqueo (VRR y MLFQ); colas multinivel con realimentación y su **envejecimiento / *priority boost*** (`boostInterval`); **edición de la entrada**, **escenarios *what-if*** e **inyección de procesos en vivo**; **persistencia en `localStorage`**; y **estética afinada** (tokens de diseño).
+**Entran en alcance** respecto a v01: ráfagas de E/S y estado de bloqueo (VRR y MLFQ); colas multinivel con realimentación y su **envejecimiento / *priority boost*** (`boostInterval`); **edición de la entrada**, **escenarios *what-if*** e **inyección de procesos en vivo**; **persistencia en `localStorage`**;
 
 **Sigue fuera de alcance:** 
 - **Multiprocesador, múltiples núcleos y afinidad de CPU.** - **Backend, nube, colaboración multiusuario y exportación** (SVG/PNG/CSV/JSON). Toda la lógica vive en el navegador; no hay servidor.

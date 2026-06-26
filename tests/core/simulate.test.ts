@@ -719,6 +719,55 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
     expect(result.history[2]?.message).toContain('P1 agotó su quantum');
     expect(result.history[2]?.message).toContain('P2 toma la CPU');
   });
+
+  it('DADO onEvent que retorna string plano CUANDO se compone el mensaje ENTONCES usa el literal', () => {
+    class StringMsgAlgo implements IAlgorithm {
+      readonly name = 'string-msg';
+      readonly preemptionMode = 'none';
+      readonly requires = {};
+      select(ready: readonly ReadyProcess[]): ReadyProcess { return ready[0]!; }
+      onEvent(e: SchedulerEvent): string | null {
+        if (e.type === 'dispatch') return 'Texto literal inyectado';
+        return null;
+      }
+    }
+    register(new StringMsgAlgo());
+    
+    const processes: Process[] = [{ id: 'P1', arrival_time: 0, burst_time: 1 }];
+    const result = run(processes, { algorithm: 'string-msg' });
+    
+    // Verifica que resolveMsg no modifique el string plano
+    expect(result.history[0]?.message).toBe('Texto literal inyectado');
+  });
+
+  it('DADO algoritmo expropiativo con mensajes ricos CUANDO expropia ENTONCES concatena salida y entrada', () => {
+    class PreemptMsgAlgo implements IAlgorithm {
+      readonly name = 'preempt-msg';
+      readonly preemptionMode = 'on-better';
+      readonly requires = {};
+      select(ready: readonly ReadyProcess[]): ReadyProcess {
+         let best = ready[0]!;
+         for (const p of ready) if (p.remaining < best.remaining) best = p;
+         return best;
+      }
+      onEvent(e: SchedulerEvent): { text: string } | null {
+        if (e.type === 'preempted') return { text: 'es expulsado' };
+        if (e.type === 'dispatch') return { text: 'toma el control' };
+        return null;
+      }
+    }
+    register(new PreemptMsgAlgo());
+    
+    const processes: Process[] = [
+      { id: 'P1', arrival_time: 0, burst_time: 5 },
+      { id: 'P2', arrival_time: 1, burst_time: 2 },
+    ];
+    const result = run(processes, { algorithm: 'preempt-msg' });
+    
+    // tick 1: P2 llega (rem=2) y expropia a P1 (rem=4).
+    // Verifica el ensamblado del paso 2 del motor.
+    expect(result.history[1]?.message).toBe('P1 es expulsado. A continuación, P2 toma el control');
+  });
 });
 
 // ── T-17: Modo 'on-quantum-and-better' — MLFQ ──────────────────────────────
@@ -786,6 +835,68 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
     expect(result.history[11]?.onCPU).toBe('P1');
     // P1 completó al final del tick 11; aparece en completed a partir del tick 12
     expect(result.history[12]?.completed).toContain('P1');
+  });
+
+  // ── Cobertura Adicional: Reevaluaciones sin expropiación ────────────────────
+  it('DADO on-quantum-and-better CUANDO llega proceso pero el actual es mejor ENTONCES no expropia', () => {
+    class NoPreemptOQAB implements IAlgorithm {
+      readonly name = 'no-preempt-oqab';
+      readonly preemptionMode = 'on-quantum-and-better';
+      readonly requires = {};
+      select(ready: readonly ReadyProcess[]): ReadyProcess {
+        // Siempre prefiere mantener a P1 si está disponible
+        const p1 = ready.find((p) => p.id === 'P1');
+        return p1 ?? ready[0]!;
+      }
+    }
+    register(new NoPreemptOQAB());
+    
+    const processes: Process[] = [
+      { id: 'P1', arrival_time: 0, burst_time: 5 },
+      { id: 'P2', arrival_time: 2, burst_time: 1 },
+    ];
+    const result = run(processes, { algorithm: 'no-preempt-oqab', quantum: 10 });
+    
+    // En el tick 2 llega P2, pero el algoritmo elige mantener P1 (líneas 307-330 aprox).
+    expect(result.history[2]?.onCPU).toBe('P1');
+    expect(result.history[2]?.message).toBe('P1 en CPU');
+  });
+
+  it('DADO io-return CUANDO un proceso vuelve de IO pero el actual es mejor ENTONCES no expropia', () => {
+    class KeepCurrentIoReturn implements IAlgorithm {
+      readonly name = 'keep-io-return';
+      readonly preemptionMode = 'io-return';
+      readonly requires = { io: true as const };
+      select(ready: readonly ReadyProcess[]): ReadyProcess {
+        // Siempre prefiere mantener a P2 si está disponible
+        const p2 = ready.find((p) => p.id === 'P2');
+        return p2 ?? ready[0]!;
+      }
+    }
+    register(new KeepCurrentIoReturn());
+    
+    const processes: Process[] = [
+      { id: 'P1', arrival_time: 0, burst_time: 3, io: [{ io_entry: 1, io_time: 1 }] },
+      { id: 'P2', arrival_time: 0, burst_time: 5 },
+    ];
+    const result = run(processes, { algorithm: 'keep-io-return' });
+    
+    // En el tick 2, P1 vuelve de E/S. El motor evalúa, pero select() elige a P2 que ya estaba en CPU.
+    expect(result.history[2]?.onCPU).toBe('P2');
+    expect(result.history[2]?.message).toBe('P2 en CPU');
+  });
+
+  it('DADO on-better al final del tick CUANDO reevalúa y el actual sigue siendo mejor ENTONCES no hace nada', () => {
+    // SRTF reevalúa al final del PASO 4.
+    const processes: Process[] = [
+      { id: 'P1', arrival_time: 0, burst_time: 4 },
+      { id: 'P2', arrival_time: 0, burst_time: 5 },
+    ];
+    const result = run(processes, { algorithm: 'srtf-test' });
+    
+    // Al final del tick 0, P1(rem=3) y P2(rem=5) son reevaluados. P1 gana, activando
+    // la rama invisible de las líneas 440-443 donde no se ejecuta la expropiación.
+    expect(result.history[1]?.onCPU).toBe('P1');
   });
 });
 
@@ -865,6 +976,21 @@ describe('§ Rederivación — what-if e inyección en vivo', () => {
     const p3Dispatched = result.history.find((e) => e.onCPU === 'P3');
     expect(p3Dispatched).toBeDefined();
     expect(p3Dispatched?.tick).toBeGreaterThanOrEqual(3);
+  });
+
+  it('DADO un estado inyectado con un ID fantasma CUANDO se construye ready ENTONCES lanza error', () => {
+    // Si se inyecta un estado corrupto con un PID que no pertenece a los procesos originales
+    const processes: Process[] = [{ id: 'P1', arrival_time: 0, burst_time: 3 }];
+    const corruptState: import('../../src/core/types/scheduler-state.js').SchedulerState = {
+      tick: 1,
+      onCPU: null,
+      ready: ['FANTASMA'], 
+      pending: [],
+      completed: [],
+      deviceState: { serving: null, remaining: 0, queue: [] },
+      remaining: [{ id: 'FANTASMA', remaining: 2 }],
+    };
+    expect(() => runFrom(corruptState, { algorithm: 'fcfs-test' }, processes)).toThrow("Inyección inválida: el proceso \"P1\" tiene arrival_time=0 < tick=1");
   });
 });
 
@@ -1058,6 +1184,14 @@ describe('§ Seguridad y tolerancia a fallos', () => {
     expect(result.history[0]?.onCPU).toBeNull();
     // tick 1: P1 despacha normalmente
     expect(result.history[1]?.onCPU).toBe('P1');
+  });
+  
+  // ── Cobertura Adicional: Límite de seguridad ────────────────────────────────
+  it('DADO un escenario anómalo CUANDO supera 100,000 ticks ENTONCES aborta lanzando un error', () => {
+    // Si un proceso llega en el tick 100,001, el motor iterará en vacío 
+    // hasta superar la constante TICK_LIMIT, activando el cortafuegos.
+    const processes: Process[] = [{ id: 'P1', arrival_time: 100005, burst_time: 1 }];
+    expect(() => run(processes, { algorithm: 'fcfs-test' })).toThrow(/límite/);
   });
 });
 

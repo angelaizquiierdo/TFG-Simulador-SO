@@ -3,7 +3,7 @@
 > Hoja de ruta secuencial. Cada tarea es atómica: tiene un resultado verificable y sus
 > tests pasan antes de continuar con la siguiente.
 >
-> Fuentes: `SPECv-02.md` · `BEHAVIOURSv-02.md` · `TECHNICAL.md` · Ubicación: `specs/v-02/PLANv-02.md`
+> Fuentes: `SPECv-02.md` · `BEHAVIOURSv-02.md` · `TECHNICAL.md` · Ubicación: `specs/v-02/PLAN.md`
 >
 
 ---
@@ -264,8 +264,7 @@ interface Interval {
 }
 ```
 
-**Verificación:** `typecheck` confirma que `History` es indexable con
-`noUncheckedIndexedAccess` (devuelve `HistoryEvent | undefined`).
+**Verificación:** `typecheck` confirma que `History` es indexable con `noUncheckedIndexedAccess` (devuelve `HistoryEvent | undefined`).
 
 ### T-06 · `SimulationResult` y métricas (`simulation-result.ts`)
 
@@ -315,7 +314,7 @@ interface WhatIfBranch {
 
 `register(algo: IAlgorithm): void` y `get(name: string): IAlgorithm` (error descriptivo si no existe, listando los disponibles; si vacío muestra "(ninguno)"). Singleton.
 
-**Cierra:** `BEHAVIOURSv-02 § Registro de algoritmos` — `tests/core/registry.test.ts`
+**Cierra:** `Registro de algoritmos` — `tests/core/registry.test.ts`
 
 ---
 
@@ -407,8 +406,10 @@ export class IOSubsystem {
 
 Dentro del `while` de simulación, si `requires.io` es true, conectar `IOSubsystem`. El flujo del tick DEBE seguir estrictamente este orden:
 1. Consumo de CPU y E/S (decrementar contadores).
-2. Fin de tramo CPU: Comprobar `io_entry` (emitir `io-start` enviando `ranFor` y llamar al subsistema) o ráfaga agotada (emitir `completed`).
-3. Fin de servicio E/S: Interrogar al subsistema qué procesos han terminado (esto disparará `io-return` en el paso 4).
+2. Fin de tramo CPU. Se debe comprobar el estado del proceso actual (`onCPU`):
+   - Si ha llegado a su `io_entry`: Emitir el evento `io-start`, enviar el proceso al `IOSubsystem` y **obligatoriamente liberar la CPU** (`currentState.onCPU = null`) en este mismo tick para permitir el cambio de contexto.
+   - Si ha agotado su ráfaga por completo: Emitir `completed` y liberar la CPU (`currentState.onCPU = null`).
+3. Fin de servicio E/S: Interrogar al subsistema qué procesos han terminado (esto disparará `io-return` en el paso 5).
 4. Ensamblado de Narrativa: Gestionar los mensajes del algoritmo. Al registrar HistoryEvent, si el tick actual tiene un mensaje de entrada (dispatch) y el tick anterior tiene un mensaje de salida (salida de CPU), concatenarlos usando la plantilla: "{salida}. A continuación, {entrada}".
 5. Inserciones en ready (estrictamente en este orden, ordenados por ID dentro de cada grupo): Retornos de E/S (`io-return`) → Llegadas (`arrival`) → Reencolado por quantum (`quantum-expiry`).
 6. Decisión de reparto (Llamar a `select()` según el `preemptionMode`).
@@ -420,7 +421,7 @@ Dentro del `while` de simulación, si `requires.io` es true, conectar `IOSubsyst
 
 Si `preemptionMode === 'io-return'`, el motor forzará una llamada a `select()` en el instante exacto en que haya retornos de E/S (paso 3 del intra-tick), permitiendo al algoritmo expropiar la CPU.
 
-**Cierra:** `§ Determinismo con E/S (VRR)` (desempate) — `tests/core/simulate.test.ts`
+**Cierra:** `Determinismo con E/S (VRR)` (desempate) — `tests/core/simulate.test.ts`
 
 ### T-17 · Modo `'on-quantum-and-better'`
 
@@ -441,7 +442,6 @@ Implementar la captura de fragmentos descriptivos.
 4. Si en el tick siguiente hay un nuevo fragmento, el motor ejecuta la lógica de concatenación definida en T-15.
 
 5. Si `onEvent` devuelve null, usar los mensajes genéricos predeterminados.
-
 
 **Cierra:** `§ Mensajes ricos — HistoryEvent.message` — `tests/core/simulate.test.ts`
 
@@ -468,21 +468,20 @@ Implementar `runFrom(state, config, allProcesses)`. DEBE instanciar un estado de
 
 Validar `arrival_time`. Si un proceso de `allProcesses` no completado tiene `arrival_time < state.tick`, lanzar Error. Si es válido, se procesará de forma natural en `_executeSimulationLoop`.
 
-**Cierra:** `§ Rederivación` (criterios 4–5) — `tests/core/simulate.test.ts`
+**Cierra:** `§ Rederivación — what-if e inyección en vivo` (criterios 4–5) — `tests/core/simulate.test.ts`
 
 ### T-23 · Casos límite y validación
 
 
 En `validateProcesses()`, asegurar que se lanzan Errores si no se cumple lo siguiente: `burst_time > 0`, `arrival_time >= 0`. Para la lista de E/S: `io_entry` debe ser estrictamente creciente, `io_entry > 0`, `io_entry < burst_time`, e `io_time > 0`. Implementar protección anti-bucle (`tick > 100_000` lanza Error).
 
-**Cierra:** `§ Conjunto vacío`, `§ Configuración inválida`, `§ Validación de configuración`,
-`§ Seguridad y tolerancia a fallos` — `tests/core/simulate.test.ts`
+**Cierra:** `§ Conjunto vacío`, `§ Validación de configuración`, `§ Seguridad y tolerancia a fallos` — `tests/core/simulate.test.ts`
 
 ### T-24 · Aislamiento de dependencias (Node)
 
 Escribir un test en `tests/core/simulate.test.ts` que importe `run()` garantizando su ejecución en entorno Node, sin dependencias de React, DOM ni `sessionStorage`.
 
-**Cierra:** `§ Simulador independiente de la vista`, `§ Estructura del resultado` — `tests/core/simulate.test.ts`
+**Cierra:** `§ Simulador independiente de la vista`, `§ Estructura del resultado de simulación` — `tests/core/simulate.test.ts`
 
 ---
 
@@ -506,16 +505,16 @@ Puro: sin `requestAnimationFrame`/`setTimeout`/`deltaTime`.
 
 `FifoQueue<T>` con `enqueue`, `dequeue`, `peek`, `isEmpty`, `toArray`. Sin dependencias.
 
-**Verificación:** `tests/core/algorithms/shared/fifo-queue.test.ts`
+**Cierra:** `§ Utilidad FifoQueue` — `tests/core/algorithms/shared/fifo-queue.test.ts`
 
 ### T-27–T-33 · Algoritmos clásicos (7)
 
 | ID | Archivo | `preemptionMode` | `requires.io` | `select` | Cierra | Test |
 |----|---------|------------------|:---:|----------|--------|------|
 | T-27 | `non-preemptive/fcfs.ts` | `'none'` | false | FIFO | `§ Simular — FCFS` | `fcfs.test.ts` |
-| T-28 | `non-preemptive/sjf.ts` | `'none'` | false | menor `remaining` | `§ Simular — SJF` | `sjf.test.ts` |
-| T-29 | `non-preemptive/ljf.ts` | `'none'` | false | mayor `burst_time` | `§ Simular — LJF` | `ljf.test.ts` |
-| T-30 | `non-preemptive/priority-np.ts` | `'none'` | false | menor `priority` | `§ Simular — Prioridad (NP)` | `priority-np.test.ts` |
+| T-28 | `non-preemptive/sjf.ts` | `'none'` | false | menor `remaining` | `§ Simular — SJF (no expropiativo)` | `sjf.test.ts` |
+| T-29 | `non-preemptive/ljf.ts` | `'none'` | false | mayor `burst_time` | `§ Simular — LJF (no expropiativo)` | `ljf.test.ts` |
+| T-30 | `non-preemptive/priority-np.ts` | `'none'` | false | menor `priority` | `§ Simular — Prioridad (no expropiativa)` | `priority-np.test.ts` |
 | T-31 | `preemptive/srtf.ts` | `'on-better'` | false | menor `remaining` | `§ Simular — SRTF` | `srtf.test.ts` |
 | T-32 | `preemptive/priority-p.ts` | `'on-better'` | false | menor `priority` | `§ Simular — Prioridad (P)` | `priority-p.test.ts` |
 | T-33 | `preemptive/round-robin.ts` | `'on-quantum'` | false | FIFO | `§ Simular — Round Robin` | `round-robin.test.ts` |
@@ -545,34 +544,34 @@ Implementa `select` (auxQueue → mainQueue), `quantumFor` (sobrante desde auxQu
 - `quantum-expiry` / `preempted` / `io-start`: "agotó su quantum..." / "fue expropiado..." / "se bloquea por E/S...".
 - `io-return`: "se inserta en la cola auxiliar con sobrante de X" o "se reencola en la cola principal".
 
-**Cierra:** `§ Simular — Round Robin Virtual`, `§ Round Robin Virtual — E/S y cola auxiliar`, `§ Determinismo con E/S (VRR)` — `tests/core/algorithms/preemptive/virtual-round-robin.test.ts`
+**Cierra:** `§ Simular — Round Robin Virtual (expropiativa)`, `§ Determinismo con E/S (VRR)` — `tests/core/algorithms/preemptive/virtual-round-robin.test.ts`
+
 
 ### T-35 · MLFQ (`preemptive/multilevel-feedback.ts`)
 
 `preemptionMode: 'on-quantum-and-better'`, `requires: { io: false }`.
-Estado interno: `levels: FifoQueue<string>[]`, `processLevel: Map<string, number>`.
+Estado interno: `levels: [FifoQueue<string>, FifoQueue<string>, FifoQueue<string>]` (siempre 3), `processLevel: Map<string, number>`.
 
-Implementa `select` (nivel no vacío de menor índice), `quantumFor`
-(`quanta[processLevel.get(pid)]`), `onEvent` (mantiene niveles + devuelve motivo rico:
-"se degrada al nivel N", "llega al nivel 0", "priority boost: todos suben al nivel 0").
+**3 niveles fijos:** nivel 0 (RR, `quanta[0]`), nivel 1 (RR, `quanta[1]`), nivel 2 (FCFS, sin quantum). `quanta` es siempre un array de exactamente 2 enteros `> 0`. El número de niveles NO es configurable.
+
+Implementa `select` (nivel no vacío de menor índice), `quantumFor` (`quanta[processLevel.get(pid)]` para niveles 0 y 1; `null` para nivel 2), `onEvent` (mantiene niveles + devuelve motivo rico).
 
 Reglas:
 1. Llegada nueva → `levels[0]`.
 2. `select`: cabeza de `levels[i]` para menor `i` no vacío.
-3. `quantumFor`: `quanta[processLevel.get(pid)]`.
-4. Agota quantum → degrada a `min(nivel + 1, último)`.
-5. Expropiación: llegada a `levels[0]` expropia al de nivel inferior. Expropiado
-   vuelve a cabeza de su nivel (no degrada).
-6. Priority boost: cada `boostInterval` ticks, todos a `levels[0]` (incluido el de
-   CPU). Empate: menor `id`. Sin `boostInterval` → sin boost.
+3. `quantumFor`: `quanta[nivel]` para nivel 0 y 1; `null` para nivel 2.
+4. Agota quantum → degrada: nivel 0 → 1, nivel 1 → 2. En nivel 2 no degrada más.
+5. Nivel 2 (FCFS): sin expiración de quantum. Solo sale al completar, ser expropiado por llegada a nivel 0, o por priority boost.
+6. Expropiación: llegada a `levels[0]` expropia al de nivel inferior. Expropiado vuelve a cabeza de su nivel (no degrada).
+7. Priority boost: cada `boostInterval` ticks, todos a `levels[0]` (incluido el de CPU). Empate: menor `id`. Sin `boostInterval` → sin boost.
 
-**Cierra:** `§ Simular — MLFQ`, `§ MLFQ — niveles y degradación`, `§ Determinismo con niveles (MLFQ)` — `tests/core/algorithms/preemptive/multilevel-feedback.test.ts`
+**Cierra:** `§ Simular — MLFQ (expropiativa)`, `§ MLFQ — niveles y degradación`— `tests/core/algorithms/preemptive/multilevel-feedback.test.ts`
 
 ### T-36 · Contrato de extensibilidad
 
 Algoritmo de prueba con `onEvent` + `quantumFor` registrado y simulado sin tocar el motor.
 
-**Cierra:** `§ Contrato de algoritmo (extensibilidad)`, `§ Verificación de contrato` — `tests/core/algorithms/contracts.test.ts`
+**Cierra:** `§ Contrato de algoritmo (extensibilidad)`, `§ Verificación de contrato de algoritmo (Extensibilidad)` — `tests/core/algorithms/contracts.test.ts`
 
 ---
 
@@ -674,20 +673,18 @@ El archivo debe definir el diseño adaptativo utilizando bloques :root y selecto
 - **Verificación Estática:** Comprobar que `src/react/style/tokens.css` existe y que ninguna clase en los archivos `*.module.css` introduce harcodeos de colores (valores hexadecimales o rgb directos).
 - **Verificación de Integración:** El comando `npm run docs:build` compila el subproyecto Astro sin lanzar errores de importación o estilos ausentes.
 
+
 ### T-38 · `SimulationContext` + `<SimulationProvider>` (Gestor de Estado Puro)
 
 `SimulationContext.ts`: contexto y hook `useSimulation()` (error si se usa fuera del Provider).
 
+`SimulationProvider.tsx`: recibe `{ algorithm, processes, params?, children }`. Al montar: llama a `run()`, instancia un `Player`, expone por contexto `SimulationResult`, `HistoryEvent` actual, `Player`, error, y **API de rama what-if** (`createWhatIf`, `discardWhatIf`, `whatIfBranch`). 
 
-`SimulationProvider.tsx`: recibe `{ algorithm, processes, params?, children }`. Al montar: llama a `run()`, instancia un `Player`, expone por contexto `SimulationResult`, `HistoryEvent` actual, `Player`, error, y **API de rama what-if** (`createWhatIf`, `discardWhatIf`, `whatIfBranch`). Gestiona `sessionStorage`:
-- Escenario base: `scheduler-scenario:${algorithmName}`.
-- Rama what-if: `scheduler-whatif:${algorithmName}`.
-
-Soporta `runFrom()` para what-if/inyección.
+Soporta `runFrom()` para what-if/inyección. Mantiene el estado estrictamente en memoria durante esta fase.
 
 **Restricción crítica:** No renderiza **ningún elemento visual de UI** (tablas, gráficos, etc.). Su único retorno renderizado debe ser `<SimulationCtx.Provider>{children}</SimulationCtx.Provider>`.
 
-**Cierra:** `§ Conjunto vacío`, `§ Configuración inválida`, `§ Render — SimulationApp` — `tests/react/SimulationProvider.test.tsx`
+**Cierra:** `§ Conjunto vacío`, `§ Render — SimulationProvider y Gestión de Estado` — `tests/react/SimulationProvider.test.tsx`
 
 ### T-39 · `<SimulationApp>` (Contenedor Visual Principal)
 
@@ -697,7 +694,7 @@ Es el orquestador visual. Recibe la misma configuración inicial (`algorithm`, `
 Debe implementar el layout de la interfaz organizando la cuadrícula de los subcomponentes (`AlgorithmParamsForm`, `ProcessTable`, `GanttChart`, `PlaybackControls`, `MetricsTable` y `ProcessForm`). 
 Soporta inyección directa de clases CSS o directivas de layout para adaptarse a los dos modos requeridos (Panel Unificado o Componentes Intercalados).
 
-**Cierra:** `§ Render — SimulationApp`, `§ Escenario de ejemplo por defecto` — `tests/react/SimulationApp.test.tsx`
+**Cierra:** `§ Render — SimulationApp (Orquestador Visual)` y colabora en `§ Escenario de ejemplo por defecto` — `tests/react/SimulationApp.test.tsx`
 
 ### T-40 · `<ProcessTable>`
 
@@ -727,7 +724,6 @@ Layout de arriba abajo:
 2. **Matriz (Cabecera + Grilla)** — Tamaño **fijo desde el inicio**: todas las columnas renderizadas, navegar solo cambia el color. Celdas sin texto, solo color.
 3. **Leyenda** — Estados condicionados: Inactivo, En espera, En CPU; si `requires.io` también En E/S y Esperando E/S. La leyenda debe usar la misma representación visual que la matriz.
 
----
 
 ### Estructura de la matriz y Renderizado (React):
 - **Fila 0 (Cabecera Superior):** La primera fila de la matriz DEBE ser una fila de cabecera (`.rowHeader`) que contenga los números de tick (`0`, `1`, `2`, ..., `último tick`). Debe incluir un elemento espaciador inicial invisible/vacío para empujar los números de tick y alinearlos exactamente sobre sus respectivas columnas de celdas inferiores, saltándose el hueco de la cabecera lateral.
@@ -905,7 +901,16 @@ Reglas visuales de formularios:
 - Los controles deshabilitados deben ser distinguibles.
 - El panel desplegable debe mostrar claramente su estado abierto/cerrado.
 
-**Cierra:** `§ ProcessForm — panel desplegable` — `tests/react/ProcessForm.test.tsx`
+**Edición de operaciones de E/S (solo si `requires.io`):** Cada proceso muestra una sublista editable de operaciones. Cada operación tiene `io_entry` e `io_time`.
+
+- **Añadir operación:** control por proceso, valores por defecto, rederiva.
+- **Eliminar operación:** control por operación, rederiva. Sin operaciones = solo CPU.
+- **Validación individual:** `io_entry > 0 && < burst_time`; `io_time > 0`.
+- **Validación de lista:** `io_entry` estrictamente crecientes.
+- **Cascada:** si `burst_time` se reduce y algún `io_entry ≥ burst_time` → error.
+
+**Cierra:** `§ ProcessForm — panel desplegable de edición de procesos` y `§ ProcessForm — edición de operaciones de E/S` — `tests/react/ProcessForm.test.tsx`
+
 ### T-45 · `<WhatIfControls>` (rama what-if)
 
 Archivos: `WhatIfControls.tsx`, `style/WhatIfControls.module.css`.
@@ -946,25 +951,24 @@ Reglas visuales de formularios:
 - Los controles deshabilitados deben ser distinguibles.
 - El panel desplegable debe mostrar claramente su estado abierto/cerrado.
 
-**Cierra:** `§ AlgorithmParamsForm` — `tests/react/AlgorithmParamsForm.test.tsx`
+**Cierra:** `§ AlgorithmParamsForm — edición de parámetros desde la demo` — `tests/react/AlgorithmParamsForm.test.tsx`
 
 ---
 
 ## Fase 7 — Persistencia por sesión
 
-### T-47 · `sessionStorage` con clave por página
 
+### T-47 · Persistencia en `sessionStorage` con clave por página
 
-`SimulationProvider` guarda/restaura:
-- **Escenario base** en `sessionStorage` bajo `scheduler-scenario:${algorithmName}`.
-- **Rama what-if** (si existe) en `sessionStorage` bajo `scheduler-whatif:${algorithmName}`. Solo la última rama; crear una nueva descarta la anterior.
+Se actualiza `SimulationProvider.tsx` para añadir los efectos secundarios de persistencia:
+- Guarda/restaura el **Escenario base** bajo `scheduler-scenario:${algorithmName}`.
+- Guarda/restaura la **Rama what-if** bajo `scheduler-whatif:${algorithmName}`.
+- Excluye estrictamente el resultado (`SimulationResult`) del objeto guardado.
 
-Se pierde al cerrar la pestaña. Acción de reset limpia ambas claves.
-Clave por página (navegar entre páginas no mezcla escenarios).
+Se debe implementar la acción de `reset` que limpia el escenario actual devolviéndolo a los valores pasados por `props` inicialmente y borra ambas claves del `sessionStorage`.
+Se garantiza que navegar entre páginas (`algorithmName` distinto) no mezcla los escenarios.
 
-**Cierra:** `§ Persistencia por sesión`, `§ Escenario de ejemplo por defecto` (criterios
-v02) — `tests/react/SimulationProvider.test.tsx`
-
+**Cierra:** `§ Persistencia por sesión`, `§ Escenario de ejemplo por defecto` — `tests/react/SimulationProvider.test.tsx` (se añaden los nuevos tests a la suite existente).
 ---
 
 ## Fase 8 — Documentación (`docs/`)
@@ -1061,8 +1065,6 @@ Reglas Estrictas (Guardarraíles): Prohibición de acceder al historial global, 
   client:only="react"
 />
 ```
-
-**Cierra:** `§ Escenario de ejemplo por defecto`
 
 ### T-50 · Páginas de demo Prioridad NP
 - priority-np
@@ -1189,48 +1191,51 @@ Fase 0 (T-00, T-01)
 | Criterio `BEHAVIOURSv-02.md` | Tarea(s) |
 |-------------------------------|----------|
 | Registro de algoritmos | T-08 |
-| Contrato de algoritmo (extensibilidad) | T-36 |
-| Simulador independiente de la vista | T-24 |
-| Estructura del resultado de simulación | T-24 |
-| Página de algoritmo y campos declarados | T-40, T-50, T-51 |
-| Algoritmos clásicos — solo CPU | T-27…T-33 |
-| Validación de configuración | T-23 |
-| Simular — FCFS | T-11, T-27 |
-| Simular — SJF | T-28 |
-| Simular — LJF | T-29 |
-| Simular — Prioridad (NP) | T-30 |
-| Simular — SRTF | T-12, T-31 |
-| Simular — Prioridad (P) | T-32 |
-| Simular — Round Robin | T-13, T-33 |
-| Simular — MLFQ | T-35 |
-| Simular — Round Robin Virtual | T-34 |
 | CPU inactiva | T-09 |
-| Seguridad y tolerancia a fallos | T-23 |
 | Determinismo sin E/S | T-10 |
+| Simular — FCFS | T-11, T-27 |
+| Simular — SRTF | T-12, T-31 |
+| Simular — Round Robin | T-13, T-33 |
+| Contención del dispositivo de E/S | T-14 |
+| Orden intra-tick y empate ráfaga/quantum | T-15 |
 | Determinismo con E/S (VRR) | T-16, T-34 |
 | Determinismo con niveles (MLFQ) | T-17, T-35 |
-| Orden intra-tick y empate ráfaga/quantum | T-15 |
+| Mensajes ricos — `HistoryEvent.message` | T-18 |
 | Historial y métricas | T-19 |
-| Round Robin Virtual — cola auxiliar y sobrante | T-34 |
-| Contención del dispositivo de E/S | T-14 |
-| MLFQ — niveles y degradación | T-35 |
-| Mensajes ricos (`onEvent` → string) | T-18 |
+| Coherencia de métricas y estado | T-20, T-43 |
 | Rederivación — what-if e inyección | T-21, T-22 |
-| Reproducción automática | T-40 |
-| Navegación manual | T-25, T-40 |
-| Coherencia de métricas y estado | T-20, T-41 |
-| Escenario de ejemplo por defecto | T-37, T-44, T-47 |
-| Conjunto vacío | T-23, T-37 |
-| Render — SimulationApp y SimulationProvider | T-38, T-39 |
+| Conjunto vacío | T-23, T-38 |
+| Validación de configuración | T-23 |
+| Seguridad y tolerancia a fallos | T-23 |
+| Simulador independiente de la vista | T-24 |
+| Estructura del resultado de simulación | T-24 |
+| Navegación manual | T-25, T-42 |
+| Utilidad FifoQueue | T-26|
+| Algoritmos clásicos — solo CPU | T-27…T-33 |
+| Simular — SJF (no expropiativo) | T-28 |
+| Simular — LJF (no expropiativo) | T-29 |
+| Simular — Prioridad (no expropiativa) | T-30 |
+| Simular — Prioridad (P) | T-32 |
+| Simular — Round Robin Virtual (expropiativa) | T-34 |
+| Simular — MLFQ (expropiativa) | T-35 |
+| Contrato de algoritmo (extensibilidad) | T-36 |
+| Verificación de contrato de algoritmo (Extensibilidad) | T-36 |
+| Escenario de ejemplo por defecto | T-38, T-39 , T-44, T-47 |
+| Persistencia por sesión | T-47 |
+| Render — SimulationProvider | T-38, T-40 |
+| Render — SimulationApp (Orquestador Visual)| T-39 |
+| Página de algoritmo y campos declarados | T-40, T-50, T-51 |
 | Render — ProcessTable | T-40 |
 | Render — GanttChart | T-41 |
+| Iconos SVG | T-42 |
+| Tamaño consistente de botones | T-42 |
+| Reproducción automática | T-42 |
 | Render — PlaybackControls | T-42 |
 | Render — MetricsTable | T-43 |
-| `ProcessForm` — panel desplegable | T-44 |
+| ProcessForm — panel desplegable de edición de procesos | T-44 | 
+| ProcessForm — edición de operaciones de E/S | T-44 |
 | WhatIfControls — rama what-if | T-45 |
 | `AlgorithmParamsForm` — draft vs applied | T-46 |
-| Persistencia por sesión | T-47 |
-| Verificación de contrato v02 | T-37 |
 
 ---
 

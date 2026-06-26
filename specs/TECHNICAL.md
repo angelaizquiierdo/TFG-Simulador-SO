@@ -70,7 +70,7 @@ La dependencia va en **una sola dirección**: **demo → componente → simulado
       PlaybackControls.tsx     # ÚNICO sitio con deltaTime / requestAnimationFrame
       MetricsTable.tsx
       ProcessForm.tsx          # panel desplegable: todos los procesos con campos
-                               # editables, cerrado por defecto, rederiva al instante 
+                               # editables, abierto por defecto, rederivar botónn de Simular
       AlgorithmParamsForm.tsx  # editar quantum/quanta/boostInterval + botón Aplicar
     style/
       *.module.css             # CSS Modules
@@ -406,45 +406,53 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 
 ## Plan de implementación paso a paso
 
-> El desglose en tareas atómicas está en `specs/PLAN.md`. Orden de abajo arriba (simulador → componente → documentación). Cada fase que añade funcionalidad o un algoritmo actualiza su documentación en `docs/` en el mismo cambio.
+> El desglose en tareas atómicas está en `specs/PLAN.md`. Orden de abajo arriba
+> (simulador → componente → documentación). Cada fase que añade funcionalidad o un
+> algoritmo actualiza su documentación en `docs/` en el mismo cambio.
+>
+> **Ya no hay "Fases v2" separadas.** Los tipos de E/S, el subsistema de E/S, VRR, MLFQ
+> y la rederivación están integrados en las fases correspondientes desde el principio.
 
-- **Fase 0 — Andamiaje:** proyecto principal + subproyecto `docs/`; TypeScript estricto, ESLint con fronteras, Vitest.
-- **Fase 1 — Tipos y contratos:** `Process`, `SchedulerState`, `IAlgorithm`/`ReadyProcess`/ `PreemptionMode`, `History`/`HistoryEvent`/`Interval`, `SimulationResult`.
+- **Fase 0 — Andamiaje:** proyecto principal + subproyecto `docs/`; TypeScript estricto,
+  ESLint con fronteras, Vitest.
+- **Fase 1 — Tipos y contratos:** todos los tipos con su forma final v02: `Process`,
+  `IOOperation`, `DeviceState`, `SchedulerState`, `IAlgorithm`/`ReadyProcess`/
+  `PreemptionMode`/`SchedulerEvent`, `History`/`HistoryEvent`/`Interval`,
+  `SimulationResult`, `Scenario`, `WhatIfBranch`.
 - **Fase 2 — Registro:** registrar y obtener algoritmos por `name`.
-- **Fase 3 — Motor (`simulate.ts`):** bucle por ticks, desempate global, `select()` según `preemptionMode`, `HistoryEvent` con `message`; derivación pura de `intervals` y `metrics`.
+- **Fase 3 — Motor y E/S (`simulate.ts` + `io-subsystem.ts`):** bucle por ticks,
+  desempate global, `select()` según `preemptionMode` (los 5 modos), subsistema de E/S
+  (dispositivo único con contención FCFS), mensajes ricos (`onEvent` → narrativa
+  compuesta), derivación pura de `intervals` y `metrics`, `runFrom()` para what-if e
+  inyección en vivo, validación y casos límite.
 - **Fase 4 — Player (`player.ts`):** cursor sobre el `history` con límites.
-- **Fase 5 — Algoritmos, uno a uno con su test:**
+- **Fase 5 — Algoritmos (los 9), uno a uno con su test:**
 
-| Algoritmo        | `preemptionMode` | `select` elige…                      |
-|------------------|------------------|--------------------------------------|
-| FCFS             | `'none'`         | menor `arrival_time`, sino menor `id`|
-| SJF              | `'none'`         | menor `remaining`                    |
-| LJF              | `'none'`         | mayor `burst_time`                   |
-| Prioridad (NP)   | `'none'`         | menor `priority`                     |
-| SRTF             | `'on-better'`    | menor `remaining`                    |
-| Prioridad (P)    | `'on-better'`    | menor `priority`                     |
-| Round Robin      | `'on-quantum'`   | FIFO                                 |
-
-- **Fase 6 — Componente React (`src/react`):** `SimulationProvider.tsx` orquesta (config → `run` → índice → subcomponentes).
-- **Fase 7 — Documentación (`docs/`):** guías (usar, configurar, crear algoritmo) y una página por algoritmo que embebe el componente.
-
-**Fases v2** (desglose detallado en `specs/PLANv-02.md`):
-
-- **Fase 9 — Tipos de E/S y contrato:** `IOOperation`, `DeviceState`, `SchedulerEvent`, ampliar `IAlgorithm` con `quantumFor`/`onEvent`.
-- **Fase 10 — Subsistema de E/S:** `io-subsystem.ts`.
-- **Fase 11 — Adaptación de clásicos:** `requires.io = false` explícito en los 7.
-- **Fase 12 — VRR y MLFQ:**
-
-| Algoritmo              | `preemptionMode`          | `select` elige…                          |
-|------------------------|---------------------------|------------------------------------------|
+| Algoritmo              | `preemptionMode`          | `select` elige…                            |
+|------------------------|---------------------------|--------------------------------------------|
+| FCFS                   | `'none'`                  | menor `arrival_time`, sino menor `id`      |
+| SJF                    | `'none'`                  | menor `remaining`                          |
+| LJF                    | `'none'`                  | mayor `burst_time`                         |
+| Prioridad (NP)         | `'none'`                  | menor `priority`                           |
+| SRTF                   | `'on-better'`             | menor `remaining`                          |
+| Prioridad (P)          | `'on-better'`             | menor `priority`                           |
+| Round Robin            | `'on-quantum'`            | FIFO                                       |
 | Round Robin Virtual    | `'io-return'`             | `auxQueue` → `mainQueue`; slice = sobrante |
 | MLFQ                   | `'on-quantum-and-better'` | nivel no vacío de menor índice             |
 
-- **Fase 13 — Rederivación:** what-if (`runFrom`) e inyección en vivo.
-- **Fase 14 — Edición y render de E/S:** `ProcessForm`, `AlgorithmParamsForm`, columnas condicionales.
-- **Fase 15 — Persistencia por sesión:** `sessionStorage`, clave por algoritmo.
-- **Fase 16 — Estética:** tokens de diseño, CSS Modules.
-- **Fase 17 — Docs y verificación v2:** páginas VRR/MLFQ, guía "crear algoritmo".
+  Todos declaran `requires.io = false` excepto VRR (`requires.io = true`).
+
+- **Fase 6 — Componente React (`src/react`):** tokens visuales, `SimulationProvider`
+  (estado + API what-if), `SimulationApp` (contenedor visual), `GanttChart`,
+  `ProcessTable`, `PlaybackControls`, `MetricsTable`, `ProcessForm`, `AlgorithmParamsForm`,
+  `WhatIfControls`.
+- **Fase 7 — Persistencia por sesión:** `sessionStorage` con clave por algoritmo
+  (escenario base + rama what-if por separado).
+- **Fase 8 — Documentación (`docs/`):** guías (integración, configuración, crear
+  algoritmo) y una página de demo por algoritmo que embebe el componente.
+- **Fase 9 — Estética:** revisión visual con tokens de diseño, consistencia y contraste.
+- **Fase 10 — Verificación final:** cobertura de `BEHAVIOURSv-02.md`, typecheck, lint
+  limpio, build de producción.
 
 
 ---
@@ -501,29 +509,93 @@ Estado interno (vía `onEvent`): `mainQueue`, `auxQueue` y `remainingSlice`. `io
 
 ### Cola de realimentación — MLFQ (`multilevel-feedback.ts`, `name: 'mlfq'`)
 
-**Solo CPU** (`requires.io = false`). **Cada nivel es internamente una cola Round Robin con su propio quantum:** mantiene una cola FIFO por nivel (`levels`) y el mapa `processLevel` (`pid → índice de nivel`, nivel 0 = mayor prioridad); dentro de un nivel se reparte exactamente como Round Robin, usando el quantum de ese nivel. **Identificadores de código (inglés):** `levels: FifoQueue<string>[]` — un array donde `levels[0]` es el nivel 0, `levels[1]` el nivel 1, etc. (tantos como entradas tenga `quanta`); y `processLevel: Map<string, number>` (`pid → índice de nivel`). Se usa un **array indexado**, no campos fijos `level0`/`level1`/`level2`, porque `quanta` tiene longitud variable (el usuario puede añadir o quitar niveles desde `AlgorithmParamsForm`); `levels[i]` cubre cualquier número de niveles sin declarar un campo por cada uno.
+**Solo CPU** (`requires.io = false`). **3 niveles fijos:**
+
+| Nivel | Política | Quantum |
+|-------|----------|---------|
+| 0 (mayor prioridad) | Round Robin | `quanta[0]` (editable) |
+| 1 | Round Robin | `quanta[1]` (editable) |
+| 2 (menor prioridad) | FCFS | — (sin quantum; ejecuta hasta completar, ser expropiado o boost) |
+
+
+El número de niveles **no es configurable**; `quanta` es siempre un array de exactamente
+2 enteros `> 0`.
+
+Mantiene una cola FIFO por nivel (`levels`) y el mapa `processLevel` (`pid → índice de
+nivel`, nivel 0 = mayor prioridad). **Identificadores de código (inglés):**
+`levels: [FifoQueue<string>, FifoQueue<string>, FifoQueue<string>]` — siempre 3 colas;
+y `processLevel: Map<string, number>` (`pid → 0 | 1 | 2`).
 
 1. Una **llegada nueva** entra al **nivel 0** (`levels[0]`).
-2. **Selección (`select`):** la cabeza de `levels[i]` para el menor `i` tal que `levels[i]` no esté vacío; dentro del nivel, FIFO (política de Round Robin de ese nivel).
-3. **Duración del turno (`quantumFor`):** `quanta[processLevel.get(pid)]` (es el "quantum del RR" de ese nivel).
-4. Un proceso que **agota el quantum** de su nivel sin completar se **degrada** (`preemptionMode = 'on-quantum-and-better'` cubre también esta mitad, la del quantum): `processLevel.set(pid, min(nivel + 1, quanta.length - 1))` y entra al final de `levels[nivel + 1]` (al RR del nivel siguiente).
+2. **Selección (`select`):** la cabeza de `levels[i]` para el menor `i` tal que `levels[i]` no esté vacío; dentro del nivel, FIFO.
+3. **Duración del turno (`quantumFor`):** `quanta[processLevel.get(pid)]` para niveles 0 y 1. Para nivel 2 devuelve `null` (sin expiración de quantum; el proceso solo sale de la CPU al completar, ser expropiado por llegada a nivel 0, o por priority boost).
+4. Un proceso que **agota el quantum** de su nivel sin completar se **degrada** (`preemptionMode = 'on-quantum-and-better'` cubre esta mitad):
+   - Desde nivel 0 → nivel 1 (Round Robin con `quanta[1]`).
+   - Desde nivel 1 → nivel 2 (FCFS; ya no expira por quantum).
+   - En nivel 2 → se queda en nivel 2 (no se degrada más).
 5. **Expropiación por prioridad** (la otra mitad de `'on-quantum-and-better'`): si **llega** un proceso a `levels[0]` (estrictamente superior al del proceso en CPU), este es expropiado y vuelve a la **cabeza de su nivel** (no se degrada, porque no agotó su quantum).
 6. **Envejecimiento — *priority boost*:** cada `boostInterval` ticks (si se configura), **todos** los procesos se mueven a `levels[0]` (`processLevel.set(pid, 0)` para todos), reseteando la degradación; evita la inanición. **Incluye al proceso en CPU en ese instante:** si hay uno ejecutando, también sube a nivel 0 y se **reevalúa `select()`** de inmediato (mismo mecanismo que la regla 5); no termina su turno actual si deja de ser el elegido. Empate al reencolar tras el boost: por menor `id`. Sin `boostInterval` no hay boost.
 
-Estado interno (vía `onEvent`): `levels` y `processLevel`. `quantum-expiry` degrada (incrementa `processLevel`); `arrival` coloca en `levels[0]` (`processLevel.set(pid, 0)`). `validateParams`: `quanta` lista no vacía de enteros `> 0`; `boostInterval`, si está, entero `> 0`. **(v2)** `paramSchema`: un campo `integer-list` (`key: 'quanta'`, `min: 1`, `minLength: 1`, **uno por cola RR/nivel**) **y** un campo `integer` con `optional: true` (`key: 'boostInterval'`, `min: 1`) → **ambos editables desde la demo** vía `AlgorithmParamsForm`. Si en el formulario se deja vacío, equivale a omitir `boostInterval` (sin *priority boost*), no a un error de validación. **(v2)** `reasonFor`: en `quantum-expiry` devuelve `{ text: "se degrada al nivel ${processLevel.get(id)}" }` (con el nuevo nivel, ya incrementado); en `preempted` devuelve `{ text: "llega al nivel 0" }`; en `priority-boost` devuelve `{ text: "todos los procesos suben al nivel 0" }` (mensaje rico — ver § Mensajes ricos más abajo).
+**Estado Interno y Parámetros:**
+- `validateParams`: `quanta` array de exactamente 2 enteros `> 0`; `boostInterval`, si está, entero `> 0`.
+- `paramSchema`: **dos campos `integer`** (`key: 'quanta[0]'`, `min: 1` y `key: 'quanta[1]'`, `min: 1`) **y** un campo `integer` con `optional: true` (`key: 'boostInterval'`, `min: 1`) → **los tres editables desde la demo** vía `AlgorithmParamsForm`. Si en el formulario se deja `boostInterval` vacío, equivale a omitirlo (sin *priority boost*), no a un error de validación.
+
+**§ Mensajes Ricos y Narrativa Compuesta :**
+`onEvent` devuelve fragmentos concatenables `{ text: string } | null`:
+- `quantum-expiry`: `{ text: "se degrada al nivel ${nuevoNivel}" }` (con el nuevo
+  nivel, ya incrementado).
+- `preempted`: `{ text: "es expropiado porque un proceso llega al nivel 0" }`.
+- `priority-boost`: `{ text: "Priority boost: todos suben al nivel 0" }`.
+- `dispatch`: `{ text: "toma la CPU desde el nivel ${nivel}" }`.
 
 ---
 
 ## `ProcessForm` — implementación
 
+
 **Cableado con el motor:** cada cambio de campo válido dispara
 `SimulationProvider.run()` (o `runFrom()` si el reproductor está a mitad). Si el valor es inválido, se marca el campo con error y **no se rederiva**. No hay estado `draft` separado del `applied` (a diferencia de `AlgorithmParamsForm`): el estado del formulario **es** el escenario actual en el contexto de React.
 
-**Añadir:** valores por defecto (`arrival_time: 0`, `burst_time: 1`, `id` autoincremental) → rederiva. **Eliminar:** rederiva al instante; si queda vacío → estado vacío sin error.
+**Panel abierto por defecto.** Un control toggle lo cierra/abre.
+
+**Añadir proceso:** valores por defecto (`arrival_time: 0`, `burst_time: 1`, `id` autoincremental, lista `io` vacía) → rederiva. **Eliminar proceso:** rederiva al instante; si queda vacío → estado vacío sin error.
 
 **Inyección en vivo:** si `arrival_time ≥ tick_actual` → `runFrom(state_at_T)`. Si `arrival_time < tick_actual` → error en el campo, sin rederivación.
 
-**Campos condicionales:** `priority` solo si `requires.priority`; `io_entry`/`io_time` solo si `requires.io`. `io_exit` es derivado, no editable (se muestra en `ProcessTable`).
+**Campos condicionales:**
+- `priority`: solo si `requires.priority`.
+- `io_exit`: derivado, no editable (se muestra en `ProcessTable`).
+
+
+### Edición de operaciones de E/S (solo si `requires.io`)
+
+Cuando el algoritmo activo es Round Robin Virtual, cada proceso del formulario muestra su lista de operaciones de E/S como una **sublista editable** dentro de la fila del proceso. Cada operación expone dos campos: `io_entry` (entero) e `io_time` (entero).
+
+**Estructura de la sublista:** 
+Proceso P1 [id] [arrival_time] [burst_time]
+                                          └─ Operación 1: [io_entry] [io_time]  [✕ eliminar]
+                                          └─ Operación 2: [io_entry] [io_time]  [✕ eliminar]
+                                          └─ [+ Añadir operación de E/S]
+**Añadir operación:** un control por proceso; añade al final de la lista con valores
+por defecto (`io_entry` = menor valor válido disponible, `io_time: 1`). Rederiva si
+los valores resultan válidos.
+
+**Eliminar operación:** un control por operación; elimina de la lista y rederiva al
+instante. Si se eliminan todas, el proceso queda sin E/S (solo CPU dentro de VRR).
+
+**Validación por operación (campo a campo):**
+| Campo | Regla | Error si |
+|-------|-------|----------|
+| `io_entry` | entero `> 0` y `< burst_time` | `≤ 0` o `≥ burst_time` |
+| `io_time` | entero `> 0` | `≤ 0` |
+
+**Validación entre operaciones (lista completa):**
+- Los `io_entry` deben ser **estrictamente crecientes**: `io[n].io_entry < io[n+1].io_entry`.
+  Si al editar un valor se rompe el orden, error en el campo que viola.
+- **Cascada con `burst_time`:** si el usuario reduce `burst_time` y algún
+  `io_entry ≥ burst_time`, se señala error en cada operación afectada.
+
+En ambos casos de error, la simulación **no rederiva** hasta corregirlo.
 
 **No usa `sessionStorage` directamente.** El estado vive en el contexto de React; la persistencia la gestiona el `SimulationProvider`.
 
