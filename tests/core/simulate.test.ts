@@ -725,7 +725,11 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
       readonly name = 'string-msg';
       readonly preemptionMode = 'none';
       readonly requires = {};
-      select(ready: readonly ReadyProcess[]): ReadyProcess { return ready[0]!; }
+      select(ready: readonly ReadyProcess[]): ReadyProcess {
+        const first = ready[0];
+        if (first === undefined) throw new Error('Cola vacía');
+        return first;
+      }
       onEvent(e: SchedulerEvent): string | null {
         if (e.type === 'dispatch') return 'Texto literal inyectado';
         return null;
@@ -746,7 +750,9 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
       readonly preemptionMode = 'on-better';
       readonly requires = {};
       select(ready: readonly ReadyProcess[]): ReadyProcess {
-         let best = ready[0]!;
+         const head = ready[0];
+         if (head === undefined) throw new Error('Cola vacía');
+         let best = head;
          for (const p of ready) if (p.remaining < best.remaining) best = p;
          return best;
       }
@@ -846,7 +852,9 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
       select(ready: readonly ReadyProcess[]): ReadyProcess {
         // Siempre prefiere mantener a P1 si está disponible
         const p1 = ready.find((p) => p.id === 'P1');
-        return p1 ?? ready[0]!;
+        const fallback = ready[0];
+        if (fallback === undefined) throw new Error('Cola vacía');
+        return p1 ?? fallback;
       }
     }
     register(new NoPreemptOQAB());
@@ -870,7 +878,9 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
       select(ready: readonly ReadyProcess[]): ReadyProcess {
         // Siempre prefiere mantener a P2 si está disponible
         const p2 = ready.find((p) => p.id === 'P2');
-        return p2 ?? ready[0]!;
+        const fallback2 = ready[0];
+        if (fallback2 === undefined) throw new Error('Cola vacía');
+        return p2 ?? fallback2;
       }
     }
     register(new KeepCurrentIoReturn());
