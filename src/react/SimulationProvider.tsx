@@ -4,8 +4,14 @@ import type { SimulationResult } from '../core/types/simulation-result.js';
 import type { HistoryEvent } from '../core/types/history.js';
 import { run } from '../core/simulate.js';
 import { Player } from '../core/player.js';
+import { get } from '../core/registry.js';
 import { SimulationCtx } from './SimulationContext.js';
-import type { WhatIfBranch, WhatIfOverrides, SimulationContextValue } from './SimulationContext.js';
+import type {
+  WhatIfBranch,
+  WhatIfOverrides,
+  SimulationContextValue,
+  AlgorithmRequires,
+} from './SimulationContext.js';
 
 export interface SimulationProviderProps {
   readonly algorithm: string;
@@ -30,6 +36,9 @@ function buildConfig(
   };
 }
 
+// Descriptor de requisitos vacío para cuando el algoritmo no existe
+const EMPTY_REQUIRES: AlgorithmRequires = {};
+
 export function SimulationProvider({
   algorithm,
   processes,
@@ -45,6 +54,15 @@ export function SimulationProvider({
       return [null, e instanceof Error ? e.message : String(e)];
     }
   }, [algorithm, processes, params]);
+
+  // Descriptor de requisitos del algoritmo activo
+  const requires = useMemo((): AlgorithmRequires => {
+    try {
+      return get(algorithm).requires;
+    } catch {
+      return EMPTY_REQUIRES;
+    }
+  }, [algorithm]);
 
   // Instancia del Player (memoizada — se recrea cuando cambia mainResult)
   const player = useMemo(
@@ -84,14 +102,12 @@ export function SimulationProvider({
     setWhatIfBranch(null);
   }, []);
 
-  // Sincroniza el tickIndex con el player al navegar.
-  // Se pasa el player directamente al contexto; los componentes de navegación
-  // deben llamar a syncTick() después de cada paso para forzar el re-render.
+  // Sincroniza el tickIndex con el player al navegar
   const syncTick = useCallback(() => {
     if (player !== null) setTickIndex(player.tick);
   }, [player]);
 
-  void syncTick; // expuesta a través del contexto en el futuro; suprimir lint
+  void syncTick; // disponible para componentes de navegación en T-42
 
   const value: SimulationContextValue = useMemo(
     () => ({
@@ -100,10 +116,24 @@ export function SimulationProvider({
       player,
       error: mainError,
       whatIfBranch,
+      processes,
+      algorithmName: algorithm,
+      requires,
       createWhatIf,
       discardWhatIf,
     }),
-    [mainResult, currentEvent, player, mainError, whatIfBranch, createWhatIf, discardWhatIf],
+    [
+      mainResult,
+      currentEvent,
+      player,
+      mainError,
+      whatIfBranch,
+      processes,
+      algorithm,
+      requires,
+      createWhatIf,
+      discardWhatIf,
+    ],
   );
 
   return <SimulationCtx.Provider value={value}>{children}</SimulationCtx.Provider>;

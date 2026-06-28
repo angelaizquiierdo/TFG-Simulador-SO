@@ -3,6 +3,7 @@ import type { SimulationResult } from '../core/types/simulation-result.js';
 import type { HistoryEvent } from '../core/types/history.js';
 import type { Player } from '../core/player.js';
 import type { Process } from '../core/types/process.js';
+import type { IAlgorithm } from '../core/types/algorithm.js';
 
 // Rama what-if: resultado y reproductor de una simulación alternativa
 export interface WhatIfBranch {
@@ -17,6 +18,9 @@ export interface WhatIfOverrides {
   readonly params?: Readonly<Record<string, unknown>>;
 }
 
+/** Descriptor del algoritmo activo (lo que requiere) */
+export type AlgorithmRequires = IAlgorithm['requires'];
+
 export interface SimulationContextValue {
   /** Resultado de la simulación principal. Null si hubo error o lista vacía. */
   readonly result: SimulationResult | null;
@@ -28,6 +32,12 @@ export interface SimulationContextValue {
   readonly error: string | null;
   /** Rama what-if activa, null si no hay ninguna. */
   readonly whatIfBranch: WhatIfBranch | null;
+  /** Lista de procesos original pasada al Provider. */
+  readonly processes: readonly Process[];
+  /** Nombre del algoritmo activo. */
+  readonly algorithmName: string;
+  /** Descriptor de requisitos del algoritmo activo (priority, quantum, io). */
+  readonly requires: AlgorithmRequires;
   /** Crea una rama what-if desde el tick actual del player. */
   createWhatIf: (overrides: WhatIfOverrides) => void;
   /** Descarta la rama what-if activa. */

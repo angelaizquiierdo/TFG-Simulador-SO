@@ -1,0 +1,50 @@
+/* ProcessTable — tabla de procesos del escenario */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--scheduler-text-primary);
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-sm);
+  overflow: hidden;
+}
+
+/* Cabecera */
+.table thead th {
+  background-color: var(--scheduler-surface-elevated);
+  color: var(--scheduler-text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: var(--scheduler-space-xs) var(--scheduler-space-sm);
+  border-bottom: 1px solid var(--scheduler-border);
+}
+
+/* Filas del cuerpo */
+.table tbody tr {
+  min-height: 36px; /* aproximación al token de altura */
+  border-bottom: 1px solid var(--scheduler-border);
+}
+
+/* Filas alternadas */
+.table tbody tr:nth-child(even) {
+  background-color: var(--scheduler-surface);
+}
+.table tbody tr:nth-child(odd) {
+  background-color: var(--scheduler-bg);
+}
+
+/* Celdas */
+.table td {
+  padding: var(--scheduler-space-xs) var(--scheduler-space-sm);
+}
+
+/* Columnas numéricas alineadas a la derecha */
+.numeric {
+  text-align: right;
+}
+
+/* Columna de ID del proceso (identificador) */
+.table td:first-child {
+  font-weight: 600;
+}

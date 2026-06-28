@@ -1,0 +1,44 @@
+/* SimulationApp — contenedor principal del simulador */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-md);
+  padding: var(--scheduler-space-md);
+  background-color: var(--scheduler-bg);
+  color: var(--scheduler-text-primary);
+  border-radius: var(--scheduler-radius-md);
+}
+
+/* ──────────────────────────────────────────────
+   Modo Panel Unificado
+   Todos los subcomponentes en una cuadrícula.
+────────────────────────────────────────────── */
+.unified {
+  display: grid;
+  grid-template-areas:
+    "params  params"
+    "table   gantt"
+    "table   controls"
+    "metrics form";
+  grid-template-columns: 1fr 2fr;
+  gap: var(--scheduler-space-md);
+}
+
+.unified .paramsSlot   { grid-area: params; }
+.unified .tableSlot    { grid-area: table; }
+.unified .ganttSlot    { grid-area: gantt; }
+.unified .controlsSlot { grid-area: controls; }
+.unified .metricsSlot  { grid-area: metrics; }
+.unified .formSlot     { grid-area: form; }
+
+/* ──────────────────────────────────────────────
+   Modo Componentes Intercalados
+   Los slots se apilan verticalmente para poder
+   intercalarlos con contenido textual externo.
+────────────────────────────────────────────── */
+.interleaved {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-md);
+}
