@@ -42,6 +42,7 @@ function makeValue(
     updateParams: () => undefined,
     createWhatIf,
     discardWhatIf,
+    reset: () => undefined,
     ...overrides,
   };
 }

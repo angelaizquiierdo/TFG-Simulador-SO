@@ -57,6 +57,7 @@ function renderWithRequires(
     updateParams: () => undefined,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
+    reset: () => undefined,
   };
   return render(
     <SimulationCtx.Provider value={value}>

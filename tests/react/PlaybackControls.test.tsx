@@ -51,6 +51,7 @@ function makeCtxValue(tickOverride = 0): {
     updateParams: () => undefined,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
+    reset: () => undefined,
   };
   return { value, stepForward, stepBackward, seekTo };
 }

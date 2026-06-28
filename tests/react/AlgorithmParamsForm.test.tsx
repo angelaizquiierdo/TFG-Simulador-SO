@@ -40,6 +40,7 @@ function makeValue(
     updateParams,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
+    reset: () => undefined,
     ...overrides,
   };
 }

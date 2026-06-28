@@ -36,7 +36,10 @@ const P1: Process = { id: 'P1', arrival_time: 0, burst_time: 3 };
 const P2: Process = { id: 'P2', arrival_time: 0, burst_time: 4 };
 
 describe('§ Render — SimulationProvider y Gestión de Estado', () => {
-  afterEach(() => { cleanup(); });
+  afterEach(() => {
+    cleanup();
+    sessionStorage.clear();
+  });
   it('renderiza los hijos sin añadir elementos de UI propios', () => {
     const { container } = render(
       <SimulationProvider algorithm="fcfs" processes={[P1]}>
@@ -192,6 +195,164 @@ describe('§ Render — SimulationProvider y Gestión de Estado', () => {
     fireEvent.click(getByRole('button', { name: 'Crear' }));
     expect(getByTestId('branch').textContent).toBe('yes');
     fireEvent.click(getByRole('button', { name: 'Descartar' }));
+    expect(getByTestId('branch').textContent).toBe('no');
+  });
+});
+
+describe('§ Persistencia por sesión — T-47', () => {
+  const P1: Process = { id: 'A', arrival_time: 0, burst_time: 3 };
+  const P2: Process = { id: 'B', arrival_time: 0, burst_time: 2 };
+
+  afterEach(() => {
+    cleanup();
+    sessionStorage.clear();
+  });
+
+  it('persiste el escenario base en sessionStorage al actualizar procesos', () => {
+    function Consumer() {
+      const { updateProcesses } = useSimulation();
+      return (
+        <button type="button" onClick={() => { updateProcesses([P1, P2]); }}>
+          Actualizar
+        </button>
+      );
+    }
+    const { getByRole } = render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <Consumer />
+      </SimulationProvider>,
+    );
+    fireEvent.click(getByRole('button', { name: 'Actualizar' }));
+    const saved = sessionStorage.getItem('scheduler-scenario:fcfs');
+    expect(saved).not.toBeNull();
+    if (saved === null) return;
+    const parsed = JSON.parse(saved) as { processes: Process[] };
+    expect(parsed.processes.length).toBe(2);
+  });
+
+  it('restaura el escenario base desde sessionStorage al montar', () => {
+    // Pre-cargar sessionStorage con un escenario de 2 procesos
+    sessionStorage.setItem(
+      'scheduler-scenario:fcfs',
+      JSON.stringify({ processes: [P1, P2], params: {} }),
+    );
+    function Consumer() {
+      const { processes } = useSimulation();
+      return <span data-testid="count">{String(processes.length)}</span>;
+    }
+    render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <Consumer />
+      </SimulationProvider>,
+    );
+    // Debe restaurar los 2 procesos del sessionStorage, no el 1 del prop
+    expect(screen.getByTestId('count').textContent).toBe('2');
+  });
+
+  it('reset restaura los valores iniciales de props y borra sessionStorage', () => {
+    function Consumer() {
+      const { processes, reset } = useSimulation();
+      return (
+        <div>
+          <span data-testid="count">{String(processes.length)}</span>
+          <button type="button" onClick={reset}>Reset</button>
+        </div>
+      );
+    }
+    const { getByRole, getByTestId } = render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <Consumer />
+      </SimulationProvider>,
+    );
+    // Actualizamos primero para tener 2 procesos
+    sessionStorage.setItem(
+      'scheduler-scenario:fcfs',
+      JSON.stringify({ processes: [P1, P2], params: {} }),
+    );
+    // Hacemos reset
+    fireEvent.click(getByRole('button', { name: 'Reset' }));
+    // Debe volver a 1 proceso (el del prop inicial)
+    expect(getByTestId('count').textContent).toBe('1');
+    // sessionStorage puede contener el escenario inicial tras el reset
+    // (el efecto de persistencia re-guarda el estado restaurado)
+    const savedAfterReset = sessionStorage.getItem('scheduler-scenario:fcfs');
+    if (savedAfterReset !== null) {
+      const parsed = JSON.parse(savedAfterReset) as { processes: Process[] };
+      expect(parsed.processes.length).toBe(1);
+    }
+  });
+
+  it('claves distintas por algoritmo no se mezclan', () => {
+    sessionStorage.setItem(
+      'scheduler-scenario:fcfs',
+      JSON.stringify({ processes: [P1, P2], params: {} }),
+    );
+    function Consumer() {
+      const { processes } = useSimulation();
+      return <span data-testid="count">{String(processes.length)}</span>;
+    }
+    // Montar con un algoritmo distinto — NO debe leer la clave de fcfs
+    render(
+      <SimulationProvider algorithm="sjf" processes={[P1]}>
+        <Consumer />
+      </SimulationProvider>,
+    );
+    expect(screen.getByTestId('count').textContent).toBe('1');
+  });
+
+  it('§ Escenario de ejemplo por defecto — carga desde props cuando no hay sessionStorage', () => {
+    sessionStorage.clear();
+    function Consumer() {
+      const { processes } = useSimulation();
+      return <span data-testid="count">{String(processes.length)}</span>;
+    }
+    render(
+      <SimulationProvider algorithm="fcfs" processes={[P1, P2]}>
+        <Consumer />
+      </SimulationProvider>,
+    );
+    expect(screen.getByTestId('count').textContent).toBe('2');
+  });
+
+  it('restaura la rama what-if desde sessionStorage al montar', () => {
+    // Pre-cargar rama what-if persistida
+    sessionStorage.setItem(
+      'scheduler-whatif:fcfs',
+      JSON.stringify({ algorithm: 'fcfs', processes: [P1, P2], params: {} }),
+    );
+    function Consumer() {
+      const { whatIfBranch } = useSimulation();
+      return (
+        <span data-testid="branch">{whatIfBranch !== null ? 'yes' : 'no'}</span>
+      );
+    }
+    render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <Consumer />
+      </SimulationProvider>,
+    );
+    expect(screen.getByTestId('branch').textContent).toBe('yes');
+  });
+
+  it('reset descarta la rama what-if activa', () => {
+    function Consumer() {
+      const { whatIfBranch, createWhatIf, reset } = useSimulation();
+      return (
+        <div>
+          <span data-testid="branch">{whatIfBranch !== null ? 'yes' : 'no'}</span>
+          <button type="button" onClick={() => { createWhatIf({}); }}>Crear</button>
+          <button type="button" onClick={reset}>Reset</button>
+        </div>
+      );
+    }
+    const { getByRole, getByTestId } = render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <Consumer />
+      </SimulationProvider>,
+    );
+    fireEvent.click(getByRole('button', { name: 'Crear' }));
+    expect(getByTestId('branch').textContent).toBe('yes');
+    fireEvent.click(getByRole('button', { name: 'Reset' }));
     expect(getByTestId('branch').textContent).toBe('no');
   });
 });

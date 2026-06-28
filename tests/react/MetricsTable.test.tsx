@@ -43,6 +43,7 @@ function renderMetrics(atLastTick: boolean) {
     updateParams: () => undefined,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
+    reset: () => undefined,
   };
   return render(
     <SimulationCtx.Provider value={value}>
@@ -114,6 +115,7 @@ describe('§ Render — MetricsTable', () => {
       updateParams: () => undefined,
       createWhatIf: () => undefined,
       discardWhatIf: () => undefined,
+    reset: () => undefined,
     };
     render(
       <SimulationCtx.Provider value={value}>

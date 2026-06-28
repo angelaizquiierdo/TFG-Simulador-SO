@@ -49,6 +49,7 @@ function renderGantt(
     updateParams: () => undefined,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
+    reset: () => undefined,
   };
   return render(
     <SimulationCtx.Provider value={value}>
@@ -180,6 +181,7 @@ describe('§ Render — GanttChart', () => {
       updateParams: () => undefined,
       createWhatIf: () => undefined,
       discardWhatIf: () => undefined,
+    reset: () => undefined,
     };
     render(
       <SimulationCtx.Provider value={value}>

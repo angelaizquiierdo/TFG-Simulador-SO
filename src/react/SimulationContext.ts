@@ -54,6 +54,8 @@ export interface SimulationContextValue {
   createWhatIf: (overrides: WhatIfOverrides) => void;
   /** Descarta la rama what-if activa. */
   discardWhatIf: () => void;
+  /** Restaura el escenario a los valores iniciales de props y borra sessionStorage. */
+  reset: () => void;
 }
 
 export const SimulationCtx = createContext<SimulationContextValue | null>(null);

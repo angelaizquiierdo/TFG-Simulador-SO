@@ -39,6 +39,7 @@ function makeValue(overrides: Partial<SimulationContextValue> = {}): SimulationC
     updateParams,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
+    reset: () => undefined,
     ...overrides,
   };
 }
@@ -186,6 +187,7 @@ describe('§ ProcessForm — edición de operaciones de E/S', () => {
       updateParams: () => undefined,
       createWhatIf: () => undefined,
       discardWhatIf: () => undefined,
+    reset: () => undefined,
     };
     render(
       <SimulationCtx.Provider value={value}>
