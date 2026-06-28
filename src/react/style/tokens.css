@@ -1,0 +1,70 @@
+/* ── Tokens visuales del CPU Scheduler Simulator ─────────────────────────── */
+
+/* Valores estructurales independientes del tema */
+:root {
+  --scheduler-space-xs: 4px;
+  --scheduler-space-sm: 8px;
+  --scheduler-space-md: 16px;
+  --scheduler-space-lg: 24px;
+
+  --scheduler-radius-sm: 4px;
+  --scheduler-radius-md: 8px;
+
+  --scheduler-btn-height-sm: 32px;
+  --scheduler-btn-height-md: 40px;
+
+  --scheduler-gantt-cell-width: 24px;
+  --scheduler-gantt-cell-height: 24px;
+  --scheduler-gantt-cell-gap: 2px;
+}
+
+/* Paleta semántica por defecto (Tema Claro) */
+:root,
+[data-theme="light"] {
+  --scheduler-bg: #ffffff;
+  --scheduler-surface: #f8fafc;
+  --scheduler-surface-elevated: #f1f5f9;
+  --scheduler-text-primary: #0f172a;
+  --scheduler-text-secondary: #475569;
+  --scheduler-border: #cbd5e1;
+  --scheduler-accent: #2563eb;
+  --scheduler-focus: #3b82f6;
+  --scheduler-danger: #dc2626;
+  --scheduler-warning: #d97706;
+  --scheduler-success: #16a34a;
+
+  /* Colores de procesos de alto contraste (Claro) */
+  --scheduler-process-0: #3b82f6;
+  --scheduler-process-1: #ef4444;
+  --scheduler-process-2: #10b981;
+  --scheduler-process-3: #f59e0b;
+  --scheduler-process-4: #8b5cf6;
+  --scheduler-process-5: #ec4899;
+  --scheduler-process-6: #14b8a6;
+  --scheduler-process-7: #f97316;
+  --scheduler-process-8: #6b7280;
+  --scheduler-process-9: #06b6d4;
+}
+
+/* Paleta semántica (Tema Oscuro) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Sobreescribir variables semánticas para modo oscuro automático */
+  }
+}
+
+[data-theme="dark"] {
+  --scheduler-bg: #0f172a;
+  --scheduler-surface: #1e293b;
+  --scheduler-surface-elevated: #334155;
+  --scheduler-text-primary: #f8fafc;
+  --scheduler-text-secondary: #94a3b8;
+  --scheduler-border: #475569;
+  --scheduler-accent: #3b82f6;
+  --scheduler-focus: #60a5fa;
+  --scheduler-danger: #ef4444;
+  --scheduler-warning: #f59e0b;
+  --scheduler-success: #10b981;
+
+  /* Ajustar opacidades o tonos de los 10 procesos para modo oscuro si es necesario */
+}

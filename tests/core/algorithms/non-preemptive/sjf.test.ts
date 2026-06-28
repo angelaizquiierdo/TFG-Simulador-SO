@@ -82,4 +82,23 @@ describe('SJF', () => {
     expect(result.metrics.aggregate.avgWaiting).toBeCloseTo(2.33, 1);
     expect(result.metrics.aggregate.avgTurnaround).toBeCloseTo(5.33, 1);
   });
+
+  // § Cobertura de ramas defensivas (Tipado estricto)
+describe('Cobertura defensiva', () => {
+  it('lanza error si el primer elemento del array es undefined (hueco)', () => {
+    const algo = new SJF(); // Cambiar por LJF, SRTF, etc. en su respectivo archivo
+    expect(() => algo.select([undefined as unknown as import('../../../../src/core/types/algorithm.js').ReadyProcess])).toThrow('Cola de listos vacía');
+  });
+
+  it('ignora elementos undefined en el resto del array sin fallar', () => {
+    const algo = new SJF(); // Cambiar por LJF, SRTF, etc.
+    const p1 = { id: 'P1', arrival_time: 0, burst_time: 5, remaining: 5, priority: 1 };
+    const p2 = { id: 'P2', arrival_time: 0, burst_time: 1, remaining: 1, priority: 1 };
+
+    // Inyectamos un undefined en medio para forzar la rama `if (p === undefined) continue;`
+    const selected = algo.select([p1, undefined as unknown as import('../../../../src/core/types/algorithm.js').ReadyProcess, p2]);
+    expect(selected.id).toBe('P2');
+  });
 });
+});
+
