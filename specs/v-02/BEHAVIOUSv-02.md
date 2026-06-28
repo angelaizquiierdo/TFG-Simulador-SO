@@ -565,8 +565,7 @@ DADO los procesos P1(llegada 0, ráfaga 6, io:[{io_entry:2, io_time:3}]),
   P2(llegada 0, ráfaga 4, io:[{io_entry:1, io_time:4}]),
   P3(llegada 0, ráfaga 3) con Round Robin Virtual y quantum 4
 CUANDO se ejecuta la simulación
-ENTONCES el diagrama de Gantt es P1[0–2], P2[2–3], P3[3–5], P1[5–7],
-  P3[7–8], P1[8–10], P2[10–13]
+ENTONCES el diagrama de Gantt es P1[0–2], P2[2–3], P3[3–5], P1[5–7], P3[7–8], P1[8–9], P2[9–12], P1[12-13]
 ENTONCES P1 expropia a P3 en t=5 al volver de E/S (io-return)
 ENTONCES P2 espera en la cola del dispositivo de t=3 a t=5 (contención)
 
@@ -608,8 +607,7 @@ ENTONCES el tiempo de espera medio es 4.00
 
 DADO los mismos procesos con MLFQ, quanta [2, 10] y boostInterval 6
 CUANDO se ejecuta la simulación
-ENTONCES el diagrama de Gantt es P1[0–2], P2[2–4], P1[4–6], P1[6–8],
-  P2[8–10], P1[10–12], P2[12–16]
+ENTONCES el diagrama de Gantt es P1[0–2], P2[2–4], P1[4–8], P2[8–10], P1[10–12], P2[12–16]
 ENTONCES P1 completa en t=12 (el boost le quitó la ventaja de nivel 1)
 
 DADO que MLFQ está configurado
@@ -660,9 +658,6 @@ ENTONCES pueden sufrir inanición; esto se acepta como limitación cuando no hay
 DADO que `quanta` no tiene exactamente 2 enteros positivos
 CUANDO el motor valida los parámetros
 ENTONCES rechaza la configuración con un error claro
-
-
-
 
 
 ## § Contrato de algoritmo (extensibilidad)

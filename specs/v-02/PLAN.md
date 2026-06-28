@@ -565,7 +565,7 @@ Reglas:
 6. Expropiación: llegada a `levels[0]` expropia al de nivel inferior. Expropiado vuelve a cabeza de su nivel (no degrada).
 7. Priority boost: cada `boostInterval` ticks, todos a `levels[0]` (incluido el de CPU). Empate: menor `id`. Sin `boostInterval` → sin boost.
 
-**Cierra:** `§ Simular — MLFQ (expropiativa)`, `§ MLFQ — niveles y degradación`— `tests/core/algorithms/preemptive/multilevel-feedback.test.ts`
+**Cierra:** `§ Simular — MLFQ (expropiativa)`— `tests/core/algorithms/preemptive/multilevel-feedback.test.ts`
 
 ### T-36 · Contrato de extensibilidad
 
