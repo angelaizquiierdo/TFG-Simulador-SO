@@ -9,15 +9,16 @@
     "typecheck": "astro check"
   },
   "dependencies": {
-    "@astrojs/react": "^3.0.0",
-    "@astrojs/starlight": "^0.20.0",
-    "astro": "^4.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "@astrojs/react": "^6.0.0",
+    "@astrojs/starlight": "^0.41.1",
+    "astro": "^7.0.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@types/react": "^18.0.0",
-    "@types/react-dom": "^18.0.0",
+    "@astrojs/check": "^0.9.9",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "typescript": "^5.0.0"
   }
 }

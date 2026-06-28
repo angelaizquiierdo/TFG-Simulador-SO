@@ -80,7 +80,7 @@ El algoritmo se indica al componente mediante un identificador (o el nombre de l
  - SRTF (Shortest Remaining Time First) — **solo CPU**, sin E/S
  - Prioridad (expropiativa) — **solo CPU**, sin E/S
  - **Round Robin Virtual** (con quantum configurable) — **modela E/S**: los procesos se bloquean, hay cola de E/S y favorece a los procesos intensivos en E/S.
- - **Cola de realimentación — MLFQ** (**3 niveles fijos**: nivel 0 y 1 son Round Robin con quantum editable; nivel 2 es FCFS) — **solo CPU**, sin E/S; degradación por quantum y *priority boost*.
+ - **Cola de realimentación — MLFQ** (**3 niveles fijos**: nivel 0 y 1 son Round Robin con quantum editable; nivel 2 es FCFS **run-to-completion**) — **solo CPU**, sin E/S. **Solo expropia por agotamiento de quantum, nunca por llegada:** un proceso en CPU corre su quantum completo aunque lleguen otros (que esperan en el nivel 0); al agotarlo se degrada y se elige el siguiente del nivel no vacío de menor índice. Degradación por quantum y envejecimiento por *priority boost*.
 
 **Modelo de E/S por algoritmo.** El **único** algoritmo que modela E/S (`requires.io = true`) es **Round Robin Virtual**: tiene cola de E/S, estado de bloqueo y dispositivos. **Todos los demás (incluido MLFQ) son estrictamente de CPU:** su estado por tick no tiene cola de E/S ni bloqueados, e **ignoran** los campos de E/S de los procesos. La interfaz solo muestra y valida los campos de E/S cuando el algoritmo seleccionado los modela (es decir, solo en Round Robin Virtual).
 
@@ -267,9 +267,9 @@ Solo visibles cuando el cursor está en el último tick. Ocultas durante el reco
 ### AlgorithmParamsForm
 
 Un control por parámetro configurable del algoritmo activo:
-- **`quantum`** (Round Robin, Round Robin Virtual) — campo numérico, entero `> 0`.
-- **`quanta`** (MLFQ) — un campo numérico por nivel (entero `> 0`, es el quantum del Round Robin de ese nivel); añadir/quitar nivel cambia la longitud de la lista.
-- **`boostInterval`** (MLFQ, opcional) — campo numérico, entero `> 0`; vacío equivale a "sin *priority boost*".
+- **`quantum`** (Round Robin, Round Robin Virtual) — un único campo numérico, entero `> 0`.
+- **`quanta`** (MLFQ) — **exactamente dos campos numéricos fijos**, `Quantum nivel 0` y `Quantum nivel 1` (cada uno entero `> 0`, es el quantum del Round Robin de ese nivel). El número de niveles **no es configurable** (3 niveles fijos; el nivel 2 es FCFS sin quantum), por lo que no se añaden ni quitan campos: siempre son dos. Se emiten como `params.quanta = [nivel0, nivel1]`.
+- **`boostInterval`** (MLFQ, opcional) — campo numérico, entero `> 0`; vacío equivale a "sin *priority boost*". Solo aparece en MLFQ, no en Round Robin / Round Robin Virtual.
 
 Junto a los campos, un botón **"Aplicar"**. Mientras el valor editado difiere del aplicado, el botón se muestra habilitado y los campos editados se marcan como **pendientes** (p. ej. borde distinto); la simulación visible sigue siendo la del último valor **aplicado**, no la del valor a medio escribir. Al pulsar "Aplicar": si el valor es inválido (p. ej. `quantum ≤ 0`, una entrada de `quanta ≤ 0`, `boostInterval ≤ 0`), se muestra el error y no se rederiva; si es válido, se rederiva y el estado pendiente se limpia. Si el algoritmo activo no declara parámetros configurables desde la demo, el componente no se muestra.
 

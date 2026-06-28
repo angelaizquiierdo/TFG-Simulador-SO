@@ -91,7 +91,7 @@ Luego crear y configurar:
 
 ### T-01 · Crear el subproyecto `docs/` (Astro + Starlight)
 
-Archivos: `docs/astro.config.mjs`, `docs/package.json`, `src/react/styles/tokens.css`.
+Archivos: `docs/astro.config.mjs`, `docs/package.json`, `src/react/style/tokens.css`.
 
 ```bash
 npm create astro@latest docs -- --template starlight
@@ -105,7 +105,10 @@ Configurar `docs/astro.config.mjs` estableciendo el alias de desarrollo `'cpu-sc
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import react from '@astrojs/react';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = fileURLToPath(new URL('.', import.meta.url)); 
 export default defineConfig({
   integrations: [
     react(),
@@ -113,7 +116,7 @@ export default defineConfig({
       title: 'CPU Scheduler Simulator',
       // Inyección obligatoria de tokens globales para evitar colisiones en las guías
       customCss: [
-        '../src/react/styles/tokens.css', 
+        '../src/react/style/tokens.css', 
       ],
       sidebar: [
         {
@@ -145,7 +148,14 @@ export default defineConfig({
         },
       ],
     }),
-  ],
+  ], 
+  vite: {
+    resolve: {
+      alias: {
+        'cpu-scheduler': resolve(__dirname, '../src/index.ts'),
+      },
+    },
+  },
 });
 ```
 
@@ -154,7 +164,7 @@ export default defineConfig({
 
 * Crear las páginas vacías en formato Markdown/MDX correspondientes a los 9 algoritmos según las rutas especificadas en el `sidebar`.
 
-* Asegurar la existencia del archivo de tokens base en src/react/styles/tokens.css declarando al menos las propiedades básicas y la paleta de procesos del plan (`--scheduler-process-0` hasta el `9`) en el bloque `:root`.
+* Asegurar la existencia del archivo de tokens base en src/react/style/tokens.css declarando al menos las propiedades básicas y la paleta de procesos del plan (`--scheduler-process-0` hasta el `9`) en el bloque `:root`.
 
 * Limpieza de CSS: Se prohíbe el uso de `@import './tokens.css'` dentro de los archivos `*.module.css` individuales de los componentes React; estos dependerán exclusivamente de la inyección global configurada en Astro.
 
@@ -231,11 +241,12 @@ type AlgorithmParams = Readonly<Record<string, unknown>>;
 interface IAlgorithm {
   readonly name: string;
   readonly preemptionMode: PreemptionMode;
-  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean };
+  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;
   onEvent?(e: SchedulerEvent): string | null;
 }
+// `levels: true` (solo MLFQ) → la UI usa quanta por nivel (2 campos) en lugar de un único quantum.
 ```
 
 **Verificación:** `typecheck` confirma que una clase mínima implementa `IAlgorithm` sin
@@ -312,7 +323,28 @@ interface WhatIfBranch {
 
 ### T-08 · Registro y búsqueda
 
-`register(algo: IAlgorithm): void` y `get(name: string): IAlgorithm` (error descriptivo si no existe, listando los disponibles; si vacío muestra "(ninguno)"). Singleton.
+`type AlgorithmFactory = (params?: AlgorithmParams) => IAlgorithm`
+
+`register(factory: AlgorithmFactory): void` — llama a `factory()` una vez para obtener el nombre y almacena la fábrica.
+`get(name: string, params?: AlgorithmParams): IAlgorithm` — llama a la fábrica con los params y devuelve una instancia **nueva** en cada llamada.
+
+Error descriptivo si el nombre no existe, listando los disponibles; si el registro está vacío muestra `"(ninguno)"`.
+
+**Motivación del patrón fábrica:** los algoritmos con estado interno (VRR, MLFQ) no pueden reutilizarse entre llamadas a `run()` — cada simulación debe recibir una instancia limpia y construida con los params correctos (ej. `quantum`). Los algoritmos sin estado (FCFS, SRTF…) no se ven afectados.
+
+**Registro en `src/index.ts`:**
+```ts
+register(() => new FCFS());
+register((params) => new VirtualRoundRobin(
+  typeof params?.quantum === 'number' ? params.quantum : 1,
+));
+// etc.
+```
+
+**Llamada en `simulate.ts`:**
+```ts
+const algo = get(config.algorithm, { quantum: config.quantum, boostInterval: config.boostInterval });
+```
 
 **Cierra:** `Registro de algoritmos` — `tests/core/registry.test.ts`
 
@@ -509,17 +541,15 @@ Puro: sin `requestAnimationFrame`/`setTimeout`/`deltaTime`.
 
 ### T-27–T-33 · Algoritmos clásicos (7)
 
-| ID | Archivo | `preemptionMode` | `requires.io` | `select` | Cierra | Test |
+| ID | Archivo | `preemptionMode` | `require` | `select` | Cierra | Test |
 |----|---------|------------------|:---:|----------|--------|------|
-| T-27 | `non-preemptive/fcfs.ts` | `'none'` | false | FIFO | `§ Simular — FCFS` | `fcfs.test.ts` |
-| T-28 | `non-preemptive/sjf.ts` | `'none'` | false | menor `remaining` | `§ Simular — SJF (no expropiativo)` | `sjf.test.ts` |
-| T-29 | `non-preemptive/ljf.ts` | `'none'` | false | mayor `burst_time` | `§ Simular — LJF (no expropiativo)` | `ljf.test.ts` |
-| T-30 | `non-preemptive/priority-np.ts` | `'none'` | false | menor `priority` | `§ Simular — Prioridad (no expropiativa)` | `priority-np.test.ts` |
-| T-31 | `preemptive/srtf.ts` | `'on-better'` | false | menor `remaining` | `§ Simular — SRTF` | `srtf.test.ts` |
-| T-32 | `preemptive/priority-p.ts` | `'on-better'` | false | menor `priority` | `§ Simular — Prioridad (P)` | `priority-p.test.ts` |
-| T-33 | `preemptive/round-robin.ts` | `'on-quantum'` | false | FIFO | `§ Simular — Round Robin` | `round-robin.test.ts` |
-
-Todos declaran `requires: { ..., io: false }` desde el inicio.
+| T-27 | `non-preemptive/fcfs.ts` | `'none'` |  {} | FIFO | `§ Simular — FCFS` | `fcfs.test.ts` |
+| T-28 | `non-preemptive/sjf.ts` | `'none'` | {} | menor `remaining` | `§ Simular — SJF (no expropiativo)` | `sjf.test.ts` |
+| T-29 | `non-preemptive/ljf.ts` | `'none'` | {} | mayor `burst_time` | `§ Simular — LJF (no expropiativo)` | `ljf.test.ts` |
+| T-30 | `non-preemptive/priority-np.ts` | `'none'` | {priority : true} | menor `priority` | `§ Simular — Prioridad (no expropiativa)` | `priority-np.test.ts` |
+| T-31 | `preemptive/srtf.ts` | `'on-better'` | {} | menor `remaining` | `§ Simular — SRTF` | `srtf.test.ts` |
+| T-32 | `preemptive/priority-p.ts` | `'on-better'` | {priority : true} | menor `priority` | `§ Simular — Prioridad (expropiativa)` | `priority-p.test.ts` |
+| T-33 | `preemptive/round-robin.ts` | `'on-quantum'` | {} | FIFO | `§ Simular — Round Robin` | `round-robin.test.ts` |
 
 **Cierra también:** `§ Algoritmos clásicos — solo CPU` (ignoran `io` en procesos)
 
@@ -549,21 +579,23 @@ Implementa `select` (auxQueue → mainQueue), `quantumFor` (sobrante desde auxQu
 
 ### T-35 · MLFQ (`preemptive/multilevel-feedback.ts`)
 
-`preemptionMode: 'on-quantum-and-better'`, `requires: { io: false }`.
+`preemptionMode: 'on-quantum-and-better'`, `requires: { quantum: true, levels: true }`.
+El flag `levels: true` indica a `AlgorithmParamsForm` que renderice un quantum **por nivel** (2 campos) más `boostInterval`, en vez de un único `quantum`.
+Constructor `new MLFQ(quanta: [number, number])`; la fábrica registrada en `src/index.ts` lee `params.quanta` (que llega desde la demo vía `RunConfig.quanta`) y construye la instancia con esos dos quanta.
 Estado interno: `levels: [FifoQueue<string>, FifoQueue<string>, FifoQueue<string>]` (siempre 3), `processLevel: Map<string, number>`.
 
-**3 niveles fijos:** nivel 0 (RR, `quanta[0]`), nivel 1 (RR, `quanta[1]`), nivel 2 (FCFS, sin quantum). `quanta` es siempre un array de exactamente 2 enteros `> 0`. El número de niveles NO es configurable.
+**3 niveles fijos:** nivel 0 (RR, `quanta[0]`), nivel 1 (RR, `quanta[1]`), nivel 2 (FCFS **run-to-completion**). `quanta` es siempre un array de exactamente 2 enteros `> 0`. El número de niveles NO es configurable.
 
-Implementa `select` (nivel no vacío de menor índice), `quantumFor` (`quanta[processLevel.get(pid)]` para niveles 0 y 1; `null` para nivel 2), `onEvent` (mantiene niveles + devuelve motivo rico).
+Implementa `select` (nivel no vacío de menor índice, **protegiendo al proceso en CPU para que ninguna llegada lo expropie**), `quantumFor` (`quanta[processLevel.get(pid)]` para niveles 0 y 1; `0` para nivel 2 → el motor no expira por la guarda `currentSlice > 0`), `onEvent` (mantiene niveles + devuelve motivo rico).
 
 Reglas:
 1. Llegada nueva → `levels[0]`.
-2. `select`: cabeza de `levels[i]` para menor `i` no vacío.
-3. `quantumFor`: `quanta[nivel]` para nivel 0 y 1; `null` para nivel 2.
+2. `select`: cabeza de `levels[i]` para menor `i` no vacío. **Excepción (no expropiación por llegada):** si hay un proceso en CPU (`currentCpuPid`) y sigue listo, `select` lo devuelve siempre. Una llegada nunca expropia.
+3. `quantumFor`: `quanta[nivel]` para nivel 0 y 1; `0` para nivel 2 (sin expiración de quantum).
 4. Agota quantum → degrada: nivel 0 → 1, nivel 1 → 2. En nivel 2 no degrada más.
-5. Nivel 2 (FCFS): sin expiración de quantum. Solo sale al completar, ser expropiado por llegada a nivel 0, o por priority boost.
-6. Expropiación: llegada a `levels[0]` expropia al de nivel inferior. Expropiado vuelve a cabeza de su nivel (no degrada).
-7. Priority boost: cada `boostInterval` ticks, todos a `levels[0]` (incluido el de CPU). Empate: menor `id`. Sin `boostInterval` → sin boost.
+5. **Expropiación SOLO por quantum:** mientras un proceso ejecuta (niveles 0/1), las llegadas se encolan en `levels[0]` y esperan; el proceso conserva la CPU hasta agotar su quantum. Al agotarlo se degrada y, con la CPU libre, `select` elige el `levels[i]` no vacío de menor índice (típicamente un proceso del nivel 0 que estaba esperando).
+6. Nivel 2 (FCFS): **run-to-completion**. Una vez toma la CPU corre hasta completar; no se expropia ni por llegada ni por boost (`quantumFor = 0`).
+7. Priority boost: cada `boostInterval` ticks, todos a `levels[0]` (el proceso en CPU de nivel 0/1 también; se reevalúa `select`). Empate: menor `id`. **El proceso del nivel 2 en CPU es la excepción: el boost no lo afecta.** Sin `boostInterval` → sin boost.
 
 **Cierra:** `§ Simular — MLFQ (expropiativa)`— `tests/core/algorithms/preemptive/multilevel-feedback.test.ts`
 
@@ -943,6 +975,10 @@ Archivos: `AlgorithmParamsForm.tsx`, `style/AlgorithmParamsForm.module.css`.
 **Visible desde el primer render** si el algoritmo tiene parámetros. Estado `draft` vs
 `applied`. Botón "Aplicar" + `validateParams`. `boostInterval` vacío = sin boost.
 Reset al cambiar de algoritmo.
+
+**Campos según el algoritmo (derivados de `requires`):**
+- `requires.quantum === true` y `requires.levels !== true` (Round Robin, VRR) → un único campo `Quantum` (opcional).
+- `requires.levels === true` (MLFQ) → **dos campos** `Quantum nivel 0` y `Quantum nivel 1` (ambos obligatorios, enteros `> 0`) que se emiten como `params.quanta = [q0, q1]`, más el campo opcional `Boost interval`. El `boostInterval` solo aparece en este caso, no en Round Robin / VRR.
 
 Reglas visuales de formularios:
 

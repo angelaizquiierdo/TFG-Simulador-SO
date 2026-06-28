@@ -3,7 +3,7 @@ import type { IAlgorithm, ReadyProcess } from '../../../core/types/algorithm.js'
 export class LJF implements IAlgorithm {
   readonly name = 'ljf';
   readonly preemptionMode = 'none' as const;
-  readonly requires = { io: false } as const;
+  readonly requires = {} as const;
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     if (ready.length === 0) throw new Error('Cola de listos vacía');

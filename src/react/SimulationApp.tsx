@@ -7,6 +7,7 @@ import { GanttChart } from './GanttChart.js';
 import { PlaybackControls } from './PlaybackControls.js';
 import { MetricsTable } from './MetricsTable.js';
 import { ProcessForm } from './ProcessForm.js';
+import './style/tokens.css';
 import styles from './style/SimulationApp.module.css';
 
 export interface SimulationAppProps {

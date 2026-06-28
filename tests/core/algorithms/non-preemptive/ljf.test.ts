@@ -6,12 +6,11 @@ import { run } from '../../../../src/core/simulate.js';
 describe('LJF', () => {
   const ljf = new LJF();
 
-  beforeAll(() => { register(ljf); });
+  beforeAll(() => { register(() => ljf); });
 
   it('tiene los metadatos correctos', () => {
     expect(ljf.name).toBe('ljf');
     expect(ljf.preemptionMode).toBe('none');
-    expect(ljf.requires.io).toBe(false);
   });
 
   it('select lanza error con cola vacía', () => {

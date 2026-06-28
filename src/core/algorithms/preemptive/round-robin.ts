@@ -3,7 +3,7 @@ import type { IAlgorithm, ReadyProcess, SchedulerEvent } from '../../../core/typ
 export class RoundRobin implements IAlgorithm {
   readonly name = 'round-robin';
   readonly preemptionMode = 'on-quantum' as const;
-  readonly requires = { quantum: true, io: false } as const;
+  readonly requires = { quantum: true } as const;
 
   private readonly queue: string[] = [];
 

@@ -1,14 +1,18 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import react from '@astrojs/react';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = fileURLToPath(new URL('.', import.meta.url)); 
 export default defineConfig({
   integrations: [
     react(),
     starlight({
       title: 'CPU Scheduler Simulator',
+      // Inyección obligatoria de tokens globales para evitar colisiones en las guías
       customCss: [
-        '../src/react/styles/tokens.css',
+        '../src/react/style/tokens.css', 
       ],
       sidebar: [
         {
@@ -40,11 +44,11 @@ export default defineConfig({
         },
       ],
     }),
-  ],
+  ], 
   vite: {
     resolve: {
       alias: {
-        'cpu-scheduler': '../src/index.ts',
+        'cpu-scheduler': resolve(__dirname, '../src/index.ts'),
       },
     },
   },

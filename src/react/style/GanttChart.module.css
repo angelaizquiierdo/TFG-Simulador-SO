@@ -58,6 +58,22 @@
   flex-shrink: 0;
 }
 
+.cell {
+  position: relative;
+}
+
+/* Número de cola/nivel (MLFQ): pequeño, en la parte superior de la celda */
+.levelBadge {
+  position: absolute;
+  top: 0;
+  left: 1px;
+  font-size: 0.5rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--scheduler-text-primary, #1e293b);
+  pointer-events: none;
+}
+
 .tickNumber {
   display: flex;
   justify-content: center;

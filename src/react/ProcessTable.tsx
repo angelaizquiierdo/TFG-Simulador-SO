@@ -13,7 +13,7 @@ export function ProcessTable(): React.ReactElement {
 
   const showPriority = requires.priority === true;
   const showIO = requires.io === true;
-
+  
   return (
     <table className={styles.table} data-testid="process-table">
       <thead>

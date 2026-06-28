@@ -15,7 +15,7 @@ describe('VirtualRoundRobin — fixture principal (quantum 4)', () => {
   ];
 
   beforeEach(() => {
-    register(new VirtualRoundRobin(4));
+    register(() => new VirtualRoundRobin(4));
   });
 
   it('produce los intervalos de Gantt correctos', () => {
@@ -50,9 +50,9 @@ describe('VirtualRoundRobin — fixture principal (quantum 4)', () => {
   });
 
   it('es determinista: dos ejecuciones producen resultados idénticos', () => {
-    register(new VirtualRoundRobin(4));
+    register(() => new VirtualRoundRobin(4));
     const r1 = run(processes, { algorithm: 'virtual-round-robin', quantum: 4 });
-    register(new VirtualRoundRobin(4));
+    register(() => new VirtualRoundRobin(4));
     const r2 = run(processes, { algorithm: 'virtual-round-robin', quantum: 4 });
     expect(r1.intervals).toEqual(r2.intervals);
     expect(r1.metrics).toEqual(r2.metrics);
@@ -70,7 +70,7 @@ describe('VirtualRoundRobin — contención de dispositivo (quantum 10)', () => 
   ];
 
   beforeEach(() => {
-    register(new VirtualRoundRobin(10));
+    register(() => new VirtualRoundRobin(10));
   });
 
   it('P1 completa en t=9, P2 completa en t=13', () => {
@@ -110,7 +110,7 @@ describe('VirtualRoundRobin — mensajes ricos', () => {
   ];
 
   beforeEach(() => {
-    register(new VirtualRoundRobin(4));
+    register(() => new VirtualRoundRobin(4));
   });
 
   it('mensaje en io-return con sobrante menciona "cola auxiliar" y el sobrante', () => {
@@ -137,7 +137,7 @@ describe('VirtualRoundRobin — sobrante = 0 va a cola principal', () => {
   ];
 
   beforeEach(() => {
-    register(new VirtualRoundRobin(4));
+    register(() => new VirtualRoundRobin(4));
   });
 
   it('P1 vuelve de E/S a la cola principal cuando sobrante=0', () => {

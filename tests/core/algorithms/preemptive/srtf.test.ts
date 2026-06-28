@@ -6,12 +6,11 @@ import { run } from '../../../../src/core/simulate.js';
 describe('SRTF', () => {
   const algo = new SRTF();
 
-  beforeAll(() => { register(algo); });
+  beforeAll(() => { register(() => algo); });
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('srtf');
     expect(algo.preemptionMode).toBe('on-better');
-    expect(algo.requires.io).toBe(false);
   });
 
   it('select lanza error con cola vacía', () => {

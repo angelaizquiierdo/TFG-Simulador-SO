@@ -228,13 +228,13 @@ class RichMsgRR implements IAlgorithm {
 
 beforeEach(() => {
   _clear();
-  register(new FCFS());
-  register(new SRTF());
-  register(new RR());
-  register(new IOFCFS());
-  register(new IOReturn());
-  register(new MockMLFQ([2, 10]));
-  register(new RichMsgRR());
+  register(() => new FCFS());
+  register(() => new SRTF());
+  register(() => new RR());
+  register(() => new IOFCFS());
+  register(() => new IOReturn());
+  register(() => new MockMLFQ([2, 10]));
+  register(() => new RichMsgRR());
 });
 
 // ── T-09: CPU inactiva ──────────────────────────────────────────────────────
@@ -735,7 +735,7 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
         return null;
       }
     }
-    register(new StringMsgAlgo());
+    register(() => new StringMsgAlgo());
     
     const processes: Process[] = [{ id: 'P1', arrival_time: 0, burst_time: 1 }];
     const result = run(processes, { algorithm: 'string-msg' });
@@ -762,7 +762,7 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
         return null;
       }
     }
-    register(new PreemptMsgAlgo());
+    register(() => new PreemptMsgAlgo());
     
     const processes: Process[] = [
       { id: 'P1', arrival_time: 0, burst_time: 5 },
@@ -810,7 +810,7 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
     // Cada registro de MockMLFQ es independiente (nueva instancia en beforeEach)
     const r1 = run(processes, { algorithm: 'mlfq-test' });
     _clear();
-    register(new MockMLFQ([2, 10]));
+    register(() => new MockMLFQ([2, 10]));
     const r2 = run(processes, { algorithm: 'mlfq-test' });
     expect(r1.history.length).toBe(r2.history.length);
     for (let i = 0; i < r1.history.length; i++) {
@@ -825,7 +825,7 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
     ];
     // Registrar nuevo MockMLFQ fresco para este test
     _clear();
-    register(new MockMLFQ([2, 10]));
+    register(() => new MockMLFQ([2, 10]));
     const result = run(processes, { algorithm: 'mlfq-test', boostInterval: 6 });
 
     // t=0-2: P1 (nivel 0, q=2), t=2-4: P2 (nivel 0, q=2), t=4-6: P1 (nivel 1, q=10)
@@ -857,7 +857,7 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
         return p1 ?? fallback;
       }
     }
-    register(new NoPreemptOQAB());
+    register(() => new NoPreemptOQAB());
     
     const processes: Process[] = [
       { id: 'P1', arrival_time: 0, burst_time: 5 },
@@ -883,7 +883,7 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
         return p2 ?? fallback2;
       }
     }
-    register(new KeepCurrentIoReturn());
+    register(() => new KeepCurrentIoReturn());
     
     const processes: Process[] = [
       { id: 'P1', arrival_time: 0, burst_time: 3, io: [{ io_entry: 1, io_time: 1 }] },
@@ -1121,7 +1121,7 @@ describe('§ SRTF con onEvent — cobertura de expropiación al final de tick', 
     }
     _clear();
     const algo = new SRTFWithEvent();
-    register(algo);
+    register(() => algo);
     const processes: Process[] = [
       { id: 'P1', arrival_time: 0, burst_time: 5 },
       { id: 'P2', arrival_time: 0, burst_time: 2 },
@@ -1133,7 +1133,7 @@ describe('§ SRTF con onEvent — cobertura de expropiación al final de tick', 
 });
 
 describe('§ Configuración inválida', () => {
-  it('algoritmo con requires.priority y proceso sin priority lanza error', () => {
+  it('algoritmo con requires.priority y proceso sin priority no lanza error (se trata como Infinity)', () => {
     class PriorityAlgo implements IAlgorithm {
       readonly name = 'prio-test';
       readonly preemptionMode = 'none' as const;
@@ -1145,9 +1145,9 @@ describe('§ Configuración inválida', () => {
       }
     }
     _clear();
-    register(new PriorityAlgo());
+    register(() => new PriorityAlgo());
     const processes: Process[] = [{ id: 'P1', arrival_time: 0, burst_time: 2 }];
-    expect(() => run(processes, { algorithm: 'prio-test' })).toThrow(/priority/);
+    expect(() => run(processes, { algorithm: 'prio-test' })).not.toThrow();
   });
 });
 
@@ -1183,9 +1183,8 @@ describe('§ Seguridad y tolerancia a fallos', () => {
       }
     }
     _clear();
-    const badAlgo = new BadAlgo();
-    register(badAlgo);
-    register(new FCFS()); // re-registrar para no romper otros tests
+    register(() => new BadAlgo());
+    register(() => new FCFS()); // re-registrar para no romper otros tests
 
     const processes: Process[] = [{ id: 'P1', arrival_time: 0, burst_time: 2 }];
     const result = run(processes, { algorithm: 'bad-once' });

@@ -6,12 +6,11 @@ import { run } from '../../../../src/core/simulate.js';
 describe('PriorityNP', () => {
   const algo = new PriorityNP();
 
-  beforeAll(() => { register(algo); });
+  beforeAll(() => { register(() => algo); });
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('priority-np');
     expect(algo.preemptionMode).toBe('none');
-    expect(algo.requires.io).toBe(false);
   });
 
   it('select lanza error con cola vacía', () => {

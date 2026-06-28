@@ -6,12 +6,11 @@ import { run } from '../../../../src/core/simulate.js';
 describe('PriorityP', () => {
   const algo = new PriorityP();
 
-  beforeAll(() => { register(algo); });
+  beforeAll(() => { register(() => algo); });
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('priority-p');
     expect(algo.preemptionMode).toBe('on-better');
-    expect(algo.requires.io).toBe(false);
   });
 
   it('select lanza error con cola vacía', () => {

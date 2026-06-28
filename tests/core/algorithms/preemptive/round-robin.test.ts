@@ -6,12 +6,11 @@ import { run } from '../../../../src/core/simulate.js';
 describe('RoundRobin', () => {
   const algo = new RoundRobin();
 
-  beforeAll(() => { register(algo); });
+  beforeAll(() => { register(() => algo); });
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('round-robin');
     expect(algo.preemptionMode).toBe('on-quantum');
-    expect(algo.requires.io).toBe(false);
     expect(algo.requires.quantum).toBe(true);
   });
 

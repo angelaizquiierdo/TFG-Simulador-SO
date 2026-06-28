@@ -5,11 +5,12 @@ description: Algoritmo de planificación expropiativo MLFQ con retroalimentació
 
 import { SimulationApp } from 'cpu-scheduler';
 
-La **Cola de Retroalimentación Multinivel** (MLFQ) mantiene varias colas de prioridad. Los procesos empiezan en la cola de mayor prioridad (nivel 0). Si agotan su quantum sin terminar, descienden al siguiente nivel con un quantum mayor. Los procesos cortos se benefician de los niveles altos; los largos terminan en los niveles bajos.
+La **Cola de Retroalimentación Multinivel** (MLFQ) mantiene tres colas de prioridad fijas. Los procesos empiezan en la cola de mayor prioridad (nivel 0). Si agotan su quantum sin terminar, descienden al siguiente nivel. Los procesos cortos se benefician de los niveles altos; los largos terminan en el nivel 2. El **nivel 2 es FCFS *run-to-completion***: una vez un proceso toma la CPU desde el nivel 2, corre hasta terminar su ráfaga sin ser expropiado por llegadas al nivel 0 ni por *priority boost*.
 
 **Características:**
-- Expropiativo (`preemptionMode: 'on-quantum-and-better'`): expropia por quantum agotado Y por llegada a un nivel superior.
-- Requiere `quantum` como quantum base del nivel 0 (`requires.quantum = true`).
+- **Expropia solo por agotamiento de quantum, nunca por llegada:** un proceso en CPU corre su quantum completo aunque lleguen otros (que esperan en el nivel 0). Al agotarlo, se degrada al siguiente nivel y se elige el proceso del nivel no vacío de menor índice.
+- El nivel 2 es FCFS **run-to-completion**: una vez en CPU, corre hasta terminar sin ser expropiado ni por llegadas ni por *priority boost*.
+- Configurable con `quanta` (2 enteros: quantum del nivel 0 y del nivel 1) y `boostInterval` opcional (`requires.levels = true`).
 - `boostInterval` (opcional): cada N ticks, todos los procesos suben al nivel 0 (evita inanición).
 - Usa `quantumFor()` para devolver el quantum del nivel actual del proceso.
 - Usa `onEvent()` para mover procesos entre niveles y emitir mensajes ricos (descenso de nivel, boost de prioridad).
@@ -18,12 +19,12 @@ La **Cola de Retroalimentación Multinivel** (MLFQ) mantiene varias colas de pri
 <SimulationApp
   algorithm="mlfq"
   processes={[
-    { id: 'A', arrival_time: 0, burst_time: 3 },
-    { id: 'B', arrival_time: 1, burst_time: 2 },
-    { id: 'C', arrival_time: 3, burst_time: 4 },
-    { id: 'D', arrival_time: 4, burst_time: 2 },
-    { id: 'E', arrival_time: 7, burst_time: 5 },
-    { id: 'F', arrival_time: 9, burst_time: 3 },
+    { id: 'A', arrival_time: 0, burst_time: 12 },
+    { id: 'B', arrival_time: 1, burst_time: 3 },
+    { id: 'C', arrival_time: 3, burst_time: 7 },
+    { id: 'D', arrival_time: 4, burst_time: 4 },
+    { id: 'E', arrival_time: 6, burst_time: 1 },
+    { id: 'F', arrival_time: 7, burst_time: 4 },
   ]}
   params={{ quanta: [2, 3] }}
   client:only="react"

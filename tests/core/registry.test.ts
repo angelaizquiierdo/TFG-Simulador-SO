@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { register, get, _clear } from '../../src/core/registry.js';
 import type { IAlgorithm, ReadyProcess } from '../../src/core/types/algorithm.js';
 
-const makeAlgo = (name: string): IAlgorithm => ({
+const makeFactory = (name: string) => (): IAlgorithm => ({
   name,
   preemptionMode: 'none',
   requires: {},
@@ -19,19 +19,23 @@ beforeEach(() => {
 
 describe('registry', () => {
   it('registra y recupera un algoritmo por nombre', () => {
-    const algo = makeAlgo('FCFS');
-    register(algo);
-    expect(get('FCFS')).toBe(algo);
+    register(makeFactory('FCFS'));
+    expect(get('FCFS').name).toBe('FCFS');
+  });
+
+  it('cada llamada a get devuelve una instancia nueva', () => {
+    register(makeFactory('FCFS'));
+    expect(get('FCFS')).not.toBe(get('FCFS'));
   });
 
   it('lanza error descriptivo cuando el algoritmo no existe', () => {
-    register(makeAlgo('SJF'));
+    register(makeFactory('SJF'));
     expect(() => get('INEXISTENTE')).toThrow('"INEXISTENTE"');
   });
 
   it('el mensaje de error lista los algoritmos disponibles', () => {
-    register(makeAlgo('FCFS'));
-    register(makeAlgo('SJF'));
+    register(makeFactory('FCFS'));
+    register(makeFactory('SJF'));
     expect(() => get('X')).toThrow('FCFS');
   });
 

@@ -207,10 +207,11 @@ type SchedulerEvent =
 interface IAlgorithm {
   readonly name: string;
   readonly preemptionMode: PreemptionMode;           // + 'io-return' y 'on-quantum-and-better'
-  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean };
+  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;       // quantum variable (sobrante / nivel)
-  onEvent?(e: SchedulerEvent): string | null;      
+  onEvent?(e: SchedulerEvent): string | null;
+  levelSnapshot?(): Readonly<Record<string, number>>; // pid → nivel/cola (solo multinivel)
 }
 ```
 ### Qué hace cada campo
@@ -219,7 +220,7 @@ interface IAlgorithm {
 |-------|:-----------:|:------------:|----------|
 | `name` | sí | registro | identificar el algoritmo (`'fcfs'`, `'mlfq'`, etc.) |
 | `preemptionMode` | sí | motor | saber CUÁNDO llamar a `select()` y si expropiar |
-| `requires` | sí | motor + UI | validar la config y mostrar/ocultar campos en la demo |
+| `requires` | sí | motor + UI | validar la config y mostrar/ocultar campos en la demo. `levels: true` (solo MLFQ) indica a `AlgorithmParamsForm` que renderice un quantum **por nivel** (2 campos: `quanta[0]`, `quanta[1]`) más `boostInterval`, en vez de un único `quantum` |
 | `select()` | sí | motor | elegir qué proceso ocupa la CPU |
 | `quantumFor()` | no | motor | saber cuánto dura el turno de un proceso concreto |
 | `onEvent()` | no | motor | notificar al algoritmo + obtener el motivo rico |
@@ -343,7 +344,9 @@ interface HistoryEvent {
   readonly completed: readonly string[];
   readonly inIO: string | null;             // pid en servicio en el dispositivo, o null
   readonly waitingIO: readonly string[];    // cola FCFS del dispositivo
-  readonly message: string;                 
+  readonly message: string;
+  readonly levels?: Readonly<Record<string, number>>; // pid → nivel/cola del tick (solo MLFQ);
+                                            // el motor lo copia de algo.levelSnapshot() para anotar el Gantt
 }
 
 type History = readonly HistoryEvent[];     // índice = tick
@@ -515,7 +518,7 @@ Estado interno (vía `onEvent`): `mainQueue`, `auxQueue` y `remainingSlice`. `io
 |-------|----------|---------|
 | 0 (mayor prioridad) | Round Robin | `quanta[0]` (editable) |
 | 1 | Round Robin | `quanta[1]` (editable) |
-| 2 (menor prioridad) | FCFS | — (sin quantum; ejecuta hasta completar, ser expropiado o boost) |
+| 2 (menor prioridad) | FCFS | — (sin quantum; **run-to-completion**: una vez en CPU, ejecuta hasta completar) |
 
 
 El número de niveles **no es configurable**; `quanta` es siempre un array de exactamente
@@ -527,18 +530,18 @@ nivel`, nivel 0 = mayor prioridad). **Identificadores de código (inglés):**
 y `processLevel: Map<string, number>` (`pid → 0 | 1 | 2`).
 
 1. Una **llegada nueva** entra al **nivel 0** (`levels[0]`).
-2. **Selección (`select`):** la cabeza de `levels[i]` para el menor `i` tal que `levels[i]` no esté vacío; dentro del nivel, FIFO.
-3. **Duración del turno (`quantumFor`):** `quanta[processLevel.get(pid)]` para niveles 0 y 1. Para nivel 2 devuelve `null` (sin expiración de quantum; el proceso solo sale de la CPU al completar, ser expropiado por llegada a nivel 0, o por priority boost).
-4. Un proceso que **agota el quantum** de su nivel sin completar se **degrada** (`preemptionMode = 'on-quantum-and-better'` cubre esta mitad):
+2. **Selección (`select`):** la cabeza de `levels[i]` para el menor `i` tal que `levels[i]` no esté vacío; dentro del nivel, FIFO. **Excepción (no expropiación por llegada):** si hay un proceso en CPU (`currentCpuPid`) y sigue listo, `select` lo devuelve siempre. Una llegada nunca expropia al proceso en ejecución.
+3. **Duración del turno (`quantumFor`):** `quanta[processLevel.get(pid)]` para niveles 0 y 1. Para nivel 2 devuelve `0` — el motor, por la guarda `currentSlice > 0`, no aplica expiración de quantum (run-to-completion). (`0` ≠ `null`: `null` significaría "usa `config.quantum`", como en VRR; `0` significa "sin expiración".)
+4. Un proceso que **agota el quantum** de su nivel sin completar se **degrada**:
    - Desde nivel 0 → nivel 1 (Round Robin con `quanta[1]`).
    - Desde nivel 1 → nivel 2 (FCFS; ya no expira por quantum).
    - En nivel 2 → se queda en nivel 2 (no se degrada más).
-5. **Expropiación por prioridad** (la otra mitad de `'on-quantum-and-better'`): si **llega** un proceso a `levels[0]` (estrictamente superior al del proceso en CPU), este es expropiado y vuelve a la **cabeza de su nivel** (no se degrada, porque no agotó su quantum).
-6. **Envejecimiento — *priority boost*:** cada `boostInterval` ticks (si se configura), **todos** los procesos se mueven a `levels[0]` (`processLevel.set(pid, 0)` para todos), reseteando la degradación; evita la inanición. **Incluye al proceso en CPU en ese instante:** si hay uno ejecutando, también sube a nivel 0 y se **reevalúa `select()`** de inmediato (mismo mecanismo que la regla 5); no termina su turno actual si deja de ser el elegido. Empate al reencolar tras el boost: por menor `id`. Sin `boostInterval` no hay boost.
+5. **Expropiación SOLO por quantum (no por llegada):** mientras un proceso ejecuta en los niveles 0/1, las llegadas se encolan en `levels[0]` y **esperan**; el proceso conserva la CPU hasta agotar su quantum. Al agotarlo se degrada y, con la CPU libre, `select` elige el `levels[i]` no vacío de menor índice — típicamente el proceso del nivel 0 que estaba esperando. El nivel 2 es **run-to-completion** (no se expropia nunca). El modo del motor sigue siendo `'on-quantum-and-better'` (la mitad "better" solo se activa en el *priority boost*, no en las llegadas).
+6. **Envejecimiento — *priority boost*:** cada `boostInterval` ticks (si se configura), **todos** los procesos se mueven a `levels[0]` (`processLevel.set(pid, 0)` para todos), reseteando la degradación; evita la inanición. Incluye al proceso en CPU si está en nivel 0 o 1: sube a nivel 0 y se **reevalúa `select()`** de inmediato. **Excepción:** si el proceso en CPU está en el nivel 2, el boost NO lo afecta (conserva la CPU y su nivel; run-to-completion). Empate al reencolar tras el boost: por menor `id`. Sin `boostInterval` no hay boost.
 
 **Estado Interno y Parámetros:**
 - `validateParams`: `quanta` array de exactamente 2 enteros `> 0`; `boostInterval`, si está, entero `> 0`.
-- `paramSchema`: **dos campos `integer`** (`key: 'quanta[0]'`, `min: 1` y `key: 'quanta[1]'`, `min: 1`) **y** un campo `integer` con `optional: true` (`key: 'boostInterval'`, `min: 1`) → **los tres editables desde la demo** vía `AlgorithmParamsForm`. Si en el formulario se deja `boostInterval` vacío, equivale a omitirlo (sin *priority boost*), no a un error de validación.
+- **Edición desde la demo** (`AlgorithmParamsForm`): MLFQ declara `requires.levels = true`, lo que hace que el formulario renderice **dos campos `integer`** para los quanta por nivel (`Quantum nivel 0` → `quanta[0]`, `Quantum nivel 1` → `quanta[1]`, ambos `min: 1` y obligatorios) **y** un campo `integer` opcional (`Boost interval` → `boostInterval`, `min: 1`). Si se deja `boostInterval` vacío, equivale a omitirlo (sin *priority boost*), no a un error de validación. El formulario emite `params.quanta = [q0, q1]`, que `SimulationProvider.buildConfig` propaga a `RunConfig.quanta` y el motor pasa a la fábrica de MLFQ vía `get(name, params)`.
 
 **§ Mensajes Ricos y Narrativa Compuesta :**
 `onEvent` devuelve fragmentos concatenables `{ text: string } | null`:

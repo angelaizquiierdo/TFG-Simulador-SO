@@ -44,12 +44,18 @@ import { RoundRobin } from './core/algorithms/preemptive/round-robin.js';
 import { VirtualRoundRobin } from './core/algorithms/preemptive/virtual-round-robin.js';
 import { MLFQ } from './core/algorithms/preemptive/multilevel-feedback.js';
 
-register(new FCFS());
-register(new SJF());
-register(new LJF());
-register(new PriorityNP());
-register(new SRTF());
-register(new PriorityP());
-register(new RoundRobin());
-register(new VirtualRoundRobin());
-register(new MLFQ());
+register(() => new FCFS());
+register(() => new SJF());
+register(() => new LJF());
+register(() => new PriorityNP());
+register(() => new SRTF());
+register(() => new PriorityP());
+register(() => new RoundRobin());
+register((params) => new VirtualRoundRobin(
+  typeof params?.quantum === 'number' ? params.quantum : 1,
+));
+register((params) => {
+  const q0 = Array.isArray(params?.quanta) && typeof params.quanta[0] === 'number' ? params.quanta[0] : 2;
+  const q1 = Array.isArray(params?.quanta) && typeof params.quanta[1] === 'number' ? params.quanta[1] : 4;
+  return new MLFQ([q0, q1]);
+});

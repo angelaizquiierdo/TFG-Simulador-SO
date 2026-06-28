@@ -17,11 +17,13 @@
 .unified {
   display: grid;
   grid-template-areas:
-    "params  params"
-    "table   gantt"
-    "table   controls"
-    "metrics form";
-  grid-template-columns: 1fr 2fr;
+    "params"
+    "table"
+    "gantt"
+    "controls"
+    "metrics"
+    "form";
+  grid-template-columns: 1fr;
   gap: var(--scheduler-space-md);
 }
 

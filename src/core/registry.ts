@@ -1,14 +1,17 @@
-import type { IAlgorithm } from './types/algorithm.js';
+import type { IAlgorithm, AlgorithmParams } from './types/algorithm.js';
 
-const _registry = new Map<string, IAlgorithm>();
+type AlgorithmFactory = (params?: AlgorithmParams) => IAlgorithm;
 
-function register(algo: IAlgorithm): void {
-  _registry.set(algo.name, algo);
+const _registry = new Map<string, AlgorithmFactory>();
+
+function register(factory: AlgorithmFactory): void {
+  const sample = factory();
+  _registry.set(sample.name, factory);
 }
 
-function get(name: string): IAlgorithm {
-  const algo = _registry.get(name);
-  if (algo !== undefined) return algo;
+function get(name: string, params?: AlgorithmParams): IAlgorithm {
+  const factory = _registry.get(name);
+  if (factory !== undefined) return factory(params);
 
   const available = _registry.size === 0
     ? '(ninguno)'
@@ -22,4 +25,5 @@ function _clear(): void {
   _registry.clear();
 }
 
+export type { AlgorithmFactory };
 export { register, get, _clear };

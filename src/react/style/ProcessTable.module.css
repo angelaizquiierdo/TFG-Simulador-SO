@@ -5,7 +5,7 @@
   border-collapse: collapse;
   font-size: 0.875rem;
   color: var(--scheduler-text-primary);
-  border: 1px solid var(--scheduler-border);
+  border: none;
   border-radius: var(--scheduler-radius-sm);
   overflow: hidden;
 }

@@ -21,7 +21,8 @@ import { FifoQueue } from '../shared/fifo-queue.js';
 export class MLFQ implements IAlgorithm {
   readonly name: string;
   readonly preemptionMode = 'on-quantum-and-better' as const;
-  readonly requires = { io: false } as const;
+  // `levels: true` indica a la UI que use quanta por nivel (2 campos) en vez de un único quantum
+  readonly requires = { quantum: true, levels: true } as const;
 
   private readonly quanta: [number, number];
 
@@ -39,6 +40,16 @@ export class MLFQ implements IAlgorithm {
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     if (ready.length === 0) throw new Error('Cola de listos vacía');
+
+    // MLFQ solo expropia por agotamiento de quantum (o, en el boost, vía reevaluación
+    // explícita que limpia `currentCpuPid`). Una llegada NUNCA expropia: el proceso en
+    // CPU conserva la CPU mientras siga listo. El nivel 2 es además run-to-completion
+    // (quantumFor = 0 → sin expiración). Por eso, si hay un proceso en CPU y está entre
+    // los candidatos, `select` lo devuelve siempre.
+    if (this.currentCpuPid !== null) {
+      const current = ready.find((p) => p.id === this.currentCpuPid);
+      if (current !== undefined) return current;
+    }
 
     // Buscar en nivel 0, luego 1, luego 2
     for (const id of this.level0.toArray()) {
@@ -60,11 +71,19 @@ export class MLFQ implements IAlgorithm {
     return first;
   }
 
+  levelSnapshot(): Readonly<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const [id, level] of this.processLevel) out[id] = level;
+    return out;
+  }
+
   quantumFor(p: ReadyProcess): number | null {
     const level = this.processLevel.get(p.id) ?? 0;
     if (level === 0) return this.quanta[0];
     if (level === 1) return this.quanta[1];
-    return null; // nivel 2: FCFS, sin expiración de quantum
+    // nivel 2: FCFS run-to-completion. Devolver 0 hace que el motor (guarda
+    // `currentSlice > 0`) no aplique expiración de quantum: el proceso corre hasta acabar.
+    return 0;
   }
 
   onEvent(e: SchedulerEvent): string | { text: string } | null {
@@ -79,7 +98,13 @@ export class MLFQ implements IAlgorithm {
         const level = this.processLevel.get(e.id) ?? 0;
         this._removeFromLevel(e.id, level);
         this.currentCpuPid = e.id;
-        return null;
+        const q = level === 0 ? this.quanta[0] : level === 1 ? this.quanta[1] : 0;
+        return {
+          text:
+            q > 0
+              ? `entra en la CPU desde la cola ${String(level)} (quantum = ${String(q)})`
+              : `entra en la CPU desde la cola ${String(level)} (FCFS, sin quantum)`,
+        };
       }
 
       case 'quantum-expiry': {
@@ -102,12 +127,20 @@ export class MLFQ implements IAlgorithm {
       }
 
       case 'priority-boost': {
+        // El proceso del nivel 2 en CPU es run-to-completion: el boost NO lo afecta,
+        // conserva la CPU y su nivel. El resto sí sube al nivel 0.
+        const runningAtL2 =
+          this.currentCpuPid !== null && this.processLevel.get(this.currentCpuPid) === 2
+            ? this.currentCpuPid
+            : null;
+
         // Recopilar todos los pids (en colas + actual en CPU)
         const allPids = new Set<string>();
         for (const id of this.level0.toArray()) allPids.add(id);
         for (const id of this.level1.toArray()) allPids.add(id);
         for (const id of this.level2.toArray()) allPids.add(id);
         if (this.currentCpuPid !== null) allPids.add(this.currentCpuPid);
+        if (runningAtL2 !== null) allPids.delete(runningAtL2);
 
         // Reiniciar niveles
         this.level0 = new FifoQueue<string>();
@@ -122,8 +155,13 @@ export class MLFQ implements IAlgorithm {
           this.processLevel.set(id, 0);
           this.level0.enqueue(id);
         }
-        // El proceso en CPU también está en level0; el motor reevalúa
-        this.currentCpuPid = null;
+        if (runningAtL2 !== null) {
+          // Se mantiene en nivel 2 y conserva la CPU (no se encola; `select` lo protege)
+          this.processLevel.set(runningAtL2, 2);
+        } else {
+          // El proceso en CPU está en level0; el motor reevalúa
+          this.currentCpuPid = null;
+        }
         return { text: 'priority boost: todos los procesos suben al nivel 0' };
       }
 

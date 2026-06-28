@@ -7,13 +7,12 @@ describe('FCFS', () => {
   const fcfs = new FCFS();
 
   beforeAll(() => {
-    register(fcfs);
+    register(() => fcfs);
   });
 
   it('tiene los metadatos correctos', () => {
     expect(fcfs.name).toBe('fcfs');
     expect(fcfs.preemptionMode).toBe('none');
-    expect(fcfs.requires.io).toBe(false);
   });
 
   it('select lanza error con cola vacía', () => {

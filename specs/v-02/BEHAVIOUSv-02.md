@@ -2,13 +2,18 @@
 
 ## § Registro de algoritmos
 
-DADO un algoritmo válido
-CUANDO se registra en el sistema
-ENTONCES se puede recuperar posteriormente por su nombre exacto
+> **Patrón fábrica:** el registro almacena `AlgorithmFactory = (params?: AlgorithmParams) => IAlgorithm`.
+> `register(factory)` llama a `factory()` una vez para leer el nombre.
+> `get(name, params?)` llama a la fábrica con los params y devuelve una instancia **nueva** en cada llamada.
+> Esto garantiza que los algoritmos con estado interno (VRR, MLFQ) arranquen limpios en cada simulación.
 
-DADO que se registra un algoritmo con un nombre que ya existe
-CUANDO se realiza el registro
-ENTONCES el nuevo algoritmo sobrescribe al anterior
+DADO una fábrica de algoritmo válida
+CUANDO se registra en el sistema
+ENTONCES se puede obtener una instancia de ese algoritmo posteriormente por su nombre exacto
+
+DADO que se registra una fábrica bajo un nombre que ya existe
+CUANDO se realiza el nuevo registro
+ENTONCES la nueva fábrica sobrescribe a la anterior silenciosamente
 
 DADO que el sistema intenta recuperar un algoritmo no registrado
 CUANDO el registro de algoritmos no está completamente vacío
@@ -18,13 +23,13 @@ DADO que el sistema intenta recuperar un algoritmo no registrado
 CUANDO el registro de algoritmos está completamente vacío
 ENTONCES se produce un error que indica explícitamente "(ninguno)" en la lista de algoritmos disponibles
 
-DADO que se registra un algoritmo bajo un `name`
+DADO que se registra una fábrica bajo un `name`
 CUANDO se solicita ese mismo `name` al registro
-ENTONCES se devuelve la instancia registrada sin error
+ENTONCES se obtiene una instancia válida del algoritmo sin error
 
-DADO que se intenta registrar dos algoritmos con el mismo `name`
-CUANDO el segundo intento de registro ocurre
-ENTONCES se produce un error y el registro conserva solo la primera instancia
+DADO que se solicita el mismo nombre al registro dos veces
+CUANDO se realizan las dos llamadas a `get`
+ENTONCES se devuelven dos instancias distintas (no la misma referencia), garantizando el aislamiento entre simulaciones
 
 ## § CPU inactiva
 
@@ -322,7 +327,7 @@ ENTONCES se produce un error de configuración sin iniciar la simulación
 
 DADO que el algoritmo requiere `priority` y un proceso no la declara
 CUANDO el motor intenta simular
-ENTONCES se produce un error de configuración indicando el campo ausente
+ENTONCES el proceso se trata como si tuviera la prioridad más baja (`priority = Infinity`) y la simulación no lanza error
 
 DADO que el algoritmo es Round Robin Virtual o MLFQ y `validateParams` recibe un `quantum ≤ 0` o `quanta` con alguna entrada `≤ 0`
 CUANDO el motor intenta simular
@@ -628,19 +633,27 @@ ENTONCES el proceso pasa al nivel 2 (FCFS)
 
 DADO que un proceso en el nivel 2 está ejecutando
 CUANDO se evalúa si expira su quantum
-ENTONCES no expira (`quantumFor` devuelve `null`); solo sale de la CPU al completar, ser expropiado por una llegada al nivel 0, o por un priority boost
+ENTONCES no expira (`quantumFor` devuelve `0`); el nivel 2 es **run-to-completion**: una vez el proceso toma la CPU, solo la abandona al completar su ráfaga
 
 DADO que un proceso ya está en el nivel 2
 CUANDO el motor evalúa si degradar más
 ENTONCES permanece en el nivel 2; no se degrada más allá
 
-DADO que llega un proceso al nivel 0 mientras hay otro proceso en CPU en un nivel inferior (1 o 2)
-CUANDO el motor evalúa si expropiar (`preemptionMode = 'on-quantum-and-better'`)
-ENTONCES el proceso en CPU es expropiado y vuelve a la cabeza de su nivel sin degradarse
+DADO que un proceso A está ejecutando en cualquier nivel y llega un proceso B (que entra al nivel 0)
+CUANDO el motor procesa esa llegada
+ENTONCES A NO es expropiado: conserva la CPU hasta agotar su quantum (niveles 0 y 1) o completar su ráfaga (nivel 2). B espera en la cola del nivel 0. MLFQ solo expropia por agotamiento de quantum, nunca por llegada
 
-DADO que MLFQ tiene `boostInterval` configurado y se alcanza ese tick
+DADO que el proceso A en CPU (nivel 0 o 1) agota su quantum y B esperaba en el nivel 0
+CUANDO el motor libera la CPU
+ENTONCES A se degrada al siguiente nivel y, como la CPU queda libre, `select` elige a B del nivel 0 (el nivel no vacío de menor índice)
+
+DADO que MLFQ tiene `boostInterval` configurado y se alcanza ese tick mientras un proceso del **nivel 2** está en CPU
 CUANDO el motor aplica el *priority boost*
-ENTONCES todos los procesos, incluido el que está en CPU en ese instante, suben al nivel 0 y se reevalúa quién debe ejecutar
+ENTONCES el proceso del nivel 2 en CPU NO se ve afectado (conserva la CPU y su nivel); el resto de procesos suben al nivel 0
+
+DADO que MLFQ tiene `boostInterval` configurado y se alcanza ese tick mientras un proceso del nivel 0 o 1 está en CPU
+CUANDO el motor aplica el *priority boost*
+ENTONCES todos esos procesos, incluido el que está en CPU en ese instante, suben al nivel 0 y se reevalúa quién debe ejecutar
 
 DADO que el *priority boost* interrumpe al proceso en CPU
 CUANDO ese proceso vuelve al nivel 0 junto al resto

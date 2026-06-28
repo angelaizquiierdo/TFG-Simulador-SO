@@ -116,10 +116,10 @@ class NullMessageAlgo implements IAlgorithm {
 }
 
 // Registrar todos
-register(new MinimalFCFS());
-register(new StatefulRR('contract-stateful-rr'));
-register(new RichMessageAlgo());
-register(new NullMessageAlgo());
+register(() => new MinimalFCFS());
+register(() => new StatefulRR('contract-stateful-rr'));
+register(() => new RichMessageAlgo());
+register(() => new NullMessageAlgo());
 
 const PROCESSES: Process[] = [
   { id: 'P1', arrival_time: 0, burst_time: 3 },
@@ -160,7 +160,7 @@ describe('§ Contrato de algoritmo (extensibilidad)', () => {
         return this.inner.onEvent(e);
       }
     }
-    register(new SpiedRR());
+    register(() => new SpiedRR());
 
     run(PROCESSES, { algorithm: 'contract-spied-rr' });
     expect(calledTypes).toContain('arrival');
@@ -194,7 +194,7 @@ describe('§ Contrato de algoritmo (extensibilidad)', () => {
         return null;
       }
     }
-    register(new QuantumOneRR());
+    register(() => new QuantumOneRR());
 
     const result = run(
       [

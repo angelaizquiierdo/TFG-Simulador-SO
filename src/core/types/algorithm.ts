@@ -28,10 +28,13 @@ type AlgorithmParams = Readonly<Record<string, unknown>>;
 interface IAlgorithm {
   readonly name: string;
   readonly preemptionMode: PreemptionMode;
-  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean };
+  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;
   onEvent?(e: SchedulerEvent): string | { text: string } | null;
+  // Snapshot opcional pid → nivel/cola para anotar las celdas del Gantt.
+  // El motor lo registra tal cual; algoritmos sin niveles no lo implementan.
+  levelSnapshot?(): Readonly<Record<string, number>>;
 }
 
 export type { ReadyProcess, PreemptionMode, SchedulerEvent, AlgorithmParams, IAlgorithm };

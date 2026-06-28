@@ -102,8 +102,7 @@ La navegación recorre un resultado ya calculado; no recalcula nada al moverse.
 - **Por proceso:** tiempo de finalización, tiempo de retorno, tiempo de espera y tiempo de respuesta.
 - **Agregadas:** espera media, retorno medio, utilización de la CPU y rendimiento.
 - Las métricas las renderiza el componente y se muestran al completar el recorrido de la simulación; son coherentes con el estado visualizado en cada momento.
-- **Configurable**: mediante la configuración del componente se elige qué métricas
-mostrar, o ninguna.
+- **Configurable**: mediante la configuración del componente se elige qué métricas mostrar, o ninguna.
 
 
 ### Demos (algoritmos por pégina)

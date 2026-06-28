@@ -3,7 +3,7 @@ import type { IAlgorithm, ReadyProcess } from '../../../core/types/algorithm.js'
 export class PriorityNP implements IAlgorithm {
   readonly name = 'priority-np';
   readonly preemptionMode = 'none' as const;
-  readonly requires = { io: false } as const;
+  readonly requires = { priority: true } as const;
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     if (ready.length === 0) throw new Error('Cola de listos vacía');

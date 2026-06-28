@@ -4,11 +4,12 @@ import { run } from '../../../../src/core/simulate.js';
 import { register } from '../../../../src/core/registry.js';
 import type { Process } from '../../../../src/core/types/process.js';
 
-// Registrar instancias de prueba con nombre único
-register(new MLFQ([2, 10], 'test-mlfq-2-10'));
-register(new MLFQ([2, 10], 'test-mlfq-2-10-b6'));
-register(new MLFQ([2, 5], 'test-mlfq-2-5'));
-register(new MLFQ([2, 5], 'test-mlfq-exp'));
+// Registrar fábricas de prueba con nombre único
+register(() => new MLFQ([2, 10], 'test-mlfq-2-10'));
+register(() => new MLFQ([2, 10], 'test-mlfq-2-10-b6'));
+register(() => new MLFQ([2, 5], 'test-mlfq-2-5'));
+register(() => new MLFQ([2, 5], 'test-mlfq-exp'));
+register(() => new MLFQ([2, 2], 'test-mlfq-rtc'));
 
 // Procesos del fixture principal (BEHAVIOURSv-02.md § Simular — MLFQ)
 const P1: Process = { id: 'P1', arrival_time: 0, burst_time: 8 };
@@ -85,7 +86,7 @@ describe('§ Simular — MLFQ (expropiativa) — con boostInterval=6', () => {
 });
 
 describe('§ MLFQ — niveles y degradación (unit)', () => {
-  it('hay exactamente 3 niveles: nivel 0 (q=quanta[0]), nivel 1 (q=quanta[1]), nivel 2 (null)', () => {
+  it('hay exactamente 3 niveles: nivel 0 (q=quanta[0]), nivel 1 (q=quanta[1]), nivel 2 (FCFS sin expiración)', () => {
     const algo = new MLFQ([3, 7]);
     algo.onEvent({ type: 'arrival', id: 'A', tick: 0 });
     algo.onEvent({ type: 'dispatch', id: 'A', tick: 0 });
@@ -97,7 +98,8 @@ describe('§ MLFQ — niveles y degradación (unit)', () => {
 
     algo.onEvent({ type: 'quantum-expiry', id: 'A', tick: 10 }); // →2
     algo.onEvent({ type: 'dispatch', id: 'A', tick: 10 });
-    expect(algo.quantumFor(rp('A', 0, 10))).toBeNull(); // nivel 2
+    // nivel 2: run-to-completion → quantumFor devuelve 0 (sin expiración de quantum)
+    expect(algo.quantumFor(rp('A', 0, 10))).toBe(0);
   });
 
   it('proceso nuevo entra al nivel 0', () => {
@@ -126,7 +128,7 @@ describe('§ MLFQ — niveles y degradación (unit)', () => {
     algo.onEvent({ type: 'dispatch', id: 'P1', tick: 7 });
     const msg = algo.onEvent({ type: 'quantum-expiry', id: 'P1', tick: 20 }); // sigue en 2
     expect(JSON.stringify(msg)).toMatch(/nivel 2/);
-    expect(algo.quantumFor(rp('P1', 0, 20))).toBeNull();
+    expect(algo.quantumFor(rp('P1', 0, 20))).toBe(0); // nivel 2: sin expiración (run-to-completion)
   });
 
   it('proceso expropiado vuelve al nivel actual sin degradarse', () => {
@@ -142,15 +144,20 @@ describe('§ MLFQ — niveles y degradación (unit)', () => {
     expect(algo.quantumFor(rp('P2', 2, 5))).toBe(2);
   });
 
-  it('llegada al nivel 0 expropia proceso en nivel inferior (integración)', () => {
-    // P1 llega en t=0, P2 llega en t=3 después de que P1 se degradó al nivel 1
+  it('una llegada NO expropia: el proceso en CPU agota su quantum primero (integración)', () => {
+    // P1 (burst 10) corre nivel 0 [0-2] y nivel 1 [2-7]. P2 llega en t=3 pero NO expropia:
+    // espera en nivel 0 y solo arranca cuando P1 agota su quantum de nivel 1 (t=7).
     const P1b: Process = { id: 'P1', arrival_time: 0, burst_time: 10 };
     const P2b: Process = { id: 'P2', arrival_time: 3, burst_time: 4 };
     const result = run([P1b, P2b], { algorithm: 'test-mlfq-exp' });
-    // P2 debería ejecutarse antes de que P1 termine (expropiación)
     const intervals = result.intervals.filter((i) => i.pid !== null);
-    const hasP2Early = intervals.some((i) => i.pid === 'P2' && i.start < 10);
-    expect(hasP2Early).toBe(true);
+    // P1 ocupa la CPU de forma continua [0-7] (no es expropiado por la llegada de P2 en t=3)
+    const firstP1 = intervals.find((i) => i.pid === 'P1');
+    expect(firstP1?.start).toBe(0);
+    expect(firstP1?.end).toBe(7);
+    // P2 no arranca hasta t=7 (espera a que P1 agote su quantum, sin expropiar)
+    const firstP2 = intervals.find((i) => i.pid === 'P2');
+    expect(firstP2?.start).toBe(7);
   });
 
   it('priority-boost: todos los procesos suben al nivel 0', () => {
@@ -166,6 +173,21 @@ describe('§ MLFQ — niveles y degradación (unit)', () => {
     // Ahora P1 y P2 están en nivel 0
     expect(algo.quantumFor(rp('P1', 0, 10))).toBe(2);
     expect(algo.quantumFor(rp('P2', 2, 8))).toBe(2);
+  });
+
+  it('nivel 2 es run-to-completion: una llegada al nivel 0 NO lo expropia', () => {
+    // P1 burst 8, quanta [2,2] → P1: nivel0 [0-2], nivel1 [2-4], nivel2 desde t=4.
+    // P2 llega en t=5 al nivel 0 mientras P1 corre en nivel 2.
+    const P1c: Process = { id: 'P1', arrival_time: 0, burst_time: 8 };
+    const P2c: Process = { id: 'P2', arrival_time: 5, burst_time: 2 };
+    const result = run([P1c, P2c], { algorithm: 'test-mlfq-rtc' });
+    const intervals = result.intervals.filter((i) => i.pid !== null);
+    // P1 (en nivel 2 desde t=4) corre sin interrupción hasta completar en t=8;
+    // P2 no puede arrancar hasta entonces.
+    const p1Completion = result.metrics.perProcess.find((m) => m.id === 'P1')?.completion;
+    expect(p1Completion).toBe(8);
+    const firstP2 = intervals.find((i) => i.pid === 'P2');
+    expect(firstP2?.start).toBe(8);
   });
 
   it('select con cola vacía lanza error', () => {

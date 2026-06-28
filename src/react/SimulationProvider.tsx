@@ -24,15 +24,21 @@ export interface SimulationProviderProps {
 function buildConfig(
   algorithm: string,
   params: Readonly<Record<string, unknown>> | undefined,
-): { algorithm: string; quantum?: number; boostInterval?: number } {
+): { algorithm: string; quantum?: number; boostInterval?: number; quanta?: number[] } {
   const quantum =
     typeof params?.quantum === 'number' ? params.quantum : undefined;
   const boostInterval =
     typeof params?.boostInterval === 'number' ? params.boostInterval : undefined;
+  const rawQuanta = params?.quanta;
+  const quanta: number[] | undefined =
+    Array.isArray(rawQuanta) && rawQuanta.every((n): n is number => typeof n === 'number')
+      ? rawQuanta
+      : undefined;
   return {
     algorithm,
     ...(quantum !== undefined ? { quantum } : {}),
     ...(boostInterval !== undefined ? { boostInterval } : {}),
+    ...(quanta !== undefined ? { quanta } : {}),
   };
 }
 

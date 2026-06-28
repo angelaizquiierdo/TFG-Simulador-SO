@@ -11,6 +11,7 @@ interface RunConfig {
   readonly algorithm: string;
   readonly quantum?: number;
   readonly boostInterval?: number;
+  readonly quanta?: readonly number[];
 }
 
 // Estado mutable interno del bucle principal
@@ -154,6 +155,28 @@ function _executeSimulationLoop(
     }
   }
 
+  // Cambia el proceso en CPU: encola al actual, despacha al seleccionado y construye
+  // el mensaje "salida. A continuación, entrada". `exitMsg` es el motivo de salida ya
+  // resuelto (expropiación o priority-boost), o null si no hay texto de salida.
+  // `setSlice` renueva el quantum del nuevo proceso (modos basados en quantum).
+  // Centraliza el patrón repetido en las ramas on-better / io-return / on-quantum-and-better.
+  const switchTo = (
+    currentId: string,
+    selected: ReadyProcess,
+    exitMsg: string | null,
+    setSlice: boolean,
+  ): string => {
+    ready.push(currentId);
+    onCPU = selected.id;
+    ready.splice(ready.indexOf(selected.id), 1);
+    ticksInSlice = 0;
+    if (setSlice) currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
+    const raw = algo.onEvent?.({ type: 'dispatch', id: selected.id, tick }) ?? null;
+    const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} expropia a ${currentId}`;
+    prevTickMessage = null;
+    return exitMsg !== null ? `${exitMsg}. A continuación, ${entryMsg}` : entryMsg;
+  };
+
   const TICK_LIMIT = 100_000;
 
   while (completed.length < processes.length) {
@@ -272,19 +295,7 @@ function _executeSimulationLoop(
 
       if (selected.id !== currentId) {
         const preemptRaw = algo.onEvent?.({ type: 'preempted', id: currentId, tick }) ?? null;
-        const preemptMsg = resolveMsg(preemptRaw, currentId);
-        ready.push(currentId);
-        onCPU = selected.id;
-        ready.splice(ready.indexOf(selected.id), 1);
-        ticksInSlice = 0;
-        const raw = algo.onEvent?.({ type: 'dispatch', id: selected.id, tick }) ?? null;
-        const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} expropia a ${currentId}`;
-        const exitMsg = preemptMsg ?? null;
-        message =
-          exitMsg !== null
-            ? `${exitMsg}. A continuación, ${entryMsg}`
-            : entryMsg;
-        prevTickMessage = null;
+        message = switchTo(currentId, selected, resolveMsg(preemptRaw, currentId), false);
       } else {
         message = `${currentId} en CPU`;
       }
@@ -297,20 +308,7 @@ function _executeSimulationLoop(
 
       if (selected.id !== currentId) {
         const preemptRaw = algo.onEvent?.({ type: 'preempted', id: currentId, tick }) ?? null;
-        const preemptMsg = resolveMsg(preemptRaw, currentId);
-        ready.push(currentId);
-        onCPU = selected.id;
-        ready.splice(ready.indexOf(selected.id), 1);
-        ticksInSlice = 0;
-        currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
-        const raw = algo.onEvent?.({ type: 'dispatch', id: selected.id, tick }) ?? null;
-        const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} expropia a ${currentId}`;
-        const exitMsg = preemptMsg ?? null;
-        message =
-          exitMsg !== null
-            ? `${exitMsg}. A continuación, ${entryMsg}`
-            : entryMsg;
-        prevTickMessage = null;
+        message = switchTo(currentId, selected, resolveMsg(preemptRaw, currentId), true);
       } else {
         message = `${currentId} en CPU`;
       }
@@ -334,14 +332,7 @@ function _executeSimulationLoop(
         const selected = algo.select(readyList);
 
         if (selected.id !== currentId) {
-          ready.push(currentId);
-          onCPU = selected.id;
-          ready.splice(ready.indexOf(selected.id), 1);
-          currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
-          const raw = algo.onEvent?.({ type: 'dispatch', id: selected.id, tick }) ?? null;
-          const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} entra en CPU`;
-          message = `${boostMsg}. A continuación, ${entryMsg}`;
-          prevTickMessage = null;
+          message = switchTo(currentId, selected, boostMsg, true);
         } else {
           // El mismo proceso continúa con quantum renovado
           currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
@@ -355,20 +346,7 @@ function _executeSimulationLoop(
 
         if (selected.id !== currentId) {
           const preemptRaw = algo.onEvent?.({ type: 'preempted', id: currentId, tick }) ?? null;
-          const preemptMsg = resolveMsg(preemptRaw, currentId);
-          ready.push(currentId);
-          onCPU = selected.id;
-          ready.splice(ready.indexOf(selected.id), 1);
-          ticksInSlice = 0;
-          currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
-          const raw = algo.onEvent?.({ type: 'dispatch', id: selected.id, tick }) ?? null;
-          const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} expropia a ${currentId}`;
-          const exitMsg = preemptMsg ?? null;
-          message =
-            exitMsg !== null
-              ? `${exitMsg}. A continuación, ${entryMsg}`
-              : entryMsg;
-          prevTickMessage = null;
+          message = switchTo(currentId, selected, resolveMsg(preemptRaw, currentId), true);
         } else {
           message = `${currentId} en CPU`;
         }
@@ -381,6 +359,7 @@ function _executeSimulationLoop(
 
     // ── PASO 3: Registrar HistoryEvent (snapshot DURANTE este tick) ──
     const ioState = hasIO ? ioSubsystem.getState() : null;
+    const levels = algo.levelSnapshot?.();
     history.push({
       tick,
       onCPU,
@@ -390,6 +369,7 @@ function _executeSimulationLoop(
       inIO: ioState?.serving ?? null,
       waitingIO: ioState ? [...ioState.queue] : [],
       message,
+      ...(levels !== undefined ? { levels } : {}),
     });
 
     // ── PASO 4: Decrementar CPU y detectar fin de tramo ──
@@ -532,16 +512,12 @@ function deriveMetrics(
 // Punto de entrada público
 function run(processes: readonly Process[], config: RunConfig): SimulationResult {
   validateProcesses(processes);
-  const algo = get(config.algorithm);
+  const algoParams: Record<string, unknown> = {};
+  if (config.quantum !== undefined) algoParams.quantum = config.quantum;
+  if (config.boostInterval !== undefined) algoParams.boostInterval = config.boostInterval;
+  if (config.quanta !== undefined) algoParams.quanta = config.quanta;
+  const algo = get(config.algorithm, algoParams);
 
-  // Validar que los procesos tienen priority si el algoritmo lo requiere
-  if (algo.requires.priority === true) {
-    for (const p of processes) {
-      if (p.priority === undefined) {
-        throw new Error(`El algoritmo "${algo.name}" requiere priority pero el proceso "${p.id}" no la declara`);
-      }
-    }
-  }
 
   const initialState: LoopState = {
     tick: 0,
@@ -588,7 +564,11 @@ function runFrom(
     }
   }
 
-  const algo = get(config.algorithm);
+  const algoParams: Record<string, unknown> = {};
+  if (config.quantum !== undefined) algoParams.quantum = config.quantum;
+  if (config.boostInterval !== undefined) algoParams.boostInterval = config.boostInterval;
+  if (config.quanta !== undefined) algoParams.quanta = config.quanta;
+  const algo = get(config.algorithm, algoParams);
 
   const initialRemaining = new Map<string, number>(
     state.remaining.map((r) => [r.id, r.remaining]),

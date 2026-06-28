@@ -88,10 +88,16 @@ export function GanttChart(): React.ReactElement {
             >
               {/* Etiqueta lateral: el único texto dentro de la fila */}
               <div className={styles.label}>{p.id}</div>
-              {/* Celdas: sin texto, solo color */}
+              {/* Celdas: color de estado + (opcional) número de cola en multinivel */}
               {ticks.map((t) => {
                 const event = history[t];
                 const stateClass = cellClass(p.id, t, currentTick, event);
+                // Número de cola: solo en celdas activas (CPU o espera) y reveladas
+                const level = event?.levels?.[p.id];
+                const showLevel =
+                  level !== undefined &&
+                  t <= currentTick &&
+                  (stateClass === styles.cpu || stateClass === styles.waiting);
                 return (
                   <div
                     key={t}
@@ -99,7 +105,13 @@ export function GanttChart(): React.ReactElement {
                     data-testid={`gantt-cell-${p.id}-${String(t)}`}
                     data-state={stateClass.split(' ').pop() ?? ''}
                     aria-label={`${p.id} tick ${String(t)}`}
-                  />
+                  >
+                    {showLevel && (
+                      <span className={styles.levelBadge} aria-hidden="true">
+                        {level}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>

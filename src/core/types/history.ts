@@ -7,6 +7,9 @@ interface HistoryEvent {
   readonly inIO: string | null;
   readonly waitingIO: readonly string[];
   readonly message: string;
+  // Nivel/cola por proceso durante este tick (solo lo emiten algoritmos multinivel,
+  // p. ej. MLFQ). Permite anotar cada celda del Gantt con su número de cola.
+  readonly levels?: Readonly<Record<string, number>>;
 }
 
 type History = readonly HistoryEvent[];
