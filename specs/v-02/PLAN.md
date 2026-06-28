@@ -44,6 +44,8 @@
 ```bash
 npm init -y
 mkdir -p src/core/types \
+         src/core/engine \
+         src/core/derive \
          src/core/algorithms/non-preemptive \
          src/core/algorithms/preemptive \
          src/core/algorithms/shared \
@@ -350,17 +352,19 @@ const algo = get(config.algorithm, { quantum: config.quantum, boostInterval: con
 
 ---
 
-## Fase 3 — Motor (`src/core/simulate.ts`) y subsistema de E/S
+## Fase 3 — Motor (`src/core/simulate.ts` + `engine/` + `derive/`) y subsistema de E/S
+
+> **NOTA (refactor post-fase, ADR 28-06-2026):** el motor se modularizó. `simulate.ts` quedó como **fachada pública** (`run`/`runFrom` + reexport de derivaciones); el bucle por ticks vive en `engine/loop.ts` (función `executeSimulationLoop`), la validación en `engine/validate.ts` y las derivaciones puras en `derive/intervals.ts` y `derive/metrics.ts`. Las rutas de abajo describen el estado original de la fase; sustitúyelas mentalmente por esa estructura.
 
 > **RESTRICCIONES ARQUITECTÓNICAS CRÍTICAS PARA EL AGENTE:**
-> 1. PROHIBIDO duplicar el bucle principal de simulación. `run` y `runFrom` DEBEN ser simples "wrappers" que preparen el estado inicial y llamen a una única función privada central (ej. `_executeSimulationLoop`).
-> 2. PROHIBIDO implementar lógica de dispositivos dentro de `simulate.ts`. Toda la mecánica de E/S DEBE aislarse en `io-subsystem.ts`.
+> 1. PROHIBIDO duplicar el bucle principal de simulación. `run` y `runFrom` DEBEN ser simples "wrappers" que preparen el estado inicial y llamen a una única función central (`executeSimulationLoop` en `engine/loop.ts`).
+> 2. PROHIBIDO implementar lógica de dispositivos dentro del motor. Toda la mecánica de E/S DEBE aislarse en `io-subsystem.ts`.
 > 3. PROHIBIDO mutar la lista `ready` original al evaluar expropiaciones.
 > 4. PROHIBIDO usar `Math.random` o `Date.now`.
 
 ### T-09 · Bucle tick a tick y CPU inactiva
 
-Crear la función privada `_executeSimulationLoop(initialState, config, processes)` que contenga el `while` principal. Implementar `run(processes, config)` para que genere un estado inicial vacío (tick 0) y llame a esta función. Detectar CPU inactiva y escribir un `HistoryEvent` por tick.
+Crear la función central `executeSimulationLoop(initialState, config, processes)` (tras el refactor, en `engine/loop.ts`) que contenga el `while` principal. Implementar `run(processes, config)` para que genere un estado inicial vacío (tick 0) y llame a esta función. Detectar CPU inactiva y escribir un `HistoryEvent` por tick.
 
 **Cierra:** `§ CPU inactiva` — `tests/core/simulate.test.ts`
 
@@ -480,7 +484,7 @@ Implementar la captura de fragmentos descriptivos.
 ### T-19 · Derivación de `intervals` y `metrics` (funciones puras)
 
 
-Implementar `deriveIntervals(history)` y `deriveMetrics(history, processes)` fuera del bucle principal. Calcular `waiting = turnaround - CPU_total - bloqueado_total`. Para algoritmos clásicos, `bloqueado_total` será siempre 0.
+Implementar `deriveIntervals(history)` y `deriveMetrics(history, processes)` fuera del bucle principal (tras el refactor, en `derive/intervals.ts` y `derive/metrics.ts`; `simulate.ts` las reexporta). Calcular `waiting = turnaround - CPU_total - bloqueado_total`. Para algoritmos clásicos, `bloqueado_total` será siempre 0.
 
 **Cierra:** `§ Historial y métricas` (todos los criterios) — `tests/core/simulate.test.ts`
 

@@ -104,3 +104,52 @@ El GanttChart se compone de tres bloques verticales: mensaje del evento arriba, 
 ### 3. Consecuencias
 * **Positivas:** La leyenda-matriz es compacta y autoexplicativa: el estudiante ve de un vistazo qué color corresponde a qué proceso en qué estado.
 * **Negativas:** Ninguna relevante.
+
+---
+
+## 28-06-2026 - Anotación de nivel/cola por celda en el Gantt (MLFQ) vía `levelSnapshot`
+
+### 1. Contexto y Problema
+En algoritmos multinivel (MLFQ) la visualización por colores no comunica en qué **cola/nivel** está cada proceso en cada tick, y los mensajes genéricos del motor ("A entra en CPU") eran pobres comparados con la mecánica real ("A entra en la CPU desde la cola 0, quantum = 2"). Se quería mostrar el número de cola en la propia celda del Gantt y enriquecer el mensaje, **sin que el motor aprenda qué es un "nivel"** (concepto interno del algoritmo) ni romper la arquitectura genérica.
+
+### 2. Decisión Tomada
+Se añade un método **opcional** al contrato `IAlgorithm`: `levelSnapshot?(): Readonly<Record<string, number>>` (pid → nivel). El motor, al registrar cada `HistoryEvent`, copia ese snapshot tal cual en un campo **opcional** `HistoryEvent.levels?` (spread condicional para respetar `exactOptionalPropertyTypes`). Solo MLFQ lo implementa; los demás algoritmos no lo emiten y el campo no aparece. El `GanttChart` pinta el número de cola en pequeño en la parte superior de las celdas activas. El mensaje de `dispatch` de MLFQ se enriquece con cola y quantum. Se actualizó `specs/TECHNICAL.md` (contrato `IAlgorithm` y `HistoryEvent`).
+
+### 3. Consecuencias
+* **Positivas:** El motor sigue siendo genérico: solo pide un snapshot numérico opcional, no conoce el concepto de nivel. El tipado fuerte se mantiene (campo tipado, no `any`/`unknown`). MLFQ gana visualización y mensajes ricos sin tocar el bucle.
+* **Negativas:** `HistoryEvent` acumula otro campo opcional (`inIO`, `waitingIO`, `levels`); a futuro, si proliferan, habría que valorar un mapa genérico de anotaciones a costa de tipado.
+
+---
+
+## 28-06-2026 - Refactor del bucle de preempción: helper `switchTo`
+
+### 1. Contexto y Problema
+El bucle del motor (`simulate.ts`) había crecido a 5 modos de preempción. Tres ramas (`on-better`, `io-return`, `on-quantum-and-better` —tanto en llegadas como en priority-boost) repetían casi literalmente el mismo patrón: emitir `preempted`, reencolar el proceso actual, despachar el seleccionado, (opcionalmente) renovar el quantum y construir el mensaje `"salida. A continuación, entrada"`. Esta duplicación era el principal riesgo de escalabilidad: cada algoritmo nuevo con un matiz de preempción tentaba con copiar otra rama de ~15 líneas.
+
+### 2. Decisión Tomada
+Se extrae una función local `switchTo(currentId, selected, exitMsg, setSlice)` dentro de `_executeSimulationLoop`, que cierra sobre el estado mutable del bucle (`onCPU`, `ready`, `ticksInSlice`, `currentSlice`, `prevTickMessage`) y centraliza el patrón. Cada rama pasa de ~15 líneas a 1–2: resuelve su mensaje de salida específico (expropiación normal o `priority boost`) y delega el cambio de CPU. El comportamiento es idéntico (277 tests en verde, sin cambios en tests). No se tocó la rama de despacho desde CPU inactiva (estructuralmente distinta: no hay proceso que reencolar).
+
+### 3. Consecuencias
+* **Positivas:** Se elimina la duplicación; añadir un modo de preempción nuevo ya no implica copiar el patrón completo. El bucle queda más legible y el punto único de cambio de CPU facilita futuras invariantes (logging, validación).
+* **Negativas:** `switchTo` muta variables del closure exterior (efecto lateral implícito), patrón menos puro que pasar/retornar estado explícito; se asume a cambio de no enhebrar 5 variables por parámetro.
+
+---
+
+## 28-06-2026 - Modularización del motor: `simulate.ts` como fachada (Fase R1)
+
+### 1. Contexto y Problema
+`simulate.ts` había crecido a ~620 líneas mezclando tres responsabilidades: (a) la mecánica del bucle por ticks, (b) la validación de entrada y (c) las derivaciones puras (`deriveIntervals`, `deriveMetrics`). Esto lo hacía difícil de leer y de testear por partes, y era el techo que ya se había identificado: el motor "sabe demasiado" y todo vive en un solo archivo. Se decide la **Fase R1** de un refactor mayor: separar módulos **sin cambiar la lógica** (el rediseño de la política de preempción por *triggers* declarativos —Fase R2-R4— se difiere hasta que aparezca un algoritmo que lo justifique, por el principio de no anticipar).
+
+### 2. Decisión Tomada
+Se parte `simulate.ts` en módulos con una sola responsabilidad cada uno, manteniéndolo como **fachada pública**:
+- `engine/loop.ts` — `executeSimulationLoop` (bucle por ticks) + helpers privados de selección (`resolveMsg`, `naturalCompare`, `buildReadyList`, `switchTo`) y el tipo `LoopState`.
+- `engine/validate.ts` — `validateProcesses`.
+- `derive/intervals.ts` — `deriveIntervals`.
+- `derive/metrics.ts` — `deriveMetrics`.
+- `simulate.ts` — solo `run`/`runFrom` (orquestación) + `RunConfig`, y **reexporta** `deriveIntervals`/`deriveMetrics` para que `src/index.ts`, la API pública y todos los tests sigan importando desde `simulate.ts` sin cambios.
+
+La función privada `_executeSimulationLoop` se renombró a `executeSimulationLoop` (deja de llevar guion bajo: ya no es privada del archivo, sino exportada del módulo `engine/`). Cero cambios de comportamiento: los 277 tests pasan sin tocarse, typecheck y lint limpios. Se actualizaron `CLAUDE.md` (estructura canónica + regla de "no modificar el motor"), `TECHNICAL.md` (estructura + sección Motor + frontera ESLint) y `PLAN.md` (andamiaje, Fase 3, T-09, T-19). `SPECv-02.md` no se tocó: es un documento de comportamiento sin rutas a internos del motor; sus afirmaciones siguen siendo válidas.
+
+### 3. Consecuencias
+* **Positivas:** `simulate.ts` baja de ~620 a ~110 líneas y expresa solo la orquestación. Cada pieza (bucle, validación, derivaciones) es testeable de forma aislada. La API pública y la frontera ESLint (`src/core/**`) se mantienen intactas. Sienta la base para la Fase R2 (triggers declarativos) sin volver a tocar la estructura.
+* **Negativas:** Más archivos y un salto de importación extra (`simulate → engine/loop`). El refactor de la *política* de preempción (el `if` por modo) sigue pendiente: R1 resuelve el tamaño del archivo, no el acoplamiento del motor a los modos de planificación.

@@ -135,7 +135,14 @@ cpu-scheduler-simulator/   ← raíz del proyecto
         history.ts         ← HistoryEvent, History, Interval
         simulation-result.ts ← ProcessMetrics, AggregateMetrics, SimulationResult
       registry.ts          ← register() y get()
-      simulate.ts          ← run() — el motor
+      simulate.ts          ← fachada pública del motor: run() / runFrom() + reexport de derive/
+      engine/              ← mecánica del motor (separada de la fachada)
+        loop.ts            ← bucle por ticks (executeSimulationLoop) + helpers de selección
+        validate.ts        ← validateProcesses()
+      derive/              ← derivaciones puras del history (al final de run())
+        intervals.ts       ← deriveIntervals()
+        metrics.ts         ← deriveMetrics()
+      io-subsystem.ts      ← subsistema de E/S (solo VRR)
       player.ts            ← Player — cursor sobre History
       algorithms/
         non-preemptive/    ← fcfs.ts, sjf.ts, ljf.ts, priority-np.ts
@@ -439,7 +446,7 @@ tarea.
    con el fixture de `BEHAVIOURS-v01.md`.
 5. Añadir o actualizar su página en `docs/src/content/docs/cpu-scheduler/`.
 
-**No modificar `simulate.ts`, `player.ts` ni ningún componente React.**
+**No modificar `simulate.ts`, `engine/` (`loop.ts`, `validate.ts`), `derive/`, `player.ts` ni ningún componente React.**
 
 ---
 

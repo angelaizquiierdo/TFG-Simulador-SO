@@ -48,7 +48,13 @@ La dependencia va en **una sola dirección**: **demo → componente → simulado
         history.ts             # HistoryEvent(+ E/S para VRR), History, Interval
         simulation-result.ts   # SimulationResult, ProcessMetrics, AggregateMetrics
       registry.ts              # registro de algoritmos por name
-      simulate.ts              # run(scenario) + runFrom(state) 
+      simulate.ts              # fachada pública: run(scenario) + runFrom(state) + reexport de derive/
+      engine/                  # mecánica del motor (aislada de la fachada)
+        loop.ts                # bucle por ticks (executeSimulationLoop) + helpers de selección
+        validate.ts            # validateProcesses()
+      derive/                  # derivaciones puras del history (al final de run())
+        intervals.ts           # deriveIntervals()
+        metrics.ts             # deriveMetrics()
       io-subsystem.ts          # subsistema E/S de VRR (mecánica) 
       player.ts                # cursor sobre el history (tiempo lógico, puro)
       algorithms/              # cada algoritmo implementa IAlgorithm en su propia clase
@@ -291,7 +297,7 @@ export class VirtualRoundRobin implements IAlgorithm {
 }
 ```
 
-La clase puede tener miembros propios adicionales el contrato solo exige lo anterior. **El motor** (`simulate.ts`) posee la mecánica; el algoritmo solo aporta la **política de selección**:
+La clase puede tener miembros propios adicionales el contrato solo exige lo anterior. **El motor** (la mecánica del bucle vive en `engine/loop.ts`; `simulate.ts` es solo la fachada que lo orquesta) posee la mecánica; el algoritmo solo aporta la **política de selección**:
 
 - `'none'` → el motor pide selección solo cuando la CPU queda libre (FCFS, SJF, LJF,
   Prioridad no expropiativa).
@@ -402,7 +408,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 - Plugins: `eslint-plugin-react-hooks` y `eslint-plugin-jsx-a11y` en `src/react`; `eslint-plugin-astro` en `docs/`.
 - **Fronteras forzadas por linter** (con `no-restricted-imports` o `eslint-plugin-boundaries`):
   - `src/core/**` no importa React, el DOM ni `src/react/**`.
-  - `src/core/algorithms/**` solo importa el contrato (`types/algorithm.ts`), nunca `simulate.ts`, `player.ts` ni otros internos del motor.
+  - `src/core/algorithms/**` solo importa el contrato (`types/algorithm.ts`), nunca `simulate.ts`, `engine/**`, `derive/**`, `player.ts` ni otros internos del motor.
   - `src/react/**` puede importar `src/core`, pero `src/core` **nunca** importa React.
 
 ---
@@ -627,7 +633,9 @@ Cambiar el algoritmo activo resetea `draft` al `paramSchema`/valores del algorit
 
 ---
 
-## Motor (`simulate.ts`)
+## Motor (`simulate.ts` + `engine/` + `derive/`)
+
+> `simulate.ts` es la **fachada pública** (`run`/`runFrom`); la mecánica del bucle por ticks está aislada en `engine/loop.ts` (con la validación en `engine/validate.ts`), y las derivaciones puras en `derive/intervals.ts` y `derive/metrics.ts`. `simulate.ts` reexporta `deriveIntervals`/`deriveMetrics` para mantener la API pública estable.
 
 - **`run(scenario): SimulationResult`** — bucle por ticks. Para clásicos: ruta de CPU pura (idéntica a v01). Para algoritmos con E/S: además avanza `io-subsystem`.
 - **`runFrom(state, algorithm, params): SimulationResult`** — rederivación para *what-if*: toma un `SchedulerState` como condición inicial y simula hacia delante. Determinista.
