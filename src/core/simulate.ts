@@ -241,7 +241,9 @@ function _executeSimulationLoop(
 
           if (
             algo.preemptionMode === 'on-quantum' ||
-            algo.preemptionMode === 'on-quantum-and-better'
+            algo.preemptionMode === 'on-quantum-and-better' ||
+            (algo.preemptionMode === 'io-return' &&
+              (algo.quantumFor !== undefined || quantum !== undefined))
           ) {
             currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
           }
@@ -300,6 +302,7 @@ function _executeSimulationLoop(
         onCPU = selected.id;
         ready.splice(ready.indexOf(selected.id), 1);
         ticksInSlice = 0;
+        currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
         const raw = algo.onEvent?.({ type: 'dispatch', id: selected.id, tick }) ?? null;
         const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} expropia a ${currentId}`;
         const exitMsg = preemptMsg ?? null;
@@ -419,7 +422,8 @@ function _executeSimulationLoop(
         currentSlice = 0;
       } else if (
         (algo.preemptionMode === 'on-quantum' ||
-          algo.preemptionMode === 'on-quantum-and-better') &&
+          algo.preemptionMode === 'on-quantum-and-better' ||
+          algo.preemptionMode === 'io-return') &&
         currentSlice > 0 &&
         ticksInSlice >= currentSlice
       ) {

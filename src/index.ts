@@ -10,6 +10,8 @@ export { PriorityNP } from './core/algorithms/non-preemptive/priority-np.js';
 export { SRTF } from './core/algorithms/preemptive/srtf.js';
 export { PriorityP } from './core/algorithms/preemptive/priority-p.js';
 export { RoundRobin } from './core/algorithms/preemptive/round-robin.js';
+export { VirtualRoundRobin } from './core/algorithms/preemptive/virtual-round-robin.js';
+export { MLFQ } from './core/algorithms/preemptive/multilevel-feedback.js';
 
 import { register } from './core/registry.js';
 import { FCFS } from './core/algorithms/non-preemptive/fcfs.js';
@@ -19,6 +21,8 @@ import { PriorityNP } from './core/algorithms/non-preemptive/priority-np.js';
 import { SRTF } from './core/algorithms/preemptive/srtf.js';
 import { PriorityP } from './core/algorithms/preemptive/priority-p.js';
 import { RoundRobin } from './core/algorithms/preemptive/round-robin.js';
+import { VirtualRoundRobin } from './core/algorithms/preemptive/virtual-round-robin.js';
+import { MLFQ } from './core/algorithms/preemptive/multilevel-feedback.js';
 
 register(new FCFS());
 register(new SJF());
@@ -27,3 +31,5 @@ register(new PriorityNP());
 register(new SRTF());
 register(new PriorityP());
 register(new RoundRobin());
+register(new VirtualRoundRobin());
+register(new MLFQ());

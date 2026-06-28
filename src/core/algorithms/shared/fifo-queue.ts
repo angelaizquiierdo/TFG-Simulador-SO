@@ -5,6 +5,10 @@ export class FifoQueue<T> {
     this.items.push(item);
   }
 
+  enqueueFirst(item: T): void {
+    this.items.unshift(item);
+  }
+
   dequeue(): T | undefined {
     return this.items.shift();
   }
