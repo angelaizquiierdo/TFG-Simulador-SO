@@ -1,48 +1,53 @@
 .container {
   border: 1px solid var(--scheduler-border, #cbd5e1);
-  border-radius: var(--scheduler-radius, 4px);
+  border-radius: var(--scheduler-radius-sm);
   overflow: hidden;
 }
 
 .toggle {
   display: flex;
   align-items: center;
-  gap: var(--scheduler-spacing-sm, 0.25rem);
+  gap: var(--scheduler-space-sm);
   width: 100%;
-  padding: var(--scheduler-spacing-sm, 0.25rem) var(--scheduler-spacing-md, 0.5rem);
-  background: var(--scheduler-bg-secondary, #f8fafc);
+  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
+  background: var(--scheduler-surface);
   border: none;
   cursor: pointer;
   font-weight: 600;
   text-align: left;
-  color: var(--scheduler-text, #0f172a);
+  color: var(--scheduler-text-primary);
 }
 
 .toggle:hover {
-  background: var(--scheduler-bg-hover, #e2e8f0);
+  background: var(--scheduler-surface-elevated);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: -2px;
 }
 
 .panel {
-  padding: var(--scheduler-spacing-md, 0.5rem);
+  padding: var(--scheduler-space-md);
   display: flex;
   flex-direction: column;
-  gap: var(--scheduler-spacing-md, 0.5rem);
+  gap: var(--scheduler-space-md);
 }
 
 .processRow {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--scheduler-spacing-sm, 0.25rem);
-  padding: var(--scheduler-spacing-sm, 0.25rem);
+  gap: var(--scheduler-space-sm);
+  padding: var(--scheduler-space-sm);
   border: 1px solid var(--scheduler-border, #cbd5e1);
-  border-radius: var(--scheduler-radius, 4px);
+  border-radius: var(--scheduler-radius-sm);
 }
 
 .processId {
   font-weight: 600;
   min-width: 3rem;
-  color: var(--scheduler-text, #0f172a);
+  color: var(--scheduler-text-primary);
 }
 
 .field {
@@ -50,22 +55,27 @@
   flex-direction: column;
   gap: 2px;
   font-size: 0.75rem;
-  color: var(--scheduler-text-muted, #64748b);
+  color: var(--scheduler-text-secondary);
 }
 
 .field input {
   width: 5rem;
-  padding: 2px var(--scheduler-spacing-sm, 0.25rem);
+  padding: 2px var(--scheduler-space-sm);
   border: 1px solid var(--scheduler-border, #cbd5e1);
-  border-radius: var(--scheduler-radius, 4px);
+  border-radius: var(--scheduler-radius-sm);
   font-size: 0.875rem;
-  color: var(--scheduler-text, #0f172a);
+  color: var(--scheduler-text-primary);
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 0;
 }
 
 .ioSection {
   display: flex;
   flex-direction: column;
-  gap: var(--scheduler-spacing-sm, 0.25rem);
+  gap: var(--scheduler-space-sm);
   width: 100%;
 }
 
@@ -73,43 +83,53 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--scheduler-spacing-sm, 0.25rem);
-  padding: 2px var(--scheduler-spacing-sm, 0.25rem);
-  background: var(--scheduler-bg-secondary, #f8fafc);
-  border-radius: var(--scheduler-radius, 4px);
+  gap: var(--scheduler-space-sm);
+  padding: 2px var(--scheduler-space-sm);
+  background: var(--scheduler-surface);
+  border-radius: var(--scheduler-radius-sm);
 }
 
 .addButton {
   align-self: flex-start;
-  padding: 2px var(--scheduler-spacing-md, 0.5rem);
+  padding: 2px var(--scheduler-space-md);
   border: 1px dashed var(--scheduler-border, #cbd5e1);
-  border-radius: var(--scheduler-radius, 4px);
+  border-radius: var(--scheduler-radius-sm);
   background: transparent;
   cursor: pointer;
   font-size: 0.75rem;
-  color: var(--scheduler-text-muted, #64748b);
+  color: var(--scheduler-text-secondary);
 }
 
 .addButton:hover {
-  background: var(--scheduler-bg-hover, #e2e8f0);
+  background: var(--scheduler-surface-elevated);
+}
+
+.addButton:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 1px;
 }
 
 .removeButton {
-  padding: 2px var(--scheduler-spacing-sm, 0.25rem);
-  border: 1px solid var(--scheduler-error, #ef4444);
-  border-radius: var(--scheduler-radius, 4px);
+  padding: 2px var(--scheduler-space-sm);
+  border: 1px solid var(--scheduler-danger);
+  border-radius: var(--scheduler-radius-sm);
   background: transparent;
   cursor: pointer;
   font-size: 0.75rem;
-  color: var(--scheduler-error, #ef4444);
+  color: var(--scheduler-danger);
 }
 
 .removeButton:hover {
-  background: var(--scheduler-error, #ef4444);
-  color: #fff;
+  background: var(--scheduler-danger);
+  color: var(--scheduler-bg);
+}
+
+.removeButton:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 1px;
 }
 
 .error {
-  color: var(--scheduler-error, #ef4444);
+  color: var(--scheduler-danger);
   font-size: 0.7rem;
 }

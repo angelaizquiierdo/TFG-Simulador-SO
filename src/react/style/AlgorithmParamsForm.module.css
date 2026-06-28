@@ -2,18 +2,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--scheduler-spacing-md, 0.5rem);
-  padding: var(--scheduler-spacing-sm, 0.25rem) var(--scheduler-spacing-md, 0.5rem);
+  gap: var(--scheduler-space-md);
+  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
   border: 1px solid var(--scheduler-border, #cbd5e1);
-  border-radius: var(--scheduler-radius, 4px);
-  background: var(--scheduler-bg-secondary, #f8fafc);
+  border-radius: var(--scheduler-radius-sm);
+  background: var(--scheduler-surface);
 }
 
 .title {
   width: 100%;
   font-weight: 600;
   font-size: 0.875rem;
-  color: var(--scheduler-text, #0f172a);
+  color: var(--scheduler-text-primary);
 }
 
 .field {
@@ -21,31 +21,36 @@
   flex-direction: column;
   gap: 2px;
   font-size: 0.75rem;
-  color: var(--scheduler-text-muted, #64748b);
+  color: var(--scheduler-text-secondary);
 }
 
 .field input {
   width: 6rem;
-  padding: 2px var(--scheduler-spacing-sm, 0.25rem);
+  padding: 2px var(--scheduler-space-sm);
   border: 1px solid var(--scheduler-border, #cbd5e1);
-  border-radius: var(--scheduler-radius, 4px);
+  border-radius: var(--scheduler-radius-sm);
   font-size: 0.875rem;
-  color: var(--scheduler-text, #0f172a);
+  color: var(--scheduler-text-primary);
 }
 
 .applyButton {
-  padding: var(--scheduler-spacing-sm, 0.25rem) var(--scheduler-spacing-md, 0.5rem);
-  border: 1px solid var(--scheduler-accent, #6366f1);
-  border-radius: var(--scheduler-radius, 4px);
+  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
+  border: 1px solid var(--scheduler-accent);
+  border-radius: var(--scheduler-radius-sm);
   background: transparent;
   cursor: pointer;
   font-size: 0.875rem;
-  color: var(--scheduler-accent, #6366f1);
+  color: var(--scheduler-accent);
 }
 
 .applyButton:hover:not(:disabled) {
-  background: var(--scheduler-accent, #6366f1);
-  color: #fff;
+  background: var(--scheduler-accent);
+  color: var(--scheduler-bg);
+}
+
+.applyButton:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 1px;
 }
 
 .applyButton:disabled {
@@ -53,7 +58,12 @@
   cursor: not-allowed;
 }
 
+.field input:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 0;
+}
+
 .error {
-  color: var(--scheduler-error, #ef4444);
+  color: var(--scheduler-danger);
   font-size: 0.7rem;
 }
