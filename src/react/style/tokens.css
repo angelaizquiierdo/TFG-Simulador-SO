@@ -16,6 +16,8 @@
   --scheduler-gantt-cell-width: 24px;
   --scheduler-gantt-cell-height: 24px;
   --scheduler-gantt-cell-gap: 2px;
+
+  --scheduler-icon-size-md: 1.125rem;
 }
 
 /* Paleta semántica por defecto (Tema Claro) */

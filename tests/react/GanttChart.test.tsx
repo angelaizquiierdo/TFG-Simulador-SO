@@ -41,6 +41,9 @@ function renderGantt(
     processes,
     algorithmName: algorithm,
     requires: requiresOverride ?? {},
+    stepForward: () => undefined,
+    stepBackward: () => undefined,
+    seekTo: () => undefined,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
   };
@@ -166,6 +169,9 @@ describe('§ Render — GanttChart', () => {
       processes: PROCS_FCFS,
       algorithmName: 'fcfs',
       requires: {},
+      stepForward: () => undefined,
+      stepBackward: () => undefined,
+      seekTo: () => undefined,
       createWhatIf: () => undefined,
       discardWhatIf: () => undefined,
     };

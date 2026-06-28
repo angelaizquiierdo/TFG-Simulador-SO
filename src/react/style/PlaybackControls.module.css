@@ -1,0 +1,64 @@
+/* PlaybackControls — barra de reproducción del simulador */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-sm);
+}
+
+/* Fila de botones */
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-space-xs);
+}
+
+/* Botones de navegación */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--scheduler-btn-height-sm);
+  height: var(--scheduler-btn-height-sm);
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-sm);
+  background-color: var(--scheduler-surface);
+  color: var(--scheduler-text-primary);
+  cursor: pointer;
+  /* Tamaño de los iconos SVG controlado por el token */
+  font-size: var(--scheduler-icon-size-md);
+  transition: background-color 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  background-color: var(--scheduler-surface-elevated);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Barra de desplazamiento */
+.range {
+  width: 100%;
+  accent-color: var(--scheduler-accent);
+  cursor: pointer;
+}
+
+.range:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Indicador de tick */
+.tickIndicator {
+  font-size: 0.875rem;
+  color: var(--scheduler-text-secondary);
+  text-align: center;
+}

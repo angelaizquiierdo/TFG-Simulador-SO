@@ -38,6 +38,12 @@ export interface SimulationContextValue {
   readonly algorithmName: string;
   /** Descriptor de requisitos del algoritmo activo (priority, quantum, io). */
   readonly requires: AlgorithmRequires;
+  /** Avanza un tick y fuerza re-render. */
+  stepForward: () => void;
+  /** Retrocede un tick y fuerza re-render. */
+  stepBackward: () => void;
+  /** Salta al tick indicado y fuerza re-render. */
+  seekTo: (n: number) => void;
   /** Crea una rama what-if desde el tick actual del player. */
   createWhatIf: (overrides: WhatIfOverrides) => void;
   /** Descarta la rama what-if activa. */

@@ -1,0 +1,60 @@
+/* MetricsTable — tablas de métricas (por proceso y agregadas) */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-md);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-xs);
+}
+
+.sectionTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--scheduler-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--scheduler-text-primary);
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-sm);
+  overflow: hidden;
+}
+
+.table thead th {
+  background-color: var(--scheduler-surface-elevated);
+  color: var(--scheduler-text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: var(--scheduler-space-xs) var(--scheduler-space-sm);
+  border-bottom: 1px solid var(--scheduler-border);
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--scheduler-border);
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: var(--scheduler-surface);
+}
+
+.table tbody tr:nth-child(odd) {
+  background-color: var(--scheduler-bg);
+}
+
+.table td {
+  padding: var(--scheduler-space-xs) var(--scheduler-space-sm);
+}
+
+.numeric {
+  text-align: right;
+}

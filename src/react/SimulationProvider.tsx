@@ -82,6 +82,28 @@ export function SimulationProvider({
   // Rama what-if
   const [whatIfBranch, setWhatIfBranch] = useState<WhatIfBranch | null>(null);
 
+  // Funciones de navegación: mueven el Player Y sincronizan tickIndex
+  const stepForward = useCallback(() => {
+    if (player === null) return;
+    player.stepForward();
+    setTickIndex(player.tick);
+  }, [player]);
+
+  const stepBackward = useCallback(() => {
+    if (player === null) return;
+    player.stepBackward();
+    setTickIndex(player.tick);
+  }, [player]);
+
+  const seekTo = useCallback(
+    (n: number) => {
+      if (player === null) return;
+      player.goTo(n);
+      setTickIndex(player.tick);
+    },
+    [player],
+  );
+
   const createWhatIf = useCallback(
     (overrides: WhatIfOverrides) => {
       const nextAlgorithm = overrides.algorithm ?? algorithm;
@@ -102,13 +124,6 @@ export function SimulationProvider({
     setWhatIfBranch(null);
   }, []);
 
-  // Sincroniza el tickIndex con el player al navegar
-  const syncTick = useCallback(() => {
-    if (player !== null) setTickIndex(player.tick);
-  }, [player]);
-
-  void syncTick; // disponible para componentes de navegación en T-42
-
   const value: SimulationContextValue = useMemo(
     () => ({
       result: mainResult,
@@ -119,6 +134,9 @@ export function SimulationProvider({
       processes,
       algorithmName: algorithm,
       requires,
+      stepForward,
+      stepBackward,
+      seekTo,
       createWhatIf,
       discardWhatIf,
     }),
@@ -131,6 +149,9 @@ export function SimulationProvider({
       processes,
       algorithm,
       requires,
+      stepForward,
+      stepBackward,
+      seekTo,
       createWhatIf,
       discardWhatIf,
     ],
