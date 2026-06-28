@@ -43,9 +43,12 @@ function makeCtxValue(tickOverride = 0): {
     processes: PROCS,
     algorithmName: 'fcfs',
     requires: {},
+    params: {},
     stepForward,
     stepBackward,
     seekTo,
+    updateProcesses: () => undefined,
+    updateParams: () => undefined,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
   };

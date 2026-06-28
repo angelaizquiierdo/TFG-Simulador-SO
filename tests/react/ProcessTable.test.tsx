@@ -49,9 +49,12 @@ function renderWithRequires(
     processes,
     algorithmName: 'fcfs',
     requires,
+    params: {},
     stepForward: () => undefined,
     stepBackward: () => undefined,
     seekTo: () => undefined,
+    updateProcesses: () => undefined,
+    updateParams: () => undefined,
     createWhatIf: () => undefined,
     discardWhatIf: () => undefined,
   };

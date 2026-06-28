@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { SimulationProvider } from '../../src/react/SimulationProvider.js';
 import { useSimulation } from '../../src/react/SimulationContext.js';
@@ -117,5 +117,81 @@ describe('§ Render — SimulationProvider y Gestión de Estado', () => {
     );
     // El player empieza en tick 0
     expect(screen.getByTestId('tick').textContent).toBe('0');
+  });
+
+  it('updateProcesses rederiva la simulación al instante', () => {
+    const P2: Process = { id: 'B', arrival_time: 0, burst_time: 2 };
+    function ConsumerUpdate() {
+      const { result, updateProcesses, processes } = useSimulation();
+      return (
+        <div>
+          <span data-testid="proc-count">{String(processes.length)}</span>
+          <span data-testid="result">{result !== null ? 'yes' : 'no'}</span>
+          <button
+            type="button"
+            onClick={() => { updateProcesses([P1, P2]); }}
+          >
+            Añadir
+          </button>
+        </div>
+      );
+    }
+    const { getByRole, getByTestId } = render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <ConsumerUpdate />
+      </SimulationProvider>,
+    );
+    expect(getByTestId('proc-count').textContent).toBe('1');
+    fireEvent.click(getByRole('button', { name: 'Añadir' }));
+    expect(getByTestId('proc-count').textContent).toBe('2');
+    expect(getByTestId('result').textContent).toBe('yes');
+  });
+
+  it('updateParams rederiva la simulación con nuevos parámetros', () => {
+    function ConsumerParams() {
+      const { params, updateParams } = useSimulation();
+      return (
+        <div>
+          <span data-testid="quantum">{params.quantum !== undefined ? String(Number(params.quantum)) : 'none'}</span>
+          <button
+            type="button"
+            onClick={() => { updateParams({ quantum: 4 }); }}
+          >
+            Cambiar
+          </button>
+        </div>
+      );
+    }
+    const { getByRole, getByTestId } = render(
+      <SimulationProvider algorithm="round-robin" processes={[P1]} params={{ quantum: 2 }}>
+        <ConsumerParams />
+      </SimulationProvider>,
+    );
+    expect(getByTestId('quantum').textContent).toBe('2');
+    fireEvent.click(getByRole('button', { name: 'Cambiar' }));
+    expect(getByTestId('quantum').textContent).toBe('4');
+  });
+
+  it('createWhatIf crea una rama what-if y discardWhatIf la descarta', () => {
+    function ConsumerWhatIf() {
+      const { whatIfBranch, createWhatIf, discardWhatIf } = useSimulation();
+      return (
+        <div>
+          <span data-testid="branch">{whatIfBranch !== null ? 'yes' : 'no'}</span>
+          <button type="button" onClick={() => { createWhatIf({}); }}>Crear</button>
+          <button type="button" onClick={() => { discardWhatIf(); }}>Descartar</button>
+        </div>
+      );
+    }
+    const { getByRole, getByTestId } = render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <ConsumerWhatIf />
+      </SimulationProvider>,
+    );
+    expect(getByTestId('branch').textContent).toBe('no');
+    fireEvent.click(getByRole('button', { name: 'Crear' }));
+    expect(getByTestId('branch').textContent).toBe('yes');
+    fireEvent.click(getByRole('button', { name: 'Descartar' }));
+    expect(getByTestId('branch').textContent).toBe('no');
   });
 });

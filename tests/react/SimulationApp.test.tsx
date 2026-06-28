@@ -46,9 +46,10 @@ describe('§ Render — SimulationApp (Orquestador Visual)', () => {
     expect(screen.getByTestId('simulation-app')).toHaveAttribute('data-mode', 'interleaved');
   });
 
-  it('renderiza los 6 slots de subcomponentes en modo unified', () => {
+  it('renderiza los slots de subcomponentes en modo unified (fcfs)', () => {
     render(<SimulationApp algorithm="fcfs" processes={PROCESSES} mode="unified" />);
-    expect(screen.getByTestId('algorithm-params-form')).toBeInTheDocument();
+    // AlgorithmParamsForm solo se renderiza cuando el algoritmo tiene parámetros (T-46)
+    expect(screen.queryByTestId('algorithm-params-form')).not.toBeInTheDocument();
     expect(screen.getByTestId('process-table')).toBeInTheDocument();
     expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
     expect(screen.getByTestId('playback-controls')).toBeInTheDocument();
@@ -56,16 +57,29 @@ describe('§ Render — SimulationApp (Orquestador Visual)', () => {
     expect(screen.getByTestId('process-form')).toBeInTheDocument();
   });
 
-  it('renderiza los 6 slots de subcomponentes en modo interleaved', () => {
+  it('renderiza los slots de subcomponentes en modo interleaved (fcfs)', () => {
     render(
       <SimulationApp algorithm="fcfs" processes={PROCESSES} mode="interleaved" />,
     );
-    expect(screen.getByTestId('algorithm-params-form')).toBeInTheDocument();
+    // AlgorithmParamsForm solo se renderiza cuando el algoritmo tiene parámetros (T-46)
+    expect(screen.queryByTestId('algorithm-params-form')).not.toBeInTheDocument();
     expect(screen.getByTestId('process-table')).toBeInTheDocument();
     expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
     expect(screen.getByTestId('playback-controls')).toBeInTheDocument();
     expect(screen.getByTestId('metrics-table')).toBeInTheDocument();
     expect(screen.getByTestId('process-form')).toBeInTheDocument();
+  });
+
+  it('AlgorithmParamsForm se renderiza con algoritmos que tienen parámetros (round-robin)', () => {
+    render(
+      <SimulationApp
+        algorithm="round-robin"
+        processes={PROCESSES}
+        params={{ quantum: 2 }}
+        mode="unified"
+      />,
+    );
+    expect(screen.getByTestId('algorithm-params-form')).toBeInTheDocument();
   });
 
   it('acepta className adicional y lo añade al contenedor', () => {

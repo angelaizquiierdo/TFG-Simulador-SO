@@ -41,19 +41,25 @@ const EMPTY_REQUIRES: AlgorithmRequires = {};
 
 export function SimulationProvider({
   algorithm,
-  processes,
-  params,
+  processes: initialProcesses,
+  params: initialParams,
   children,
 }: SimulationProviderProps): React.ReactElement {
+  // Estado interno editable de procesos y parámetros (inicializados desde props)
+  const [localProcesses, setLocalProcesses] = useState<readonly Process[]>(initialProcesses);
+  const [localParams, setLocalParams] = useState<Readonly<Record<string, unknown>>>(
+    initialParams ?? {},
+  );
+
   // Ejecutar la simulación principal (memoizado)
   const [mainResult, mainError] = useMemo((): [SimulationResult | null, string | null] => {
-    if (processes.length === 0) return [null, null];
+    if (localProcesses.length === 0) return [null, null];
     try {
-      return [run(processes, buildConfig(algorithm, params)), null];
+      return [run(localProcesses, buildConfig(algorithm, localParams)), null];
     } catch (e: unknown) {
       return [null, e instanceof Error ? e.message : String(e)];
     }
-  }, [algorithm, processes, params]);
+  }, [algorithm, localProcesses, localParams]);
 
   // Descriptor de requisitos del algoritmo activo
   const requires = useMemo((): AlgorithmRequires => {
@@ -104,11 +110,22 @@ export function SimulationProvider({
     [player],
   );
 
+  // Mutaciones de escenario: actualizan estado local y rederivan al instante
+  const updateProcesses = useCallback((next: readonly Process[]) => {
+    setLocalProcesses(next);
+    setTickIndex(0);
+  }, []);
+
+  const updateParams = useCallback((next: Readonly<Record<string, unknown>>) => {
+    setLocalParams(next);
+    setTickIndex(0);
+  }, []);
+
   const createWhatIf = useCallback(
     (overrides: WhatIfOverrides) => {
       const nextAlgorithm = overrides.algorithm ?? algorithm;
-      const nextParams = overrides.params ?? params;
-      const nextProcesses = overrides.processes ?? processes;
+      const nextParams = overrides.params ?? localParams;
+      const nextProcesses = overrides.processes ?? localProcesses;
       if (nextProcesses.length === 0) return;
       try {
         const result = run(nextProcesses, buildConfig(nextAlgorithm, nextParams));
@@ -117,7 +134,7 @@ export function SimulationProvider({
         void err; // silenciar errores en la rama what-if
       }
     },
-    [algorithm, processes, params],
+    [algorithm, localProcesses, localParams],
   );
 
   const discardWhatIf = useCallback(() => {
@@ -131,12 +148,15 @@ export function SimulationProvider({
       player,
       error: mainError,
       whatIfBranch,
-      processes,
+      processes: localProcesses,
       algorithmName: algorithm,
+      params: localParams,
       requires,
       stepForward,
       stepBackward,
       seekTo,
+      updateProcesses,
+      updateParams,
       createWhatIf,
       discardWhatIf,
     }),
@@ -146,12 +166,15 @@ export function SimulationProvider({
       player,
       mainError,
       whatIfBranch,
-      processes,
+      localProcesses,
       algorithm,
+      localParams,
       requires,
       stepForward,
       stepBackward,
       seekTo,
+      updateProcesses,
+      updateParams,
       createWhatIf,
       discardWhatIf,
     ],

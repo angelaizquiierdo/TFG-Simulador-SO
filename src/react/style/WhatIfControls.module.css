@@ -1,0 +1,51 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-spacing-md, 0.5rem);
+  padding: var(--scheduler-spacing-sm, 0.25rem) var(--scheduler-spacing-md, 0.5rem);
+  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border-radius: var(--scheduler-radius, 4px);
+  background: var(--scheduler-bg-secondary, #f8fafc);
+}
+
+.createButton {
+  padding: var(--scheduler-spacing-sm, 0.25rem) var(--scheduler-spacing-md, 0.5rem);
+  border: 1px solid var(--scheduler-accent, #6366f1);
+  border-radius: var(--scheduler-radius, 4px);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--scheduler-accent, #6366f1);
+}
+
+.createButton:hover {
+  background: var(--scheduler-accent, #6366f1);
+  color: #fff;
+}
+
+.branchIndicator {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-spacing-md, 0.5rem);
+}
+
+.branchLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--scheduler-accent, #6366f1);
+}
+
+.discardButton {
+  padding: var(--scheduler-spacing-sm, 0.25rem) var(--scheduler-spacing-md, 0.5rem);
+  border: 1px solid var(--scheduler-error, #ef4444);
+  border-radius: var(--scheduler-radius, 4px);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--scheduler-error, #ef4444);
+}
+
+.discardButton:hover {
+  background: var(--scheduler-error, #ef4444);
+  color: #fff;
+}

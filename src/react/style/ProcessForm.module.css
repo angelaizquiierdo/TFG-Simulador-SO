@@ -1,0 +1,115 @@
+.container {
+  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border-radius: var(--scheduler-radius, 4px);
+  overflow: hidden;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-spacing-sm, 0.25rem);
+  width: 100%;
+  padding: var(--scheduler-spacing-sm, 0.25rem) var(--scheduler-spacing-md, 0.5rem);
+  background: var(--scheduler-bg-secondary, #f8fafc);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: left;
+  color: var(--scheduler-text, #0f172a);
+}
+
+.toggle:hover {
+  background: var(--scheduler-bg-hover, #e2e8f0);
+}
+
+.panel {
+  padding: var(--scheduler-spacing-md, 0.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-spacing-md, 0.5rem);
+}
+
+.processRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--scheduler-spacing-sm, 0.25rem);
+  padding: var(--scheduler-spacing-sm, 0.25rem);
+  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border-radius: var(--scheduler-radius, 4px);
+}
+
+.processId {
+  font-weight: 600;
+  min-width: 3rem;
+  color: var(--scheduler-text, #0f172a);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--scheduler-text-muted, #64748b);
+}
+
+.field input {
+  width: 5rem;
+  padding: 2px var(--scheduler-spacing-sm, 0.25rem);
+  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border-radius: var(--scheduler-radius, 4px);
+  font-size: 0.875rem;
+  color: var(--scheduler-text, #0f172a);
+}
+
+.ioSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-spacing-sm, 0.25rem);
+  width: 100%;
+}
+
+.ioOp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--scheduler-spacing-sm, 0.25rem);
+  padding: 2px var(--scheduler-spacing-sm, 0.25rem);
+  background: var(--scheduler-bg-secondary, #f8fafc);
+  border-radius: var(--scheduler-radius, 4px);
+}
+
+.addButton {
+  align-self: flex-start;
+  padding: 2px var(--scheduler-spacing-md, 0.5rem);
+  border: 1px dashed var(--scheduler-border, #cbd5e1);
+  border-radius: var(--scheduler-radius, 4px);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--scheduler-text-muted, #64748b);
+}
+
+.addButton:hover {
+  background: var(--scheduler-bg-hover, #e2e8f0);
+}
+
+.removeButton {
+  padding: 2px var(--scheduler-spacing-sm, 0.25rem);
+  border: 1px solid var(--scheduler-error, #ef4444);
+  border-radius: var(--scheduler-radius, 4px);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--scheduler-error, #ef4444);
+}
+
+.removeButton:hover {
+  background: var(--scheduler-error, #ef4444);
+  color: #fff;
+}
+
+.error {
+  color: var(--scheduler-error, #ef4444);
+  font-size: 0.7rem;
+}

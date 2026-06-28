@@ -1,4 +1,24 @@
 // Punto de entrada del módulo cpu-scheduler
+
+// Componentes React
+export { SimulationProvider } from './react/SimulationProvider.js';
+export { SimulationApp } from './react/SimulationApp.js';
+export { ProcessTable } from './react/ProcessTable.js';
+export { GanttChart } from './react/GanttChart.js';
+export { PlaybackControls } from './react/PlaybackControls.js';
+export { MetricsTable } from './react/MetricsTable.js';
+export { ProcessForm } from './react/ProcessForm.js';
+export { WhatIfControls } from './react/WhatIfControls.js';
+export { AlgorithmParamsForm } from './react/AlgorithmParamsForm.js';
+export { useSimulation } from './react/SimulationContext.js';
+export type {
+  SimulationContextValue,
+  WhatIfBranch,
+  WhatIfOverrides,
+  AlgorithmRequires,
+} from './react/SimulationContext.js';
+
+// Core
 export { register, get } from './core/registry.js';
 export { run, runFrom, deriveIntervals, deriveMetrics } from './core/simulate.js';
 export { Player } from './core/player.js';

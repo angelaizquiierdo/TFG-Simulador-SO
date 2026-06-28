@@ -32,10 +32,12 @@ export interface SimulationContextValue {
   readonly error: string | null;
   /** Rama what-if activa, null si no hay ninguna. */
   readonly whatIfBranch: WhatIfBranch | null;
-  /** Lista de procesos original pasada al Provider. */
+  /** Lista de procesos activa (puede diferir de los props iniciales tras edición). */
   readonly processes: readonly Process[];
   /** Nombre del algoritmo activo. */
   readonly algorithmName: string;
+  /** Parámetros activos del algoritmo. */
+  readonly params: Readonly<Record<string, unknown>>;
   /** Descriptor de requisitos del algoritmo activo (priority, quantum, io). */
   readonly requires: AlgorithmRequires;
   /** Avanza un tick y fuerza re-render. */
@@ -44,6 +46,10 @@ export interface SimulationContextValue {
   stepBackward: () => void;
   /** Salta al tick indicado y fuerza re-render. */
   seekTo: (n: number) => void;
+  /** Reemplaza la lista de procesos y rederiva la simulación al instante. */
+  updateProcesses: (processes: readonly Process[]) => void;
+  /** Reemplaza los parámetros del algoritmo y rederiva la simulación. */
+  updateParams: (params: Readonly<Record<string, unknown>>) => void;
   /** Crea una rama what-if desde el tick actual del player. */
   createWhatIf: (overrides: WhatIfOverrides) => void;
   /** Descarta la rama what-if activa. */
