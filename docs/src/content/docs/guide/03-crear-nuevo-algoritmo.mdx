@@ -1,4 +1,121 @@
 ---
-title: Crear un nuevo algoritmo
-description: Cómo extender el simulador con un nuevo algoritmo de planificación.
+title: Desarrollo de Nuevos Algoritmos
+description: Manual técnico para extender el simulador implementando el contrato IAlgorithm.
 ---
+
+## El Contrato `IAlgorithm`
+
+Cada algoritmo es una clase TypeScript que implementa `IAlgorithm`. Este contrato es el **único punto de acoplamiento** entre un algoritmo y el motor de simulación:
+
+```ts
+interface IAlgorithm {
+  readonly name: string;
+  readonly preemptionMode: PreemptionMode;
+  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean };
+  select(ready: readonly ReadyProcess[]): ReadyProcess;
+  quantumFor?(p: ReadyProcess): number | null;
+  onEvent?(e: SchedulerEvent): string | null;
+}
+```
+
+### Propiedades obligatorias
+
+| Campo | Descripción |
+|-------|-------------|
+| `name` | Identificador único del algoritmo en el registro (ej. `'fcfs'`). Debe ser en minúsculas y kebab-case. |
+| `preemptionMode` | Cuándo llama el motor a `select()` y si debe expropiar. Ver tabla más abajo. |
+| `requires` | Declara qué parámetros necesita el algoritmo. El motor y la UI lo usan para validar la config y mostrar/ocultar campos. |
+| `select(ready)` | Dada la cola de procesos listos, devuelve el proceso que debe ocupar la CPU. Es la lógica central del algoritmo. |
+
+### Modos de expropiación (`PreemptionMode`)
+
+| Valor | Cuándo expropiar |
+|-------|-----------------|
+| `'none'` | Nunca; `select()` solo se llama cuando la CPU queda libre |
+| `'on-better'` | `select()` se reevalúa cada tick; expropia si el elegido cambia |
+| `'on-quantum'` | Expropia al agotar el slice de `quantumFor()` |
+| `'io-return'` | Expropia en retorno de E/S (VRR); `select()` da prioridad a la cola auxiliar |
+| `'on-quantum-and-better'` | Expropia por ambos motivos a la vez (MLFQ) |
+
+---
+
+## Patrón 1: Algoritmos Sin Estado (Clásicos)
+
+Para algoritmos que deciden basándose únicamente en la cola de listos actual, sin memoria de eventos pasados (FCFS, SJF, LJF, Prioridad NP/P, SRTF). Solo implementan las propiedades obligatorias:
+
+```ts
+// Ejemplo: Prioridad Expropiativa
+export class PriorityP implements IAlgorithm {
+  readonly name = 'priority-p';
+  readonly preemptionMode = 'on-better' as const;
+  readonly requires = { priority: true as const };
+
+  select(ready: readonly ReadyProcess[]): ReadyProcess {
+    let best = ready[0]!;
+    for (const p of ready) {
+      if ((p.priority ?? Infinity) < (best.priority ?? Infinity)) best = p;
+    }
+    return best;
+  }
+}
+```
+
+**Regla:** en algoritmos sin estado, **no implementar** `quantumFor` ni `onEvent`.
+
+---
+
+## Patrón 2: Algoritmos Con Estado Interno (Complejos)
+
+Para algoritmos que mantienen estructuras privadas entre ticks (colas multinivel, tiempos sobrantes) o reaccionan a eventos del motor. Utilizan los métodos opcionales.
+
+### `quantumFor(p): number | null`
+
+El motor llama a este método cuando necesita saber cuánto dura el turno de un proceso concreto. Devuelve el número de ticks o `null` si no hay límite.
+
+Casos de uso:
+- **VRR**: devolver el tiempo sobrante de la última ráfaga interrumpida (para darle ventaja en el siguiente dispatch).
+- **MLFQ**: devolver el quantum del nivel actual del proceso.
+
+### `onEvent(e): string | null`
+
+El motor emite eventos al algoritmo en momentos clave de la simulación. El algoritmo los usa para actualizar su estado interno. El valor de retorno es un **Mensaje Rico**: texto descriptivo que el motor concatenará al campo `message` del `HistoryEvent` correspondiente para mostrarlo en la UI.
+
+```ts
+type SchedulerEvent =
+  | { type: 'arrival';        id: string; tick: number }
+  | { type: 'dispatch';       id: string; tick: number; slice: number | null }
+  | { type: 'quantum-expiry'; id: string; tick: number; ranFor: number }
+  | { type: 'preempted';      id: string; tick: number; ranFor: number }
+  | { type: 'io-start';       id: string; tick: number; ranFor: number; device: string }
+  | { type: 'io-return';      id: string; tick: number }
+  | { type: 'completed';      id: string; tick: number }
+  | { type: 'priority-boost'; tick: number; ids: readonly string[] };
+```
+
+---
+
+## Reglas Estrictas (Guardarraíles)
+
+El algoritmo es un **invitado** del motor. Solo implementa la lógica de selección. Está **prohibido**:
+
+- Acceder al historial global (`History`) o a las métricas — solo el motor los tiene.
+- Mutar la `readyQueue` original proporcionada por el motor en `select()` — si necesitas ordenar, crea una copia.
+- Incluir lógica de dispositivos de E/S — eso es responsabilidad de `io-subsystem.ts`.
+- Usar `Math.random()`, `Date.now()` o cualquier fuente no determinista.
+- Importar desde `src/react/**` — los algoritmos son TypeScript puro.
+
+---
+
+## Registro del Nuevo Algoritmo
+
+Una vez implementado, registra el algoritmo en el punto de entrada `src/index.ts`:
+
+```ts
+import { MiNuevoAlgoritmo } from './core/algorithms/non-preemptive/mi-nuevo-algoritmo.js';
+
+register(new MiNuevoAlgoritmo());
+```
+
+**No registrar directamente en `registry.ts`**. El registro se hace siempre desde `src/index.ts`.
+
+Añade también su página de demo en `docs/src/content/docs/cpu-scheduler/`.

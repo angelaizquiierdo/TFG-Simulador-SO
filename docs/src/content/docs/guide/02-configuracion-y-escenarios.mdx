@@ -1,4 +1,104 @@
 ---
-title: Configuración y escenarios
-description: Cómo configurar el simulador y crear escenarios.
+title: Configuración y Gestión de Escenarios
+description: Estructura de datos de entrada, parámetros y cómo la interfaz gestiona la mutación del estado.
 ---
+
+## Definición de Procesos (`Process`)
+
+Cada proceso es un objeto con los siguientes campos:
+
+```ts
+interface Process {
+  readonly id: string;           // Identificador único del proceso
+  readonly arrival_time: number; // Tick en que el proceso llega a la cola (>= 0)
+  readonly burst_time: number;   // Demanda total de CPU en ticks (> 0)
+  readonly priority?: number;    // Solo para algoritmos con requires.priority = true
+  readonly io?: readonly IOOperation[]; // Solo para VRR (requires.io = true)
+}
+```
+
+- **`arrival_time`**: el tick desde el que el proceso puede ser planificado. Procesos con `arrival_time > 0` llegan mientras otros ya están ejecutando.
+- **`burst_time`**: el total de CPU que el proceso necesita para completarse, sin contar los tiempos de E/S.
+- **`priority`**: valor numérico; a menor número, mayor prioridad (convención del simulador).
+
+---
+
+## Modelo de E/S (`IOOperation`)
+
+Las operaciones de E/S solo están disponibles para algoritmos con `requires.io = true` (exclusivamente **Round Robin Virtual**).
+
+```ts
+interface IOOperation {
+  readonly io_entry: number; // CPU acumulada ejecutada antes de bloquearse (> 0 y < burst_time)
+  readonly io_time: number;  // Duración del servicio de E/S en ticks (> 0)
+}
+```
+
+**Restricciones:**
+- `io_entry` debe ser **estrictamente creciente** dentro del array de un mismo proceso.
+- `io_entry` debe ser menor que `burst_time` (el proceso entra a E/S antes de terminar).
+- El simulador dispone de **un único dispositivo de E/S** (FCFS). Si dos procesos alcanzan su `io_entry` en el mismo tick, solo uno entra a servicio; el otro espera en cola.
+
+---
+
+## Configuración del Algoritmo (`RunConfig`)
+
+El segundo argumento de `run()` especifica la configuración del algoritmo:
+
+```ts
+interface RunConfig {
+  algorithm: string;        // Nombre registrado (ej. 'round-robin', 'mlfq')
+  quantum?: number;         // Slice de tiempo para Round Robin y VRR
+  boostInterval?: number;   // Intervalo de boost de prioridad para MLFQ
+}
+```
+
+### Identificadores de algoritmos registrados
+
+| Nombre | Tipo | Requisitos |
+|--------|------|------------|
+| `'fcfs'` | No expropiativo | — |
+| `'sjf'` | No expropiativo | — |
+| `'ljf'` | No expropiativo | — |
+| `'priority-np'` | No expropiativo | `priority` |
+| `'srtf'` | Expropiativo | — |
+| `'priority-p'` | Expropiativo | `priority` |
+| `'round-robin'` | Expropiativo | `quantum` |
+| `'rrv'` | Expropiativo + E/S | `quantum`, `io` |
+| `'mlfq'` | Expropiativo | `quantum` |
+
+---
+
+## Manipulación de Escenarios
+
+### Edición Estándar
+
+Los formularios `ProcessForm` y `AlgorithmParamsForm` permiten modificar el escenario sin recargar la página:
+
+- **`ProcessForm`**: edita llegada, ráfaga, prioridad y operaciones de E/S de cada proceso. Cada cambio válido llama a `updateProcesses()` en el contexto, lo que rederiva la simulación **al instante**.
+- **`AlgorithmParamsForm`**: edita `quantum` o `boostInterval`. Los cambios son tipo draft/applied: se aplican al pulsar "Aplicar", que llama a `updateParams()`.
+
+### Análisis What-If
+
+El componente `WhatIfControls` aparece cuando el reproductor está pausado en un tick intermedio (`0 < tick < último`):
+
+1. El usuario pausa la reproducción en el tick `T`.
+2. Pulsa **"Crear rama what-if"**, que llama a `createWhatIf({})`.
+3. El motor rederiva la simulación desde el estado actual, creando una línea temporal alternativa.
+4. Para descartarla, se pulsa **"Descartar rama"**.
+
+Solo puede haber una rama activa a la vez.
+
+### Inyección en Vivo
+
+Para añadir un proceso nuevo mientras la simulación ya está avanzada, el `ProcessForm` valida que `arrival_time >= tick_actual`. Esto evita paradojas causales.
+
+### Persistencia
+
+El escenario activo (procesos + parámetros) se guarda automáticamente en el `sessionStorage` del navegador bajo la clave `scheduler-scenario:${algorithmName}`. Al recargar la página, el Provider restaura el último escenario editado.
+
+La rama what-if (solo los inputs, no el resultado) se guarda bajo `scheduler-whatif:${algorithmName}`.
+
+Navegar a una página con un algoritmo distinto usa una clave diferente, por lo que los escenarios no se mezclan. Los datos se descartan al cerrar la pestaña.
+
+Para volver al escenario original (el de los props iniciales), se llama a `reset()` desde el contexto.

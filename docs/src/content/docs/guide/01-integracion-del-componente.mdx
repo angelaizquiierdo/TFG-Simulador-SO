@@ -1,4 +1,108 @@
 ---
-title: Integración del componente
-description: Cómo integrar el simulador en tu proyecto.
+title: Integración y Uso del Componente
+description: Cómo importar y renderizar el simulador de CPU dentro de una página o aplicación React/Astro.
 ---
+
+## Introducción
+
+El **CPU Scheduler Simulator** es un módulo TypeScript + React publicable que puede instalarse como dependencia en cualquier proyecto. Su arquitectura se divide en dos capas desacopladas:
+
+- **`src/core`** — el simulador puro. TypeScript sin React ni DOM; usable desde Node.js o cualquier librería de interfaz.
+- **`src/react`** — el componente React que consume el simulador y renderiza la interfaz.
+
+El modelo de funcionamiento es **pre-cálculo + reproducción visual (playback)**:
+
+1. Al montar el proveedor, `run(processes, config)` genera la simulación completa de una vez: historial (`History`), intervalos de Gantt (`Interval[]`) y métricas agregadas (`SimulationResult`).
+2. El `Player` actúa como cursor sobre ese historial inmutable: avanza, retrocede o salta a cualquier tick sin recalcular nada.
+3. Los controles de reproducción (`PlaybackControls`) animan el avance usando `requestAnimationFrame`.
+
+Esto garantiza que la interfaz nunca bloquea el hilo principal durante la simulación.
+
+---
+
+## El SimulationProvider
+
+`SimulationProvider` es el contexto global que orquesta todos los subcomponentes. Acepta las siguientes props:
+
+| Prop | Tipo | Descripción |
+|------|------|-------------|
+| `algorithm` | `string` | Nombre del algoritmo registrado (ej. `'fcfs'`, `'round-robin'`) |
+| `processes` | `readonly Process[]` | Lista inicial de procesos |
+| `params?` | `Record<string, unknown>` | Parámetros del algoritmo (ej. `{ quantum: 2 }`) |
+
+Todos los subcomponentes deben ser hijos (directos o anidados) del proveedor:
+
+```tsx
+import { SimulationProvider, ProcessTable, GanttChart,
+         PlaybackControls, MetricsTable } from 'cpu-scheduler';
+
+<SimulationProvider algorithm="fcfs" processes={myProcesses}>
+  <ProcessTable />
+  <GanttChart />
+  <PlaybackControls />
+  <MetricsTable />
+</SimulationProvider>
+```
+
+Internamente, el proveedor expone por contexto el resultado de la simulación, el `Player`, las funciones de navegación y las funciones de mutación de escenario (`updateProcesses`, `updateParams`, `reset`).
+
+---
+
+## Subcomponentes Visuales
+
+| Componente | Función |
+|-----------|---------|
+| `ProcessTable` | Tabla de los procesos del escenario (ID, llegada, ráfaga, prioridad si procede) |
+| `GanttChart` | Diagrama de Gantt sincronizado con el tick actual del `Player`; cada celda refleja el estado del proceso en ese instante |
+| `PlaybackControls` | Barra de reproducción: botones Primero/Anterior/Reproducir/Siguiente/Último y barra de progreso; es el **único** lugar con `requestAnimationFrame` |
+| `MetricsTable` | Tabla de métricas por proceso y agregadas; visible solo cuando la reproducción llega al último tick |
+| `ProcessForm` | Panel desplegable para editar procesos en tiempo real; cada cambio válido rederiva la simulación al instante |
+| `AlgorithmParamsForm` | Formulario de parámetros del algoritmo activo (quantum, boostInterval) con botón Aplicar |
+
+---
+
+## Layouts Soportados
+
+### Modo Panel (`mode="unified"`)
+
+Todos los componentes juntos en una vista unificada. Ideal para embeber en una única página o sección:
+
+```tsx
+<SimulationApp algorithm="fcfs" processes={myProcesses} mode="unified" />
+```
+
+### Modo Documentación (`mode="interleaved"`)
+
+Componentes intercalados con texto explicativo. Ideal para material didáctico donde el texto y el simulador se alternan:
+
+```tsx
+<SimulationProvider algorithm="round-robin" processes={myProcesses} params={{ quantum: 2 }}>
+  <p>La tabla de procesos muestra los procesos del escenario:</p>
+  <ProcessTable />
+
+  <p>El diagrama de Gantt muestra la planificación tick a tick:</p>
+  <GanttChart />
+
+  <PlaybackControls />
+  <MetricsTable />
+</SimulationProvider>
+```
+
+---
+
+## Uso en Astro (Islas React)
+
+Para renderizar el componente en Astro, usa la directiva `client:only="react"` para evitar la hidratación en el servidor (el simulador es 100 % cliente):
+
+```mdx
+import { SimulationApp } from 'cpu-scheduler';
+
+<SimulationApp
+  algorithm="fcfs"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 3 },
+    { id: 'P2', arrival_time: 2, burst_time: 2 },
+  ]}
+  client:only="react"
+/>
+```
