@@ -213,3 +213,21 @@ Se actualizaron `BEHAVIOUSv-02.md` (§ Render — GanttChart: etiquetas de celda
 ### 3. Consecuencias
 * **Positivas:** Mucho más legible y didáctico; el estado de E/S es inconfundible; la tabla nunca desborda el simulador. La lógica del núcleo y los contratos quedan intactos (solo cambió `src/react/` y `tokens.css`).
 * **Negativas:** Los estados de E/S dejan de usar el color del proceso (usan rojo de aviso), así que en E/S no se distingue *qué* proceso por color sino por fila. Las etiquetas de celda añaden texto que en celdas muy pequeñas podría competir con el color (mitigado con posición absoluta y tamaño reducido).
+
+---
+
+## 29-06-2026 - What-if como comparación de escenario alternativo y montaje en `SimulationApp` (rama `dev-what-if`)
+
+### 1. Contexto y Problema
+El `WhatIfControls` existía, estaba exportado y testeado, pero **no se usaba**: (a) no estaba montado en `SimulationApp`, así que nunca aparecía en las páginas de `docs/`; y (b) su único botón llamaba a `createWhatIf({})` con overrides vacíos, por lo que la rama clonaba el escenario **idéntico** —no había forma de introducir una variación, así que crear una rama no producía nada distinto. Además se detectó una divergencia con la spec: `SPECv-02.md` describe el what-if como una bifurcación desde el `SchedulerState` del tick `T` vía `runFrom(state)` conservando el historial hasta `T`, pero la implementación de `createWhatIf` siempre rederiva el escenario completo con `run()`.
+
+### 2. Decisión Tomada
+Hacer el what-if **funcional y visible** sobre la API ya existente (`createWhatIf(overrides)` / `discardWhatIf` / `whatIfBranch`), **sin tocar el motor**:
+- Se rediseña `WhatIfControls` como un **comparador de escenario alternativo**: en un tick intermedio muestra un formulario con un selector de algoritmo (poblado con la nueva función `registry.list()`) y los campos de parámetros del algoritmo elegido (derivados de `get(algorithm).requires`). Al pulsar "Comparar" llama a `createWhatIf({ algorithm, params })`; con rama activa, muestra una **tabla comparando las métricas agregadas** del escenario actual frente a la rama (espera media, turnaround medio, utilización, throughput, y su diferencia).
+- Se añade `list(): readonly string[]` a `registry.ts` (nombres registrados, en orden de registro) con sus tests.
+- Se monta `<WhatIfControls />` en `SimulationApp` (slot `whatif`, entre `controls` y `metrics`). La UI respeta `tokens.css` (espaciados, radios, colores semánticos, foco).
+- Se asume conscientemente la **divergencia con la spec**: el what-if implementado es "comparar un escenario alternativo (otro algoritmo/parámetros) rederivando completo", **no** "bifurcar desde el `SchedulerState` en `T`". El enfoque `runFrom(state en T)` queda como trabajo futuro. Se actualizan `BEHAVIOUSv-02.md` (§ WhatIfControls reescrito al comportamiento real) y `TECHNICAL.md` (contrato del componente) para reflejar la realidad.
+
+### 3. Consecuencias
+* **Positivas:** El what-if pasa de huérfano e inerte a una herramienta didáctica útil y visible: el alumno compara "¿y si uso SJF en vez de FCFS?" o "¿y si el quantum fuera 4?" y ve el efecto en las métricas. No se refactoriza `GanttChart`/`MetricsTable` (la comparación vive dentro de `WhatIfControls`, que lee ambos `result.metrics` del contexto), así que se respeta la arquitectura de fuente única de verdad. El motor queda intacto.
+* **Negativas:** La comparación muestra **métricas agregadas**, no el Gantt de la rama (mostrar el Gantt alternativo exigiría que `GanttChart` aceptara datos por props, descartado por ahora). Persiste la divergencia con la visión original `runFrom(state)` de `SPECv-02.md`; se documenta como deuda, no se resuelve.

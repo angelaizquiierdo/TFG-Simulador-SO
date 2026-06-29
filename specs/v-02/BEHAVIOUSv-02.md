@@ -1036,21 +1036,36 @@ ENTONCES la sublista queda vacía, el proceso se comporta estrictamente como un 
 
 ## § WhatIfControls — rama what-if
 
+> **Nota (v-02, rama `dev-what-if`):** la implementación actual del *what-if* es una
+> **comparación de escenario alternativo**: al crear la rama se rederiva el escenario
+> completo (`run`) con un algoritmo y/o parámetros distintos, y se comparan sus
+> **métricas agregadas** con las del escenario actual. No conserva el historial hasta
+> `T` mediante `runFrom(state)` (ese enfoque queda como trabajo futuro; ver
+> `DECISIONS.md`).
+
 DADO que el reproductor está en el tick 0, en el último tick, o en reproducción automática
 CUANDO se evalúa el componente `WhatIfControls`
 ENTONCES el componente permanece completamente oculto
 
-DADO que el reproductor está pausado en un tick intermedio `T`
-CUANDO se hace clic en el botón "Crear rama what-if"
-ENTONCES se crea una bifurcación conservando el historial hasta `T`, se guarda en sessionStorage y la UI indica que hay una rama activa
+DADO que el reproductor está pausado en un tick intermedio `T` y no hay rama activa
+CUANDO se evalúa el componente `WhatIfControls`
+ENTONCES se muestra un formulario con un selector de algoritmo (los registrados en el `registry`) y los campos de parámetros aplicables al algoritmo elegido (`quantum`, `quanta`, `boostInterval`)
+
+DADO que el usuario elige un algoritmo o parámetros alternativos y pulsa "Comparar" con valores válidos
+CUANDO se acciona el control
+ENTONCES se invoca `createWhatIf({ algorithm, params })`, se rederiva el escenario alternativo y la UI muestra una tabla comparando las métricas agregadas (espera media, turnaround medio, utilización de CPU y throughput) del escenario actual frente a la rama, con su diferencia
+
+DADO que el usuario introduce un parámetro inválido (p. ej. `quantum ≤ 0`)
+CUANDO pulsa "Comparar"
+ENTONCES no se crea ninguna rama y se muestra el mensaje de error de validación
 
 DADO que existe una rama what-if activa
 CUANDO el usuario hace clic en "Descartar rama"
-ENTONCES se restaura el escenario original guardado y el reproductor vuelve al tick `T` donde se creó la rama
+ENTONCES se invoca `discardWhatIf()`, se elimina la rama (y su entrada en sessionStorage) y el componente vuelve a mostrar el formulario de variación
 
-DADO que ya existe una rama what-if activa y el reproductor se encuentra pausado en un nuevo tick intermedio `T2`
-CUANDO se acciona nuevamente el control "Crear rama what-if"
-ENTONCES la rama previa se descarta y sobrescribe de manera automática sin requerir confirmación, estableciéndose la nueva bifurcación a partir de `T2`
+DADO que existe una rama what-if activa
+CUANDO se evalúa el componente
+ENTONCES no se muestra el formulario de variación (solo puede haber una rama a la vez)
 
 ## § Render — `AlgorithmParamsForm`
 

@@ -80,14 +80,15 @@ Los formularios `ProcessForm` y `AlgorithmParamsForm` permiten modificar el esce
 
 ### Análisis What-If
 
-El componente `WhatIfControls` aparece cuando el reproductor está pausado en un tick intermedio (`0 < tick < último`):
+El componente `WhatIfControls` aparece cuando el reproductor está pausado en un tick intermedio (`0 < tick < último`) y permite **comparar un escenario alternativo** con el actual:
 
-1. El usuario pausa la reproducción en el tick `T`.
-2. Pulsa **"Crear rama what-if"**, que llama a `createWhatIf({})`.
-3. El motor rederiva la simulación desde el estado actual, creando una línea temporal alternativa.
-4. Para descartarla, se pulsa **"Descartar rama"**.
+1. El usuario pausa la reproducción en un tick intermedio.
+2. En el formulario elige un **algoritmo alternativo** (cualquiera de los registrados) y, si procede, sus **parámetros** (`quantum`, `quanta`, `boostInterval`).
+3. Pulsa **"Comparar"**, que llama a `createWhatIf({ algorithm, params })`. El motor rederiva ese escenario alternativo en una rama paralela (`whatIfBranch`), sin alterar la simulación principal.
+4. La UI muestra una **tabla comparativa** de las métricas agregadas (espera media, turnaround medio, utilización de CPU y throughput) del escenario actual frente a la rama, con su diferencia.
+5. Para descartar la rama y volver al formulario, se pulsa **"Descartar rama"**.
 
-Solo puede haber una rama activa a la vez.
+Un parámetro inválido (p. ej. `quantum ≤ 0`) bloquea la comparación y muestra el error. Solo puede haber una rama activa a la vez.
 
 ### Inyección en Vivo
 
