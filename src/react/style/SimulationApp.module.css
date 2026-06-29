@@ -8,14 +8,6 @@
   background-color: var(--scheduler-bg);
   color: var(--scheduler-text-primary);
   border-radius: var(--scheduler-radius-md);
-  
-  /* LÍMITES DE ALTURA Y SCROLL VERTICAL */
-  max-height: 85vh; /* Ocupa como máximo el 85% de la pantalla */
-  overflow-y: auto; /* Activa la barra de scroll vertical si el contenido se pasa */
-  
-  /* Estilizado sutil de la barra de scroll */
-  scrollbar-width: thin;
-  scrollbar-color: var(--scheduler-border) transparent;
 }
 
 /* ──────────────────────────────────────────────
@@ -24,40 +16,25 @@
 ────────────────────────────────────────────── */
 .unified {
   display: grid;
-  gap: var(--scheduler-space-md);
-  
-  /* Disposición móvil por defecto (1 columna vertical) */
-  grid-template-columns: 1fr;
   grid-template-areas:
-    "params"    /* 1º: Algoritmo y parámetros */
-    "table"     /* 2º: Tabla de procesos */
-    "form"      /* 3º: Formulario para añadir */
-    "gantt"     /* 4º: Diagrama */
-    "controls"  /* 5º: Controles de reproducción */
-    "metrics";  /* 6º: Métricas */
+    "params"
+    "table"
+    "gantt"
+    "controls"
+    "whatif"
+    "metrics"
+    "form";
+  grid-template-columns: 1fr;
+  gap: var(--scheduler-space-md);
 }
 
-/* Disposición Escritorio: Respeta tu orden, expandido a pantalla completa */
-@media (min-width: 1024px) {
-  .unified {
-    grid-template-columns: repeat(12, 1fr);
-    grid-template-areas:
-      "params params params params params params params params params params params params"
-      "table table table table table table table table table table table table"
-      "form form form form form form form form form form form form"
-      "gantt gantt gantt gantt gantt gantt gantt gantt gantt gantt gantt gantt"
-      "controls controls controls controls controls controls controls controls controls controls controls controls"
-      "metrics metrics metrics metrics metrics metrics metrics metrics metrics metrics metrics metrics";
-  }
-}
-
-/* Mapeo de las clases a los nombres de la cuadrícula */
 .unified .paramsSlot   { grid-area: params; }
 .unified .tableSlot    { grid-area: table; }
-.unified .formSlot     { grid-area: form; }
 .unified .ganttSlot    { grid-area: gantt; }
 .unified .controlsSlot { grid-area: controls; }
+.unified .whatifSlot   { grid-area: whatif; }
 .unified .metricsSlot  { grid-area: metrics; }
+.unified .formSlot     { grid-area: form; }
 
 /* ──────────────────────────────────────────────
    Modo Componentes Intercalados

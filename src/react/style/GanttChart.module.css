@@ -1,7 +1,6 @@
 /* GanttChart.module.css */
 
 /* ─── Contenedor raíz ─────────────────────────── */
-/* ─── Contenedor raíz ─────────────────────────── */
 .chart {
   display: flex;
   flex-direction: column;
@@ -13,8 +12,6 @@
   min-width: 0; /* Obliga al contenedor a respetar los límites del content-panel */
 }
 
-
-
 .message {
   font-size: 0.875rem;
   color: var(--scheduler-text-secondary, #475569);
@@ -22,7 +19,6 @@
   font-family: monospace;
   font-weight: 600;
 }
-
 
 /* ─── Matriz (cabecera + filas de proceso) ────── */
 .matrix {
@@ -54,7 +50,6 @@
   padding: 0;
 }
 
-
 .row:last-child {
   border-bottom: none;
 }
@@ -64,8 +59,10 @@
 }
 
 /* ─── Etiqueta lateral del proceso (columna) ──── */
+
 .label,
 .labelSpacer {
+  /* Fijo: no crece (0), no se encoge (0), tamaño base (4rem) */
   flex: 0 0 4rem;
   width: 4rem;
   box-sizing: border-box;
@@ -73,9 +70,6 @@
   align-items: center;
   justify-content: center;
   border-right: 1px solid var(--scheduler-border, #cbd5e1);
-  
-  /* Bloqueo contra estilos globales de Astro */
-  margin: 0 !important;
 }
 
 .label {
@@ -85,7 +79,6 @@
   color: var(--scheduler-text-primary, #0f172a);
   background-color: var(--scheduler-surface-elevated, #f1f5f9);
 }
-
 
 /* ─── Celdas de la grilla y números de tick ─── */
 .cell,
@@ -117,17 +110,6 @@
   font-family: monospace;
 }
 
-.cell:last-child,
-.tickNumber:last-child {
-  border-right: none;
-}
-
-.tickNumber {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--scheduler-text-primary, #0f172a);
-  font-family: monospace;
-}
 
 .cell {
   transition: filter 0.2s ease;

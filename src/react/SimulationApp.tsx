@@ -7,6 +7,7 @@ import { GanttChart } from './GanttChart.js';
 import { PlaybackControls } from './PlaybackControls.js';
 import { MetricsTable } from './MetricsTable.js';
 import { ProcessForm } from './ProcessForm.js';
+import { WhatIfControls } from './WhatIfControls.js';
 import './style/tokens.css';
 import styles from './style/SimulationApp.module.css';
 
@@ -66,6 +67,9 @@ export function SimulationApp({
         </div>
         <div className={styles.controlsSlot}>
           <PlaybackControls />
+        </div>
+        <div className={styles.whatifSlot}>
+          <WhatIfControls />
         </div>
         <div className={styles.metricsSlot}>
           <MetricsTable />

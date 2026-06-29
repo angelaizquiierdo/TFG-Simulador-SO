@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { register, get, _clear } from '../../src/core/registry.js';
+import { register, get, list, _clear } from '../../src/core/registry.js';
 import type { IAlgorithm, ReadyProcess } from '../../src/core/types/algorithm.js';
 
 const makeFactory = (name: string) => (): IAlgorithm => ({
@@ -41,5 +41,15 @@ describe('registry', () => {
 
   it('cuando está vacío el mensaje dice "(ninguno)"', () => {
     expect(() => get('cualquiera')).toThrow('(ninguno)');
+  });
+
+  it('list() devuelve los nombres registrados en orden de registro', () => {
+    register(makeFactory('FCFS'));
+    register(makeFactory('SJF'));
+    expect(list()).toEqual(['FCFS', 'SJF']);
+  });
+
+  it('list() devuelve un array vacío sin algoritmos registrados', () => {
+    expect(list()).toEqual([]);
   });
 });
