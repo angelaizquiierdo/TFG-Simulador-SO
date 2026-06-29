@@ -1,4 +1,4 @@
-import type { IAlgorithm, ReadyProcess, SchedulerEvent } from '../../../core/types/algorithm.js';
+import type { IAlgorithm, ReadyProcess, SchedulerEvent, PreemptionTrigger } from '../../../core/types/algorithm.js';
 import { FifoQueue } from '../shared/fifo-queue.js';
 
 /**
@@ -18,7 +18,10 @@ import { FifoQueue } from '../shared/fifo-queue.js';
  */
 export class VirtualRoundRobin implements IAlgorithm {
   readonly name = 'virtual-round-robin';
-  readonly preemptionMode = 'io-return' as const;
+  readonly triggers: ReadonlySet<PreemptionTrigger> = new Set<PreemptionTrigger>([
+    'on-quantum',
+    'on-io-return',
+  ]);
   readonly requires = { io: true, quantum: true } as const;
 
   private mainQueue = new FifoQueue<string>();

@@ -8,7 +8,7 @@ import { SimulationApp } from 'cpu-scheduler';
 El algoritmo de **Prioridad No Expropiativo** selecciona el proceso con la **prioridad más alta** (número más bajo) en la cola de listos. Una vez en CPU, el proceso no puede ser interrumpido.
 
 **Características:**
-- No expropiativo (`preemptionMode: 'none'`).
+- No expropiativo (`triggers: {}`).
 - Requiere el campo `priority` en cada proceso (`requires.priority = true`).
 - Puede causar inanición de procesos con prioridad baja.
 

@@ -1,14 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { run, runFrom } from '../../src/core/simulate.js';
 import { register, _clear } from '../../src/core/registry.js';
-import type { IAlgorithm, ReadyProcess, SchedulerEvent } from '../../src/core/types/algorithm.js';
+import type {
+  IAlgorithm,
+  ReadyProcess,
+  SchedulerEvent,
+  PreemptionTrigger,
+} from '../../src/core/types/algorithm.js';
 import type { Process } from '../../src/core/types/process.js';
 import type { SchedulerState } from '../../src/core/types/scheduler-state.js';
 
 // Algoritmo FCFS mínimo para los tests del motor
 class FCFS implements IAlgorithm {
   readonly name = 'fcfs-test';
-  readonly preemptionMode = 'none' as const;
+  readonly triggers = new Set<PreemptionTrigger>();
   readonly requires = {};
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     const first = ready[0];
@@ -20,7 +25,7 @@ class FCFS implements IAlgorithm {
 // Algoritmo SRTF mínimo para tests de on-better
 class SRTF implements IAlgorithm {
   readonly name = 'srtf-test';
-  readonly preemptionMode = 'on-better' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-tick']);
   readonly requires = {};
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     const first = ready[0];
@@ -36,7 +41,7 @@ class SRTF implements IAlgorithm {
 // Algoritmo Round Robin con cola FIFO interna para tests de on-quantum
 class RR implements IAlgorithm {
   readonly name = 'rr-test';
-  readonly preemptionMode = 'on-quantum' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-quantum']);
   readonly requires = { quantum: true as const };
   private readonly queue: string[] = [];
 
@@ -69,7 +74,7 @@ class RR implements IAlgorithm {
 // Algoritmo IO-FCFS: FCFS con soporte de E/S
 class IOFCFS implements IAlgorithm {
   readonly name = 'iofcfs-test';
-  readonly preemptionMode = 'none' as const;
+  readonly triggers = new Set<PreemptionTrigger>();
   readonly requires = { io: true as const };
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     const first = ready[0];
@@ -81,7 +86,7 @@ class IOFCFS implements IAlgorithm {
 // Algoritmo io-return: FCFS con modo io-return para T-16
 class IOReturn implements IAlgorithm {
   readonly name = 'ioreturn-test';
-  readonly preemptionMode = 'io-return' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-quantum', 'on-io-return']);
   readonly requires = { io: true as const };
   private readonly order: string[] = [];
 
@@ -111,7 +116,7 @@ class IOReturn implements IAlgorithm {
 // Se elimina al degradar (quantum-expiry), ser expropiado (preempted) o completar.
 class MockMLFQ implements IAlgorithm {
   readonly name = 'mlfq-test';
-  readonly preemptionMode = 'on-quantum-and-better' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-quantum', 'on-arrival', 'on-io-return', 'on-boost']);
   readonly requires = {};
   private readonly quanta: number[];
   private readonly levels: string[][];
@@ -192,7 +197,7 @@ class MockMLFQ implements IAlgorithm {
 // Algoritmo con onEvent que retorna { text } para tests de mensajes ricos (T-18)
 class RichMsgRR implements IAlgorithm {
   readonly name = 'richmsg-test';
-  readonly preemptionMode = 'on-quantum' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-quantum']);
   readonly requires = { quantum: true as const };
   private readonly queue: string[] = [];
 
@@ -723,7 +728,7 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
   it('DADO onEvent que retorna string plano CUANDO se compone el mensaje ENTONCES usa el literal', () => {
     class StringMsgAlgo implements IAlgorithm {
       readonly name = 'string-msg';
-      readonly preemptionMode = 'none';
+      readonly triggers = new Set<PreemptionTrigger>();
       readonly requires = {};
       select(ready: readonly ReadyProcess[]): ReadyProcess {
         const first = ready[0];
@@ -747,7 +752,7 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
   it('DADO algoritmo expropiativo con mensajes ricos CUANDO expropia ENTONCES concatena salida y entrada', () => {
     class PreemptMsgAlgo implements IAlgorithm {
       readonly name = 'preempt-msg';
-      readonly preemptionMode = 'on-better';
+      readonly triggers = new Set<PreemptionTrigger>(['on-tick']);
       readonly requires = {};
       select(ready: readonly ReadyProcess[]): ReadyProcess {
          const head = ready[0];
@@ -847,7 +852,7 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
   it('DADO on-quantum-and-better CUANDO llega proceso pero el actual es mejor ENTONCES no expropia', () => {
     class NoPreemptOQAB implements IAlgorithm {
       readonly name = 'no-preempt-oqab';
-      readonly preemptionMode = 'on-quantum-and-better';
+      readonly triggers = new Set<PreemptionTrigger>(['on-quantum', 'on-arrival', 'on-io-return', 'on-boost']);
       readonly requires = {};
       select(ready: readonly ReadyProcess[]): ReadyProcess {
         // Siempre prefiere mantener a P1 si está disponible
@@ -873,7 +878,7 @@ describe('§ Determinismo con niveles (MLFQ)', () => {
   it('DADO io-return CUANDO un proceso vuelve de IO pero el actual es mejor ENTONCES no expropia', () => {
     class KeepCurrentIoReturn implements IAlgorithm {
       readonly name = 'keep-io-return';
-      readonly preemptionMode = 'io-return';
+      readonly triggers = new Set<PreemptionTrigger>(['on-quantum', 'on-io-return']);
       readonly requires = { io: true as const };
       select(ready: readonly ReadyProcess[]): ReadyProcess {
         // Siempre prefiere mantener a P2 si está disponible
@@ -948,6 +953,27 @@ describe('§ Rederivación — what-if e inyección en vivo', () => {
     expect(result.history[0]?.onCPU).toBe('P2');
     expect(result.history[1]?.tick).toBe(4);
     expect(result.history[1]?.onCPU).toBe('P2');
+  });
+
+  it('run y runFrom aceptan quantum, boostInterval y quanta en la config', () => {
+    const processes: Process[] = [
+      { id: 'P1', arrival_time: 0, burst_time: 2 },
+      { id: 'P2', arrival_time: 0, burst_time: 2 },
+    ];
+    // run() con las tres claves de parámetros pobladas (cubre el armado de algoParams)
+    const r = run(processes, { algorithm: 'rr-test', quantum: 2, boostInterval: 5, quanta: [2, 4] });
+    expect(r.history.length).toBeGreaterThan(0);
+    // runFrom() con las tres claves pobladas
+    const state = makeState(0, null, ['P1', 'P2'], [], [
+      { id: 'P1', remaining: 2 },
+      { id: 'P2', remaining: 2 },
+    ]);
+    const rf = runFrom(
+      state,
+      { algorithm: 'fcfs-test', quantum: 2, boostInterval: 5, quanta: [2, 4] },
+      processes,
+    );
+    expect(rf.history.length).toBeGreaterThan(0);
   });
 
   it('criterio 2: mismo estado de partida → mismo resultado (determinismo)', () => {
@@ -1103,7 +1129,7 @@ describe('§ SRTF con onEvent — cobertura de expropiación al final de tick', 
     // El test SRTF existente ya cubre el camino principal; este cubre el camino con onEvent.
     class SRTFWithEvent implements IAlgorithm {
       readonly name = 'srtf-event-test';
-      readonly preemptionMode = 'on-better' as const;
+      readonly triggers = new Set<PreemptionTrigger>(['on-tick']);
       readonly requires = {};
       preempted = false;
       select(ready: readonly ReadyProcess[]): ReadyProcess {
@@ -1136,7 +1162,7 @@ describe('§ Configuración inválida', () => {
   it('algoritmo con requires.priority y proceso sin priority no lanza error (se trata como Infinity)', () => {
     class PriorityAlgo implements IAlgorithm {
       readonly name = 'prio-test';
-      readonly preemptionMode = 'none' as const;
+      readonly triggers = new Set<PreemptionTrigger>();
       readonly requires = { priority: true as const };
       select(ready: readonly ReadyProcess[]): ReadyProcess {
         const first = ready[0];
@@ -1168,7 +1194,7 @@ describe('§ Seguridad y tolerancia a fallos', () => {
     // Algoritmo que siempre devuelve un proceso con ID inexistente la primera vez
     class BadAlgo implements IAlgorithm {
       readonly name = 'bad-once';
-      readonly preemptionMode = 'none' as const;
+      readonly triggers = new Set<PreemptionTrigger>();
       readonly requires = {};
       private calls = 0;
       select(ready: readonly ReadyProcess[]): ReadyProcess {

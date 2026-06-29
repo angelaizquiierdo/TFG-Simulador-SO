@@ -8,7 +8,7 @@ import { SimulationApp } from 'cpu-scheduler';
 El **Shortest Remaining Time First** (SRTF) es la versión expropiativa de SJF. En cada tick, el motor reevalúa si el proceso en CPU sigue siendo el de menor tiempo restante. Si llega un nuevo proceso con un tiempo restante menor, expropia al proceso actual.
 
 **Características:**
-- Expropiativo (`preemptionMode: 'on-better'`).
+- Expropiativo (`triggers: { on-tick }`).
 - Minimiza el tiempo de espera promedio de forma óptima (demostrable).
 - Produce muchos cambios de contexto en escenarios con llegadas frecuentes.
 

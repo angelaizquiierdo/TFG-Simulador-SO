@@ -2,6 +2,8 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMe
 import { useSimulation } from './SimulationContext.js';
 import type { Process } from '../core/types/process.js';
 import type { IOOperation } from '../core/types/io.js';
+import { TrashIcon } from './icons/TrashIcon.js';
+import { PlusIcon } from './icons/PlusIcon.js';
 import styles from './style/ProcessForm.module.css';
 
 interface DraftIOOp {
@@ -42,9 +44,20 @@ function validateDraft(
 ): ValidationResult {
   const errors: Record<string, string> = {};
   const result: Process[] = [];
+  const seenIds = new Set<string>(); // Control de nombres duplicados
 
   for (const dp of draft) {
     const prefix = dp.id;
+
+    // Validación del Nombre/ID
+    const trimmedId = dp.id.trim();
+    if (!trimmedId) {
+      errors[`${prefix}.id`] = 'Requerido';
+    } else if (seenIds.has(trimmedId)) {
+      errors[`${prefix}.id`] = 'Duplicado';
+    }
+    seenIds.add(trimmedId);
+
     const arrival = Number(dp.arrival_time);
     const burst = Number(dp.burst_time);
 
@@ -92,7 +105,7 @@ function validateDraft(
     }
 
     const p: Process = {
-      id: dp.id,
+      id: trimmedId || prefix,
       arrival_time: arrival,
       burst_time: burst,
       ...(requiresPriority && priority !== undefined ? { priority } : {}),
@@ -107,10 +120,9 @@ function validateDraft(
   return { errors: {}, processes: result };
 }
 
-// Contador para IDs de nuevos procesos
 let nextId = 100;
 function generateId(): string {
-  return `NP${String(++nextId)}`;
+  return `P${String(++nextId)}`;
 }
 
 export function ProcessForm(): React.ReactElement {
@@ -122,14 +134,11 @@ export function ProcessForm(): React.ReactElement {
   const requiresIO = requires.io === true;
   const currentTick = currentEvent?.tick ?? 0;
 
-  // Mantener ref de processes para sincronizar al abrir sin efecto de deps
   const processesRef = useRef(processes);
   useLayoutEffect(() => {
     processesRef.current = processes;
   });
 
-  // Al abrir el panel, resetear draft desde el contexto
-  // Solo se llama setDraft aquí (state local), lo cual es aceptable en useEffect
   const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current) {
@@ -138,7 +147,6 @@ export function ProcessForm(): React.ReactElement {
     prevOpenRef.current = open;
   }, [open]);
 
-  // Refs estables para los valores que usan los handlers
   const requiresIORef = useRef(requiresIO);
   const requiresPriorityRef = useRef(requiresPriority);
   const updateProcessesRef = useRef(updateProcesses);
@@ -148,13 +156,11 @@ export function ProcessForm(): React.ReactElement {
     updateProcessesRef.current = updateProcesses;
   });
 
-  // Errores derivados del draft (sin setState — computed en render)
   const { errors } = useMemo(
     () => (open ? validateDraft(draft, requiresIO, requiresPriority) : { errors: {}, processes: null }),
     [draft, open, requiresIO, requiresPriority],
   );
 
-  // Llamar a updateProcesses con los nuevos procesos si la validación pasa
   function applyNext(next: DraftProcess[]): void {
     const { processes: parsed } = validateDraft(
       next,
@@ -255,11 +261,29 @@ export function ProcessForm(): React.ReactElement {
             const prefix = dp.id;
             return (
               <div
-                key={dp.id}
+                key={pIdx} /* IMPORTANTE: Usamos el índice pIdx como key para no perder el foco al editar el texto del ID */
                 className={styles.processRow}
-                data-testid={`process-row-${dp.id}`}
+                data-testid={`process-row-${String(pIdx)}`}
               >
-                <span className={styles.processId}>{dp.id}</span>
+                {/* ─── CAMPO DE TEXTO DEL NOMBRE ─── */}
+                <label className={styles.field}>
+                  <span>Proceso</span>
+                  <input
+                    type="text"
+                    value={dp.id}
+                    data-testid={`input-id-${String(pIdx)}`}
+                    onChange={(e) => {
+                      updateField(pIdx, 'id', e.target.value);
+                    }}
+                    style={{ width: '5rem', fontWeight: 'bold' }} /* Ancho ligeramente ajustado */
+                  />
+                  {errors[`${prefix}.id`] !== undefined && (
+                    <span className={styles.error} role="alert">
+                      {errors[`${prefix}.id`]}
+                    </span>
+                  )}
+                </label>
+
                 <label className={styles.field}>
                   <span>Llegada</span>
                   <input
@@ -277,6 +301,7 @@ export function ProcessForm(): React.ReactElement {
                     </span>
                   )}
                 </label>
+                
                 <label className={styles.field}>
                   <span>Ráfaga</span>
                   <input
@@ -294,6 +319,7 @@ export function ProcessForm(): React.ReactElement {
                     </span>
                   )}
                 </label>
+                
                 {requiresPriority && (
                   <label className={styles.field}>
                     <span>Prioridad</span>
@@ -312,6 +338,7 @@ export function ProcessForm(): React.ReactElement {
                     )}
                   </label>
                 )}
+                
                 {requiresIO && (
                   <div className={styles.ioSection}>
                     {dp.io_ops.map((op, opIdx) => (
@@ -330,11 +357,6 @@ export function ProcessForm(): React.ReactElement {
                               updateIOField(pIdx, opIdx, 'io_entry', e.target.value);
                             }}
                           />
-                          {errors[`${prefix}.io_ops.${String(opIdx)}.io_entry`] !== undefined && (
-                            <span className={styles.error} role="alert">
-                              {errors[`${prefix}.io_ops.${String(opIdx)}.io_entry`]}
-                            </span>
-                          )}
                         </label>
                         <label className={styles.field}>
                           <span>E/S tiempo</span>
@@ -346,11 +368,6 @@ export function ProcessForm(): React.ReactElement {
                               updateIOField(pIdx, opIdx, 'io_time', e.target.value);
                             }}
                           />
-                          {errors[`${prefix}.io_ops.${String(opIdx)}.io_time`] !== undefined && (
-                            <span className={styles.error} role="alert">
-                              {errors[`${prefix}.io_ops.${String(opIdx)}.io_time`]}
-                            </span>
-                          )}
                         </label>
                         <button
                           type="button"
@@ -360,7 +377,7 @@ export function ProcessForm(): React.ReactElement {
                             removeIOOp(pIdx, opIdx);
                           }}
                         >
-                          −
+                          <TrashIcon />
                         </button>
                       </div>
                     ))}
@@ -372,10 +389,11 @@ export function ProcessForm(): React.ReactElement {
                         addIOOp(pIdx);
                       }}
                     >
-                      + E/S
+                      <PlusIcon /> E/S
                     </button>
                   </div>
                 )}
+                
                 <button
                   type="button"
                   className={styles.removeButton}
@@ -385,7 +403,7 @@ export function ProcessForm(): React.ReactElement {
                     removeProcess(pIdx);
                   }}
                 >
-                  Eliminar
+                  <TrashIcon /> Eliminar
                 </button>
               </div>
             );
@@ -396,7 +414,7 @@ export function ProcessForm(): React.ReactElement {
             data-testid="add-process-button"
             onClick={addProcess}
           >
-            + Proceso
+            <PlusIcon /> Proceso
           </button>
         </div>
       )}

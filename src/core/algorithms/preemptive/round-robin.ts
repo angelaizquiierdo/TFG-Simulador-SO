@@ -1,8 +1,8 @@
-import type { IAlgorithm, ReadyProcess, SchedulerEvent } from '../../../core/types/algorithm.js';
+import type { IAlgorithm, ReadyProcess, SchedulerEvent, PreemptionTrigger } from '../../../core/types/algorithm.js';
 
 export class RoundRobin implements IAlgorithm {
   readonly name = 'round-robin';
-  readonly preemptionMode = 'on-quantum' as const;
+  readonly triggers: ReadonlySet<PreemptionTrigger> = new Set<PreemptionTrigger>(['on-quantum']);
   readonly requires = { quantum: true } as const;
 
   private readonly queue: string[] = [];

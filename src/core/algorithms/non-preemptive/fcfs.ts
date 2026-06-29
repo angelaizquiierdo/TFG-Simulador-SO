@@ -1,8 +1,8 @@
-import type { IAlgorithm, ReadyProcess } from '../../../core/types/algorithm.js';
+import type { IAlgorithm, ReadyProcess, PreemptionTrigger } from '../../../core/types/algorithm.js';
 
 export class FCFS implements IAlgorithm {
   readonly name = 'fcfs';
-  readonly preemptionMode = 'none' as const;
+  readonly triggers: ReadonlySet<PreemptionTrigger> = new Set<PreemptionTrigger>();
   readonly requires = {} as const;
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {

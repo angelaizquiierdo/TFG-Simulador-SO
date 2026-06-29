@@ -24,7 +24,6 @@ function cellClass(
   currentTick: number,
   event: HistoryEvent | undefined,
 ): string {
-  // Ticks futuros no revelados
   if (tickIdx > currentTick || event === undefined) return styles.empty ?? '';
 
   if (event.onCPU === pid) return styles.cpu ?? '';
@@ -32,12 +31,10 @@ function cellClass(
   if (event.inIO === pid) return styles.ioServing ?? '';
   if (event.waitingIO.includes(pid)) return styles.ioWaiting ?? '';
 
-  // Proceso pendiente de llegar o ya completado → celda vacía
   if (event.pending.includes(pid) || event.completed.includes(pid)) {
     return styles.empty ?? '';
   }
 
-  // CPU inactiva: ningún proceso en CPU → celda gris
   if (event.onCPU === null) return styles.idle ?? '';
 
   return styles.empty ?? '';
@@ -52,7 +49,6 @@ export function GanttChart(): React.ReactElement {
   const message = currentEvent?.message ?? '';
   const showIO = requires.io === true;
 
-  // Ticks: 0 … totalTicks - 1
   const ticks = Array.from({ length: totalTicks }, (_, i) => i);
 
   return (
@@ -62,11 +58,9 @@ export function GanttChart(): React.ReactElement {
         {message}
       </div>
 
-      {/* 2. Matriz */}
+      {/* 2. Matriz con cuadrícula explícita garantizada por min-width: max-content */}
       <div className={styles.matrix} data-testid="gantt-matrix">
-        {/* Fila de cabecera con números de tick */}
         <div className={styles.rowHeader} data-testid="gantt-header">
-          {/* Espaciador que ocupa el lugar de la etiqueta lateral */}
           <div className={styles.labelSpacer} aria-hidden="true" />
           {ticks.map((t) => (
             <div key={t} className={styles.tickNumber}>
@@ -75,10 +69,8 @@ export function GanttChart(): React.ReactElement {
           ))}
         </div>
 
-        {/* Filas de procesos */}
         {processes.map((p, idx) => {
-          const colorVar =
-            PROCESS_COLORS[idx % PROCESS_COLORS.length] ?? 'var(--scheduler-process-0)';
+          const colorVar = PROCESS_COLORS[idx % PROCESS_COLORS.length] ?? 'var(--scheduler-process-0)';
           return (
             <div
               key={p.id}
@@ -86,29 +78,40 @@ export function GanttChart(): React.ReactElement {
               style={{ '--process-color': colorVar } as React.CSSProperties}
               data-testid={`gantt-row-${p.id}`}
             >
-              {/* Etiqueta lateral: el único texto dentro de la fila */}
               <div className={styles.label}>{p.id}</div>
-              {/* Celdas: color de estado + (opcional) número de cola en multinivel */}
+              
               {ticks.map((t) => {
                 const event = history[t];
                 const stateClass = cellClass(p.id, t, currentTick, event);
-                // Número de cola: solo en celdas activas (CPU o espera) y reveladas
+                
+                const isCpu = stateClass === styles.cpu;
+                const isIoServing = stateClass === styles.ioServing;
+
                 const level = event?.levels?.[p.id];
                 const showLevel =
                   level !== undefined &&
                   t <= currentTick &&
                   (stateClass === styles.cpu || stateClass === styles.waiting);
+
                 return (
                   <div
                     key={t}
                     className={`${styles.cell ?? ''} ${stateClass}`}
                     data-testid={`gantt-cell-${p.id}-${String(t)}`}
                     data-state={stateClass.split(' ').pop() ?? ''}
-                    aria-label={`${p.id} tick ${String(t)}`}
+                    title={`${p.id} - Tick ${String(t)}`}
                   >
+                    {/* Renderizado de texto interno (Absolute) */}
+                    {isCpu && (
+                      <span className={styles.cpuText}>CPU</span>
+                    )}
+                    {isIoServing && (
+                      <span className={styles.cpuText}>E/S</span>
+                    )}
+
                     {showLevel && (
                       <span className={styles.levelBadge} aria-hidden="true">
-                        {level}
+                        L{level}
                       </span>
                     )}
                   </div>
@@ -119,33 +122,29 @@ export function GanttChart(): React.ReactElement {
         })}
       </div>
 
-      {/* 3. Leyenda */}
+      {/* 3. Leyenda con bordes */}
       <div className={styles.legend} data-testid="gantt-legend">
         <div className={styles.legendItem}>
-          <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIdle ?? ''}`} />
-          <span>Inactivo</span>
+          <div className={`${styles.legendSwatch ?? ''} ${styles.swatchCpu ?? ''}`} />
+          <span>Ejecución (CPU)</span>
         </div>
         <div className={styles.legendItem}>
           <div className={`${styles.legendSwatch ?? ''} ${styles.swatchWaiting ?? ''}`} />
-          <span>En espera</span>
+          <span>En Espera (Listo)</span>
         </div>
         <div className={styles.legendItem}>
-          <div className={`${styles.legendSwatch ?? ''} ${styles.swatchCpu ?? ''}`} />
-          <span>En CPU</span>
+          <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIdle ?? ''}`} />
+          <span>Inactivo (Vacío)</span>
         </div>
         {showIO && (
           <>
             <div className={styles.legendItem}>
-              <div
-                className={`${styles.legendSwatch ?? ''} ${styles.swatchIoServing ?? ''}`}
-              />
-              <span>En E/S</span>
+              <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIoServing ?? ''}`} />
+              <span>Bloqueado (E/S)</span>
             </div>
             <div className={styles.legendItem}>
-              <div
-                className={`${styles.legendSwatch ?? ''} ${styles.swatchIoWaiting ?? ''}`}
-              />
-              <span>Esperando E/S</span>
+              <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIoWaiting ?? ''}`} />
+              <span>Cola de E/S</span>
             </div>
           </>
         )}

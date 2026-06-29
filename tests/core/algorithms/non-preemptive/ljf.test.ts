@@ -10,7 +10,7 @@ describe('LJF', () => {
 
   it('tiene los metadatos correctos', () => {
     expect(ljf.name).toBe('ljf');
-    expect(ljf.preemptionMode).toBe('none');
+    expect(ljf.triggers.size).toBe(0);
   });
 
   it('select lanza error con cola vacía', () => {

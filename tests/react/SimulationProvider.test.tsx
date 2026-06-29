@@ -62,6 +62,24 @@ describe('§ Render — SimulationProvider y Gestión de Estado', () => {
     expect(screen.getByTestId('has-player').textContent).toBe('yes');
   });
 
+  it('descarta un escenario inválido en sessionStorage y usa los props (auto-recuperación)', () => {
+    // Escenario guardado inválido: io_entry >= burst_time → run() lanza al simular
+    const invalid = {
+      processes: [{ id: 'X', arrival_time: 0, burst_time: 2, io: [{ io_entry: 5, io_time: 1 }] }],
+      params: { quantum: 2 },
+    };
+    sessionStorage.setItem('scheduler-scenario:fcfs', JSON.stringify(invalid));
+
+    render(
+      <SimulationProvider algorithm="fcfs" processes={[P1, P2]}>
+        <ConsumerBasic />
+      </SimulationProvider>,
+    );
+    // No queda bloqueado por el sessionStorage corrupto: simula con los props válidos
+    expect(screen.getByTestId('has-result').textContent).toBe('yes');
+    expect(screen.getByTestId('error').textContent).toBe('none');
+  });
+
   it('§ Conjunto vacío: lista de procesos vacía no lanza excepción', () => {
     expect(() =>
       render(
@@ -97,13 +115,23 @@ describe('§ Render — SimulationProvider y Gestión de Estado', () => {
   });
 
   it('useSimulation() lanza error descriptivo si se usa fuera del Provider', () => {
-    // Suprimir el error de consola de React durante el test
+    // El render lanza a propósito. Silenciar el ruido esperado:
+    // 1) console.error de React; 2) el "Uncaught" que jsdom emite vía el evento
+    //    `error` de la ventana (solo lo registra si no se hace preventDefault).
     const consoleError = console.error;
     console.error = () => undefined;
-    expect(() => render(<ConsumerOutsideProvider />)).toThrow(
-      /useSimulation\(\) debe usarse dentro de un <SimulationProvider>/,
-    );
-    console.error = consoleError;
+    const swallowError = (e: ErrorEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('error', swallowError);
+    try {
+      expect(() => render(<ConsumerOutsideProvider />)).toThrow(
+        /useSimulation\(\) debe usarse dentro de un <SimulationProvider>/,
+      );
+    } finally {
+      window.removeEventListener('error', swallowError);
+      console.error = consoleError;
+    }
   });
 
   it('expone currentEvent del tick actual', () => {

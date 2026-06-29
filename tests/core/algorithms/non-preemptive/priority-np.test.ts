@@ -10,7 +10,7 @@ describe('PriorityNP', () => {
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('priority-np');
-    expect(algo.preemptionMode).toBe('none');
+    expect(algo.triggers.size).toBe(0);
   });
 
   it('select lanza error con cola vacía', () => {
@@ -32,6 +32,15 @@ describe('PriorityNP', () => {
     ];
     // P2 tiene priority 5 < Infinity → P2 gana
     expect(algo.select(ready).id).toBe('P2');
+  });
+
+  it('proceso POSTERIOR sin priority no desbanca al mejor (Infinity)', () => {
+    const ready = [
+      { id: 'P1', arrival_time: 0, burst_time: 2, remaining: 2, priority: 2 },
+      { id: 'P2', arrival_time: 0, burst_time: 2, remaining: 2 },
+    ];
+    // P2 sin priority → Infinity; Infinity < 2 es falso → gana P1
+    expect(algo.select(ready).id).toBe('P1');
   });
 
   // § Simular — Prioridad (no expropiativa): fixture 1 P1[0–3], P2[3–5], P3[5–7]

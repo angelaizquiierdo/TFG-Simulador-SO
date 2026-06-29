@@ -194,4 +194,30 @@ describe('§ MLFQ — niveles y degradación (unit)', () => {
     const algo = new MLFQ([2, 5]);
     expect(() => algo.select([])).toThrow();
   });
+
+  it('select sin colas pobladas cae al primero de la lista (fallback del motor)', () => {
+    const algo = new MLFQ([2, 4]);
+    // Sin eventos de arrival las colas de nivel están vacías → fallback a ready[0]
+    expect(algo.select([rp('X', 0, 5), rp('Y', 1, 3)]).id).toBe('X');
+  });
+
+  it('onEvent ignora eventos no manejados (io-start) devolviendo null', () => {
+    const algo = new MLFQ([2, 4]);
+    expect(algo.onEvent({ type: 'io-start', id: 'P1', tick: 0 })).toBeNull();
+  });
+
+  it('priority-boost: el proceso en CPU en nivel 2 conserva su nivel (run-to-completion)', () => {
+    const algo = new MLFQ([2, 2]);
+    algo.onEvent({ type: 'arrival', id: 'P1', tick: 0 });
+    algo.onEvent({ type: 'dispatch', id: 'P1', tick: 0 });
+    algo.onEvent({ type: 'quantum-expiry', id: 'P1', tick: 2 }); // → nivel 1
+    algo.onEvent({ type: 'dispatch', id: 'P1', tick: 2 });
+    algo.onEvent({ type: 'quantum-expiry', id: 'P1', tick: 4 }); // → nivel 2
+    algo.onEvent({ type: 'dispatch', id: 'P1', tick: 4 }); // P1 en CPU, nivel 2
+    algo.onEvent({ type: 'arrival', id: 'P2', tick: 5 }); // P2 al nivel 0
+    algo.onEvent({ type: 'priority-boost', tick: 6 });
+    // P1 (nivel 2, run-to-completion) NO sube; P2 sí está en nivel 0
+    expect(algo.quantumFor(rp('P1', 0, 8))).toBe(0); // nivel 2 → 0
+    expect(algo.quantumFor(rp('P2', 5, 4))).toBe(2); // nivel 0 → quanta[0]
+  });
 });

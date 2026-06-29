@@ -687,9 +687,13 @@ DADO cualquier algoritmo de planificación registrado
 CUANDO se le pide seleccionar un proceso pasándole una cola de listos vacía
 ENTONCES lanza un error de seguridad indicando que la cola está vacía
 
+DADO un algoritmo con cola interna (Round Robin o MLFQ)
+CUANDO se le pide seleccionar y su cola interna aún no contiene ningún proceso de la lista de listos (p. ej. antes de recibir eventos `arrival`)
+ENTONCES recurre al primer proceso de la lista, que el motor ya entrega ordenada por el desempate global (`arrival_time`, luego `id`)
+
 ## § Verificación de contrato de algoritmo (Extensibilidad)
 
-DADO que se implementa una clase de prueba que cumple el contrato `IAlgorithm` únicamente con el método `select()` y la propiedad `preemptionMode`
+DADO que se implementa una clase de prueba que cumple el contrato `IAlgorithm` únicamente con el método `select()` y la propiedad `triggers`
 CUANDO se registra bajo un identificador (`name`) y se ejecuta la simulación
 ENTONCES el motor la procesa correctamente sin requerir modificación alguna en el código interno del motor o del componente
 
@@ -841,31 +845,47 @@ ENTONCES solo cambia el color de esas celdas; el tamaño de la tabla no cambia
 
 DADO que un proceso está en CPU en el tick `T`
 CUANDO se muestra la celda correspondiente
-ENTONCES aparece con el color sólido asignado a ese proceso; sin texto dentro
+ENTONCES aparece con el color sólido asignado a ese proceso y la etiqueta «CPU» dentro (texto blanco, con animación de pulso)
 
 DADO que un proceso está en la cola de listos en el tick `T`
 CUANDO se muestra la celda correspondiente
 ENTONCES aparece con el color del proceso pero en tono claro (opacidad reducida)
 
+DADO que el algoritmo es MLFQ y un proceso ocupa la CPU o está en espera en el tick `T`
+CUANDO se muestra la celda correspondiente
+ENTONCES muestra además un pequeño badge con su nivel de cola en formato «L{n}» (p. ej. «L0»)
+
 DADO que el algoritmo es Round Robin Virtual y un proceso está en servicio en el dispositivo (`inIO`) en el tick `T`
 CUANDO se muestra la celda correspondiente
-ENTONCES aparece con el color del proceso y una trama diagonal (rayado), distinguible del estado "en espera"
+ENTONCES aparece con un color de aviso (rojo) y una trama diagonal (rayado), con la etiqueta «E/S» dentro, distinguible del estado "en espera"
 
 DADO que el algoritmo es Round Robin Virtual y un proceso está esperando el dispositivo (`waitingIO`) en el tick `T`
 CUANDO se muestra la celda correspondiente
-ENTONCES aparece con el color del proceso y una trama distinta a la del servicio (p. ej. punteado), de modo que se distingan visualmente "esperando dispositivo" y "en servicio"
+ENTONCES aparece con el color de aviso (rojo) y una trama punteada distinta a la del servicio, de modo que se distingan visualmente "esperando dispositivo" y "en servicio"
 
 DADO que la CPU está inactiva en el tick `T`
 CUANDO se muestra la celda de la fila correspondiente
-ENTONCES aparece con fondo gris distinguible
+ENTONCES aparece con fondo de superficie elevada distinguible
 
 DADO que un proceso aún no ha llegado o ya ha completado en el tick `T`
 CUANDO se muestra la celda correspondiente
 ENTONCES aparece vacía (sin color)
 
+DADO que aún no hay un resultado calculado (`result` es `null`) ni tick actual
+CUANDO se renderiza el `GanttChart`
+ENTONCES renderiza el contenedor con el área de mensaje vacía y sin celdas, sin lanzar error
+
+DADO que se renderiza la leyenda del `GanttChart`
+CUANDO el algoritmo activo es cualquiera
+ENTONCES aparecen siempre las entradas «Ejecución (CPU)», «En Espera (Listo)» e «Inactivo (Vacío)»
+
 DADO que el algoritmo activo no es Round Robin Virtual
 CUANDO se renderiza la leyenda del `GanttChart`
-ENTONCES no aparecen las columnas "En E/S" ni "Esperando E/S"
+ENTONCES no aparecen las entradas «Bloqueado (E/S)» ni «Cola de E/S»
+
+DADO que el algoritmo activo es Round Robin Virtual (`requires.io`)
+CUANDO se renderiza la leyenda del `GanttChart`
+ENTONCES aparecen además las entradas «Bloqueado (E/S)» y «Cola de E/S»
 
 ## § Reproducción automática
 
@@ -1032,7 +1052,39 @@ DADO que ya existe una rama what-if activa y el reproductor se encuentra pausado
 CUANDO se acciona nuevamente el control "Crear rama what-if"
 ENTONCES la rama previa se descarta y sobrescribe de manera automática sin requerir confirmación, estableciéndose la nueva bifurcación a partir de `T2`
 
-## § `AlgorithmParamsForm` — edición de parámetros desde la demo
+## § Render — `AlgorithmParamsForm`
+
+DADO que el algoritmo activo no declara parámetros configurables (`requires` sin `quantum` ni `levels`)
+CUANDO se renderiza el `AlgorithmParamsForm`
+ENTONCES el componente no renderiza nada (devuelve `null`)
+
+DADO que el algoritmo activo declara `requires.quantum` sin `levels` (Round Robin / Round Robin Virtual)
+CUANDO se renderiza el `AlgorithmParamsForm`
+ENTONCES muestra un único campo «Quantum» (`input-quantum`) y no muestra los campos por nivel
+
+DADO que el algoritmo activo declara `requires.levels` (MLFQ)
+CUANDO se renderiza el `AlgorithmParamsForm`
+ENTONCES muestra «Quantum nivel 0» (`input-quantum-0`), «Quantum nivel 1» (`input-quantum-1`) y «Boost interval» (`input-boost-interval`), y no muestra el campo de quantum único
+
+DADO que el algoritmo es MLFQ y `params.quanta` trae valores
+CUANDO se renderiza el formulario
+ENTONCES los campos de nivel se precargan con esos valores; si `params` no trae `quanta`, se usan los valores por defecto `[2, 4]`
+
+DADO que el formulario se acaba de renderizar sin que el usuario edite nada
+CUANDO se observa el botón «Aplicar»
+ENTONCES está deshabilitado, y se habilita en cuanto se edita cualquier campo
+
+DADO que el usuario pulsa «Aplicar» con un valor inválido (`≤ 0`) en `quantum`, `quanta[0]`, `quanta[1]` o `boostInterval`
+CUANDO se valida el draft
+ENTONCES se muestra el mensaje de error correspondiente (`role="alert"`) y no se llama a `updateParams`
+
+DADO que el usuario pulsa «Aplicar» con quanta válidos en MLFQ
+CUANDO se valida el draft
+ENTONCES `updateParams` recibe `quanta` como par `[q0, q1]`, y `boostInterval` solo si se ha indicado un valor válido
+
+DADO que el algoritmo activo cambia (nuevo `algorithmName`)
+CUANDO el `AlgorithmParamsForm` se vuelve a renderizar
+ENTONCES descarta el draft anterior (recarga desde los `params` del nuevo algoritmo), limpia los errores y deshabilita «Aplicar»
 
 DADO que el algoritmo activo tiene `paramSchema` (Round Robin, Round Robin Virtual o `mlfq`)
 CUANDO se carga la página de demo por primera vez

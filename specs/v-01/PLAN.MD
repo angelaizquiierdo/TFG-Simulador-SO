@@ -532,7 +532,6 @@ Fase 0 (T-00, T-01)
 | Criterio `BEHAVIOURS-v01.md`              | Tarea(s)        |
 |-------------------------------------------|-----------------|
 | Registro de algoritmos (Motor interno)    | T-06            |
-| Contrato de algoritmo (extensibilidad)    | T-24, T-17, T-18, T19,T-20, T-21, T-22, T-23            |
 | Simulador independiente de la vista       | T-15            |
 | Estructura del resultado de simulación    | T-15            |
 | Página de algoritmo y campos declarados   | T-26            |
@@ -552,6 +551,7 @@ Fase 0 (T-00, T-01)
 | Coherencia de métricas y estado           | T-13, T-29      |
 | Escenario de ejemplo por defecto          | T-25, T-31      |
 | Conjunto vacío                            | T-14, T-25      |
+| Contrato de algoritmo (extensibilidad)    | T-24, T-17, T-18, T19,T-20, T-21, T-22, T-23            |
 | Renderizado — SimulationProvider          | T-25            |
 | Renderizado — ProcessTable                | T-26            |
 | Renderizado — GanttChart (matriz sincronizada)| T-27            |

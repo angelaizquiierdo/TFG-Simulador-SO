@@ -40,13 +40,14 @@ export function PlaybackControls(): React.ReactElement {
   const lastTickRef = useRef(lastTick);
   const setPlayingRef = useRef(setIsPlaying);
 
-  // Sync de refs tras cada render — en layoutEffect, nunca en render
+  // Sync de refs cuando cambian los valores capturados — en layoutEffect, nunca en
+  // render. `setIsPlaying` es estable (setter de useState), por eso no va en las deps.
   useLayoutEffect(() => {
     stepFwdRef.current = stepForward;
     currentTickRef.current = currentTick;
     lastTickRef.current = lastTick;
     setPlayingRef.current = setIsPlaying;
-  });
+  }, [stepForward, currentTick, lastTick]);
 
   // Ref que almacena la función RAF (evita la referencia circular)
   const loopRef = useRef<FrameRequestCallback | null>(null);

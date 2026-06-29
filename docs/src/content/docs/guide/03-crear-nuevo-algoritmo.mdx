@@ -10,7 +10,7 @@ Cada algoritmo es una clase TypeScript que implementa `IAlgorithm`. Este contrat
 ```ts
 interface IAlgorithm {
   readonly name: string;
-  readonly preemptionMode: PreemptionMode;
+  readonly triggers: ReadonlySet<PreemptionTrigger>;
   readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;
@@ -23,19 +23,34 @@ interface IAlgorithm {
 | Campo | Descripción |
 |-------|-------------|
 | `name` | Identificador único del algoritmo en el registro (ej. `'fcfs'`). Debe ser en minúsculas y kebab-case. |
-| `preemptionMode` | Cuándo llama el motor a `select()` y si debe expropiar. Ver tabla más abajo. |
+| `triggers` | Conjunto de **disparadores** que define cuándo el motor reevalúa `select()` y si expropia. Ver tabla más abajo. Conjunto vacío = no expropiativo. |
 | `requires` | Declara qué parámetros necesita el algoritmo. El motor y la UI lo usan para validar la config y mostrar/ocultar campos. |
 | `select(ready)` | Dada la cola de procesos listos, devuelve el proceso que debe ocupar la CPU. Es la lógica central del algoritmo. |
 
-### Modos de expropiación (`PreemptionMode`)
+### Disparadores de expropiación (`PreemptionTrigger`)
 
-| Valor | Cuándo expropiar |
-|-------|-----------------|
-| `'none'` | Nunca; `select()` solo se llama cuando la CPU queda libre |
-| `'on-better'` | `select()` se reevalúa cada tick; expropia si el elegido cambia |
-| `'on-quantum'` | Expropia al agotar el slice de `quantumFor()` |
-| `'io-return'` | Expropia en retorno de E/S (VRR); `select()` da prioridad a la cola auxiliar |
-| `'on-quantum-and-better'` | Expropia por ambos motivos a la vez (MLFQ) |
+El motor reacciona a **disparadores atómicos** en lugar de a un modo cerrado. Cada algoritmo declara el conjunto que le aplica; añadir un algoritmo con una combinación nueva es **declarar su `Set`, sin tocar el motor**.
+
+```ts
+type PreemptionTrigger =
+  | 'on-tick'       // reevaluar cada tick (SRTF, Prioridad expropiativa)
+  | 'on-arrival'    // reevaluar cuando llega un proceso nuevo
+  | 'on-io-return'  // reevaluar cuando un proceso vuelve de E/S
+  | 'on-quantum'    // ceder la CPU al agotar el quantum
+  | 'on-boost';     // reevaluar en un priority-boost
+```
+
+Conjuntos de los 9 algoritmos oficiales:
+
+| Algoritmo | `triggers` |
+|-----------|------------|
+| FCFS, SJF, LJF, Prioridad NP | `{}` (no expropiativo) |
+| SRTF, Prioridad expropiativa | `{ on-tick }` |
+| Round Robin | `{ on-quantum }` |
+| Round Robin Virtual | `{ on-quantum, on-io-return }` |
+| MLFQ | `{ on-quantum, on-arrival, on-io-return, on-boost }` |
+
+> El disparador `on-quantum` solo inicia una cuenta de expiración si hay fuente de quantum (`quantumFor()` o `config.quantum`); en Round Robin Virtual el quantum es opcional.
 
 ---
 
@@ -47,7 +62,7 @@ Para algoritmos que deciden basándose únicamente en la cola de listos actual, 
 // Ejemplo: Prioridad Expropiativa
 export class PriorityP implements IAlgorithm {
   readonly name = 'priority-p';
-  readonly preemptionMode = 'on-better' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-tick']);
   readonly requires = { priority: true as const };
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {

@@ -8,7 +8,7 @@ import { SimulationApp } from 'cpu-scheduler';
 El algoritmo de **Prioridad Expropiativo** reevalúa en cada tick si el proceso en CPU sigue siendo el de mayor prioridad. Si llega un proceso con prioridad más alta (número menor), expropia al proceso actual.
 
 **Características:**
-- Expropiativo (`preemptionMode: 'on-better'`).
+- Expropiativo (`triggers: { on-tick }`).
 - Requiere el campo `priority` en cada proceso (`requires.priority = true`).
 - Garantiza que el proceso más urgente siempre tendrá la CPU.
 

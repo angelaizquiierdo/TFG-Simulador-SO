@@ -10,12 +10,22 @@ describe('RoundRobin', () => {
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('round-robin');
-    expect(algo.preemptionMode).toBe('on-quantum');
+    expect(algo.triggers.has('on-quantum')).toBe(true);
     expect(algo.requires.quantum).toBe(true);
   });
 
   it('select lanza error con cola vacía', () => {
     expect(() => algo.select([])).toThrow();
+  });
+
+  it('sin eventos previos cae al orden del motor (cola interna FIFO vacía)', () => {
+    const fresh = new RoundRobin();
+    const ready = [
+      { id: 'A', arrival_time: 0, burst_time: 2, remaining: 2 },
+      { id: 'B', arrival_time: 0, burst_time: 2, remaining: 2 },
+    ];
+    // Sin arrivals registrados la cola interna está vacía → devuelve el primero del motor
+    expect(fresh.select(ready).id).toBe('A');
   });
 
   // § Simular — Round Robin: P1[0–2], P2[2–4], P3[4–6], P1[6–8], P2[8–10], P1[10–11]

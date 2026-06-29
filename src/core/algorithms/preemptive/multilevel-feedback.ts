@@ -1,4 +1,4 @@
-import type { IAlgorithm, ReadyProcess, SchedulerEvent } from '../../../core/types/algorithm.js';
+import type { IAlgorithm, ReadyProcess, SchedulerEvent, PreemptionTrigger } from '../../../core/types/algorithm.js';
 import { FifoQueue } from '../shared/fifo-queue.js';
 
 /**
@@ -20,7 +20,12 @@ import { FifoQueue } from '../shared/fifo-queue.js';
  */
 export class MLFQ implements IAlgorithm {
   readonly name: string;
-  readonly preemptionMode = 'on-quantum-and-better' as const;
+  readonly triggers: ReadonlySet<PreemptionTrigger> = new Set<PreemptionTrigger>([
+    'on-quantum',
+    'on-arrival',
+    'on-io-return',
+    'on-boost',
+  ]);
   // `levels: true` indica a la UI que use quanta por nivel (2 campos) en vez de un único quantum
   readonly requires = { quantum: true, levels: true } as const;
 

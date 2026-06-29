@@ -4,7 +4,7 @@ import type { IAlgorithm, ReadyProcess } from '../../src/core/types/algorithm.js
 
 const makeFactory = (name: string) => (): IAlgorithm => ({
   name,
-  preemptionMode: 'none',
+  triggers: new Set(),
   requires: {},
   select: (ready: readonly ReadyProcess[]) => {
     const first = ready[0];

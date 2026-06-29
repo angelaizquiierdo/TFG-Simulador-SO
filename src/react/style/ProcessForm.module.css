@@ -37,11 +37,9 @@
 .processRow {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--scheduler-space-sm);
-  padding: var(--scheduler-space-sm);
-  border: 1px solid var(--scheduler-border, #cbd5e1);
-  border-radius: var(--scheduler-radius-sm);
+  align-items: flex-end; 
+  gap: var(--scheduler-space-md);
+  padding: var(--scheduler-space-sm) 0;
 }
 
 .processId {
@@ -100,6 +98,22 @@
   color: var(--scheduler-text-secondary);
 }
 
+.addButton,
+.removeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px; /* Espacio entre el icono SVG y la palabra */
+  height: 1.75rem; /* Ajusta esto para que coincida con la altura de tus <input> */
+}
+
+/* Le da un poco más de tamaño a los SVG para que no se vean diminutos */
+.addButton svg,
+.removeButton svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
 .addButton:hover {
   background: var(--scheduler-surface-elevated);
 }
@@ -108,6 +122,8 @@
   outline: 2px solid var(--scheduler-focus);
   outline-offset: 1px;
 }
+
+
 
 .removeButton {
   padding: 2px var(--scheduler-space-sm);

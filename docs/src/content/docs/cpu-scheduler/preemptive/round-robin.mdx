@@ -8,7 +8,7 @@ import { SimulationApp } from 'cpu-scheduler';
 El **Round Robin** (RR) asigna a cada proceso un slice de tiempo fijo llamado **quantum**. Cuando el quantum se agota, el proceso vuelve al final de la cola de listos y el siguiente proceso toma la CPU.
 
 **Características:**
-- Expropiativo (`preemptionMode: 'on-quantum'`).
+- Expropiativo (`triggers: { on-quantum }`).
 - Requiere el parámetro `quantum` (`requires.quantum = true`).
 - Garantiza equidad: ningún proceso espera más de `(n-1) * quantum` ticks.
 - Un quantum demasiado pequeño aumenta la sobrecarga por cambios de contexto.

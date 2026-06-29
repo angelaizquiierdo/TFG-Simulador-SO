@@ -6,12 +6,14 @@ interface ReadyProcess {
   readonly priority?: number;
 }
 
-type PreemptionMode =
-  | 'none'
-  | 'on-better'
-  | 'on-quantum'
-  | 'io-return'
-  | 'on-quantum-and-better';
+// Disparadores atómicos de reevaluación/expropiación. Cada algoritmo declara el
+// conjunto que le aplica; el motor reacciona a ellos en lugar de ramificar por un modo.
+type PreemptionTrigger =
+  | 'on-tick' // reevaluar cada tick (SRTF, Prioridad expropiativa)
+  | 'on-arrival' // reevaluar cuando llega un proceso nuevo
+  | 'on-io-return' // reevaluar cuando un proceso vuelve de E/S
+  | 'on-quantum' // ceder la CPU al agotar el quantum
+  | 'on-boost'; // reevaluar en un priority-boost
 
 type SchedulerEvent =
   | { readonly type: 'arrival'; readonly id: string; readonly tick: number }
@@ -27,7 +29,9 @@ type AlgorithmParams = Readonly<Record<string, unknown>>;
 
 interface IAlgorithm {
   readonly name: string;
-  readonly preemptionMode: PreemptionMode;
+  // Conjunto declarativo de disparadores: define CUÁNDO el motor reevalúa la selección
+  // y si expropia. Un conjunto vacío equivale a no expropiativo (clásicos).
+  readonly triggers: ReadonlySet<PreemptionTrigger>;
   readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;
@@ -37,4 +41,10 @@ interface IAlgorithm {
   levelSnapshot?(): Readonly<Record<string, number>>;
 }
 
-export type { ReadyProcess, PreemptionMode, SchedulerEvent, AlgorithmParams, IAlgorithm };
+export type {
+  ReadyProcess,
+  PreemptionTrigger,
+  SchedulerEvent,
+  AlgorithmParams,
+  IAlgorithm,
+};

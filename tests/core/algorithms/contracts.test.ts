@@ -5,18 +5,23 @@
  * Cierra: § Contrato de algoritmo (extensibilidad), § Verificación de contrato de algoritmo (Extensibilidad)
  */
 import { describe, it, expect } from 'vitest';
-import type { IAlgorithm, ReadyProcess, SchedulerEvent } from '../../../src/core/types/algorithm.js';
+import type {
+  IAlgorithm,
+  ReadyProcess,
+  SchedulerEvent,
+  PreemptionTrigger,
+} from '../../../src/core/types/algorithm.js';
 import { run } from '../../../src/core/simulate.js';
 import { register, get } from '../../../src/core/registry.js';
 import type { Process } from '../../../src/core/types/process.js';
 // Asegurar que los 9 algoritmos oficiales están registrados
 import '../../../src/index.js';
 
-// ── Algoritmo minimal: solo select + preemptionMode (patrón sin estado) ─────
+// ── Algoritmo minimal: solo select + triggers (patrón sin estado) ─────
 
 class MinimalFCFS implements IAlgorithm {
   readonly name = 'contract-minimal-fcfs';
-  readonly preemptionMode = 'none' as const;
+  readonly triggers = new Set<PreemptionTrigger>();
   readonly requires = {};
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     if (ready.length === 0) throw new Error('Cola de listos vacía');
@@ -30,7 +35,7 @@ class MinimalFCFS implements IAlgorithm {
 
 class StatefulRR implements IAlgorithm {
   readonly name: string;
-  readonly preemptionMode = 'on-quantum' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-quantum']);
   readonly requires = { quantum: true };
 
   private readonly quantum: number;
@@ -80,7 +85,7 @@ class StatefulRR implements IAlgorithm {
 
 class RichMessageAlgo implements IAlgorithm {
   readonly name = 'contract-rich-message';
-  readonly preemptionMode = 'none' as const;
+  readonly triggers = new Set<PreemptionTrigger>();
   readonly requires = {};
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
@@ -100,7 +105,7 @@ class RichMessageAlgo implements IAlgorithm {
 
 class NullMessageAlgo implements IAlgorithm {
   readonly name = 'contract-null-message';
-  readonly preemptionMode = 'none' as const;
+  readonly triggers = new Set<PreemptionTrigger>();
   readonly requires = {};
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
@@ -150,7 +155,7 @@ describe('§ Contrato de algoritmo (extensibilidad)', () => {
 
     class SpiedRR implements IAlgorithm {
       readonly name = 'contract-spied-rr';
-      readonly preemptionMode = 'on-quantum' as const;
+      readonly triggers = new Set<PreemptionTrigger>(['on-quantum']);
       readonly requires = { quantum: true };
       private readonly inner = new StatefulRR('inner-rr', 2);
       select(ready: readonly ReadyProcess[]): ReadyProcess { return this.inner.select(ready); }
@@ -172,7 +177,7 @@ describe('§ Contrato de algoritmo (extensibilidad)', () => {
     // Con quantum=1 y dos procesos llegan en t=0 con burst=2 → Round Robin estricto tick a tick
     class QuantumOneRR implements IAlgorithm {
       readonly name = 'contract-q1-rr';
-      readonly preemptionMode = 'on-quantum' as const;
+      readonly triggers = new Set<PreemptionTrigger>(['on-quantum']);
       readonly requires = { quantum: true };
       private queue: string[] = [];
       select(ready: readonly ReadyProcess[]): ReadyProcess {

@@ -29,6 +29,8 @@
   --scheduler-text-primary: #0f172a;
   --scheduler-text-secondary: #475569;
   --scheduler-border: #cbd5e1;
+  /* Borde de las celdas del Gantt: negro en claro, blanco en oscuro */
+  --scheduler-gantt-cell-border: #000000;
   --scheduler-accent: #2563eb;
   --scheduler-focus: #3b82f6;
   --scheduler-danger: #dc2626;
@@ -52,16 +54,19 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Sobreescribir variables semánticas para modo oscuro automático */
+    --scheduler-gantt-cell-border: #ffffff;
   }
 }
 
 [data-theme="dark"] {
-  --scheduler-bg: #0f172a;
+  --scheduler-bg: ##17181c;
   --scheduler-surface: #1e293b;
   --scheduler-surface-elevated: #334155;
   --scheduler-text-primary: #f8fafc;
   --scheduler-text-secondary: #94a3b8;
   --scheduler-border: #475569;
+  /* Borde de las celdas del Gantt: blanco en oscuro */
+  --scheduler-gantt-cell-border: #ffffff;
   --scheduler-accent: #3b82f6;
   --scheduler-focus: #60a5fa;
   --scheduler-danger: #ef4444;

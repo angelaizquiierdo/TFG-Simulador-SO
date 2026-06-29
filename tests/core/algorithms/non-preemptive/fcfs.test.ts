@@ -12,7 +12,7 @@ describe('FCFS', () => {
 
   it('tiene los metadatos correctos', () => {
     expect(fcfs.name).toBe('fcfs');
-    expect(fcfs.preemptionMode).toBe('none');
+    expect(fcfs.triggers.size).toBe(0);
   });
 
   it('select lanza error con cola vacía', () => {

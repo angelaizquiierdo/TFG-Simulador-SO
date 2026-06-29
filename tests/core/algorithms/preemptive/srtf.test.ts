@@ -10,11 +10,21 @@ describe('SRTF', () => {
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('srtf');
-    expect(algo.preemptionMode).toBe('on-better');
+    expect(algo.triggers.has('on-tick')).toBe(true);
   });
 
   it('select lanza error con cola vacía', () => {
     expect(() => algo.select([])).toThrow();
+  });
+
+  it('select elige el de menor remaining recorriendo toda la cola', () => {
+    const ready = [
+      { id: 'P1', arrival_time: 0, burst_time: 5, remaining: 5 },
+      { id: 'P2', arrival_time: 0, burst_time: 2, remaining: 2 },
+      { id: 'P3', arrival_time: 0, burst_time: 8, remaining: 8 },
+    ];
+    // P2 (rem 2) mejora a P1; P3 (rem 8) NO mejora a P2 → cubre ambas ramas del bucle
+    expect(algo.select(ready).id).toBe('P2');
   });
 
   // § Simular — SRTF: fixture 1 P1[0–1], P2[1–2], P3[2–4], P4[4–5], P2[5–8], P1[8–15]

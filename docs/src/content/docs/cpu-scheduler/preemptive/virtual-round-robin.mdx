@@ -8,18 +8,18 @@ import { SimulationApp } from 'cpu-scheduler';
 El **Round Robin Virtual** (VRR) es una mejora sobre Round Robin que penaliza menos a los procesos con E/S. Cuando un proceso regresa de E/S, entra a una **cola auxiliar** que tiene prioridad sobre la cola principal. Además, su quantum en el siguiente dispatch equivale al tiempo de CPU que no pudo usar antes de la E/S (el _sobrante_), lo que le da una compensación justa.
 
 **Características:**
-- Expropiativo (`preemptionMode: 'io-return'`).
+- Expropiativo (`triggers: { on-quantum, on-io-return }`).
 - Requiere `quantum` (`requires.quantum = true`) y E/S (`requires.io = true`).
 - Usa `quantumFor()` para devolver el tiempo sobrante al regresar de E/S.
 - Usa `onEvent()` para mantener la cola auxiliar y emitir mensajes ricos.
 - Solo un dispositivo de E/S (FCFS). Si dos procesos llegan a E/S en el mismo tick, el segundo espera en cola.
 
 <SimulationApp
-  algorithm="rrv"
+  algorithm="virtual-round-robin"
   processes={[
     { id: 'A', arrival_time: 0, burst_time: 9, io: [{ io_entry: 1, io_time: 2 }, { io_entry: 5, io_time: 3 }] },
     { id: 'B', arrival_time: 0, burst_time: 4 },
-    { id: 'C', arrival_time: 0, burst_time: 3, io: [{ io_entry: 3, io_time: 1 }] },
+    { id: 'C', arrival_time: 0, burst_time: 3, io: [{ io_entry: 2, io_time: 1 }] },
     { id: 'D', arrival_time: 0, burst_time: 3, io: [{ io_entry: 2, io_time: 1 }] },
   ]}
   params={{ quantum: 4 }}

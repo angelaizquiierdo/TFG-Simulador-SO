@@ -10,11 +10,21 @@ describe('PriorityP', () => {
 
   it('tiene los metadatos correctos', () => {
     expect(algo.name).toBe('priority-p');
-    expect(algo.preemptionMode).toBe('on-better');
+    expect(algo.triggers.has('on-tick')).toBe(true);
   });
 
   it('select lanza error con cola vacía', () => {
     expect(() => algo.select([])).toThrow();
+  });
+
+  it('procesos sin priority se tratan como Infinity (más baja)', () => {
+    const ready = [
+      { id: 'P1', arrival_time: 0, burst_time: 2, remaining: 2 }, // sin priority → Infinity
+      { id: 'P2', arrival_time: 0, burst_time: 2, remaining: 2, priority: 4 },
+      { id: 'P3', arrival_time: 0, burst_time: 2, remaining: 2 }, // sin priority → Infinity
+    ];
+    // P1 (Infinity) inicial; P2 (4) lo mejora; P3 (Infinity) no lo desbanca → gana P2
+    expect(algo.select(ready).id).toBe('P2');
   });
 
   // § Simular — Prioridad (expropiativa): fixture 1 P1[0–2], P3[2–4], P1[4–6], P2[6–8]

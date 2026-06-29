@@ -44,7 +44,7 @@ La dependencia va en **una sola dirección**: **demo → componente → simulado
         process.ts             # Process
         scheduler-state.ts     # SchedulerState
         io.ts                  # IOOperation, DeviceState (solo VRR)       (v2)
-        algorithm.ts           # IAlgorithm + ReadyProcess + PreemptionMode + SchedulerEvent
+        algorithm.ts           # IAlgorithm + ReadyProcess + PreemptionTrigger + SchedulerEvent
         history.ts             # HistoryEvent(+ E/S para VRR), History, Interval
         simulation-result.ts   # SimulationResult, ProcessMetrics, AggregateMetrics
       registry.ts              # registro de algoritmos por name
@@ -179,15 +179,16 @@ export interface ReadyProcess {
 }
 
 // ── Modo de expropiación ───────────────────────────────────────────────────
-// Cada algoritmo declara UN modo. El motor lo usa para saber CUÁNDO llamar
-// a select() y si debe expropiar al proceso en CPU.
+// Cada algoritmo declara su conjunto de disparadores. El motor los usa para saber
+// CUÁNDO llamar a select() y si debe expropiar al proceso en CPU.
 
-type PreemptionMode =
-  | 'none'                     // no expropia; select() solo cuando la CPU queda libre
-  | 'on-better'                // reevalúa select() cada tick; expropia si cambia el elegido
-  | 'on-quantum'               // expropia al agotar el slice de quantumFor()
-  | 'io-return'                // expropia  (VRR); select() da prioridad a auxQueue
-  | 'on-quantum-and-better';   // expropia por AMBOS motivos a la vez (MLFQ: quantum del nivel Y llegada a nivel superior)
+type PreemptionTrigger =
+  | 'on-tick'        // reevalúa select() cada tick; expropia si cambia el elegido (SRTF, Prio-P)
+  | 'on-arrival'     // reevalúa cuando llega un proceso nuevo (MLFQ)
+  | 'on-io-return'   // reevalúa cuando un proceso vuelve de E/S (VRR, MLFQ)
+  | 'on-quantum'     // expropia al agotar el slice de quantumFor()/config.quantum (RR, VRR, MLFQ)
+  | 'on-boost';      // reevalúa en un priority-boost (MLFQ)
+// Conjunto vacío {} = no expropiativo (FCFS, SJF, LJF, Prioridad NP).
 
 // ── Eventos del motor → algoritmo ──────────────────────────────────────────
 // El motor emite estos eventos vía onEvent() para que el algoritmo mantenga
@@ -212,7 +213,7 @@ type SchedulerEvent =
 
 interface IAlgorithm {
   readonly name: string;
-  readonly preemptionMode: PreemptionMode;           // + 'io-return' y 'on-quantum-and-better'
+  readonly triggers: ReadonlySet<PreemptionTrigger>; // disparadores: CUÁNDO reevaluar/expropiar
   readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;       // quantum variable (sobrante / nivel)
@@ -225,20 +226,20 @@ interface IAlgorithm {
 | Campo | Obligatorio | Quién lo usa | Para qué |
 |-------|:-----------:|:------------:|----------|
 | `name` | sí | registro | identificar el algoritmo (`'fcfs'`, `'mlfq'`, etc.) |
-| `preemptionMode` | sí | motor | saber CUÁNDO llamar a `select()` y si expropiar |
+| `triggers` | sí | motor | conjunto declarativo de disparadores (`on-tick`, `on-arrival`, `on-io-return`, `on-quantum`, `on-boost`) que define CUÁNDO el motor reevalúa `select()` y si expropia. Conjunto vacío = no expropiativo |
 | `requires` | sí | motor + UI | validar la config y mostrar/ocultar campos en la demo. `levels: true` (solo MLFQ) indica a `AlgorithmParamsForm` que renderice un quantum **por nivel** (2 campos: `quanta[0]`, `quanta[1]`) más `boostInterval`, en vez de un único `quantum` |
 | `select()` | sí | motor | elegir qué proceso ocupa la CPU |
 | `quantumFor()` | no | motor | saber cuánto dura el turno de un proceso concreto |
 | `onEvent()` | no | motor | notificar al algoritmo + obtener el motivo rico |
 
 ### Patrón 1: Algoritmos Sin Estado (Clásicos)
-Algoritmos que toman decisiones basadas puramente en la `readyQueue` actual, sin memoria de eventos pasados. Solo implementan `name`, `preemptionMode`, `requires` y `select()`. Está prohibido implementar métodos opcionales.
+Algoritmos que toman decisiones basadas puramente en la `readyQueue` actual, sin memoria de eventos pasados. Solo implementan `name`, `triggers`, `requires` y `select()`. Está prohibido implementar métodos opcionales (`quantumFor`, `onEvent`, `levelSnapshot`).
 
 ```ts
 // Prioridad expropiativa — idéntico a v01, sin cambios
 export class PriorityP implements IAlgorithm {
   readonly name = 'priority-p';
-  readonly preemptionMode = 'on-better' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-tick']);
   readonly requires = { priority: true as const };
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
@@ -256,7 +257,7 @@ Algoritmos que mantienen estructuras de datos internas (colas multinivel, tiempo
 // VRR — esquema, no implementación completa
 export class VirtualRoundRobin implements IAlgorithm {
   readonly name = 'virtual-round-robin';
-  readonly preemptionMode = 'io-return' as const;
+  readonly triggers = new Set<PreemptionTrigger>(['on-quantum', 'on-io-return']);
   readonly requires = { quantum: true, io: true } as const;
 
   // Estado interno (el motor no lo ve)
@@ -299,17 +300,28 @@ export class VirtualRoundRobin implements IAlgorithm {
 
 La clase puede tener miembros propios adicionales el contrato solo exige lo anterior. **El motor** (la mecánica del bucle vive en `engine/loop.ts`; `simulate.ts` es solo la fachada que lo orquesta) posee la mecánica; el algoritmo solo aporta la **política de selección**:
 
-- `'none'` → el motor pide selección solo cuando la CPU queda libre (FCFS, SJF, LJF,
-  Prioridad no expropiativa).
-- `'on-better'` → reevalúa cada tick y expropia si `select()` devuelve otro proceso (SRTF, Prioridad expropiativa).
-- `'on-quantum'` → expropia al agotar el `quantum`; `select()` es FIFO (Round Robin).
-- `'io-return'` → reevalúa la expropiación en el momento exacto en que un proceso finaliza su E/S y retorna a la cola de listos; `select()` aplica la preferencia correspondiente (p. ej., cola auxiliar en Virtual Round Robin).
-- `'on-quantum-and-better'` → combina tiempo y jerarquía (exclusivo para MLFQ).
+El algoritmo declara su conjunto de **disparadores** (`triggers`) y el motor reacciona a ellos con una única rutina genérica de reselección:
 
+```ts
+type PreemptionTrigger =
+  | 'on-tick'       // reevaluar cada tick (SRTF, Prioridad expropiativa)
+  | 'on-arrival'    // reevaluar cuando llega un proceso nuevo
+  | 'on-io-return'  // reevaluar cuando un proceso vuelve de E/S
+  | 'on-quantum'    // ceder la CPU al agotar el quantum
+  | 'on-boost';     // reevaluar en un priority-boost
+```
+
+| Algoritmo(s) | `triggers` | Comportamiento |
+|---|---|---|
+| FCFS, SJF, LJF, Prioridad NP | `{}` | el motor pide selección solo cuando la CPU queda libre |
+| SRTF, Prioridad expropiativa | `{ on-tick }` | reevalúa cada tick y expropia si `select()` devuelve otro proceso |
+| Round Robin | `{ on-quantum }` | expropia al agotar el `quantum`; `select()` es FIFO |
+| Round Robin Virtual | `{ on-quantum, on-io-return }` | reevalúa al retornar de E/S; `select()` prioriza la cola auxiliar |
+| MLFQ | `{ on-quantum, on-arrival, on-io-return, on-boost }` | combina tiempo, llegadas, retorno de E/S y priority-boost |
 
 El motor entrega `ready` ya ordenado por el desempate global (`arrival_time`, luego `id`); cada algoritmo solo aplica su criterio principal.
 
-> **Decisión consciente:** `PreemptionMode` es un enum de 5 valores (no flags booleanos). Esto exige un valor nuevo por cada combinación futura de motivos de expropiación (p. ej. `'on-quantum-and-io-return'` si algún día se necesita). Con flags (`{onQuantum, onBetter, onIoReturn}`) una combinación nueva no exigiría tocar el tipo. Se mantiene el enum porque para 9 algoritmos los 5 valores cubren todos los casos.
+> **Nota:** `on-quantum` solo inicia una cuenta de expiración si hay fuente de quantum (`quantumFor()` o `config.quantum`); en Round Robin Virtual el quantum es opcional, así que sin fuente no se inicia. Añadir un algoritmo con una combinación nueva de disparadores **no exige tocar el motor**: basta declarar su `Set`. La historia de esta decisión (sustitución del antiguo enum `PreemptionMode`) está en los ADR `28-06-2026` de `DECISIONS.md`.
 
 ### Mensajes ricos — cómo `onEvent` alimenta `HistoryEvent.message`
 
@@ -426,28 +438,28 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
   ESLint con fronteras, Vitest.
 - **Fase 1 — Tipos y contratos:** todos los tipos con su forma final v02: `Process`,
   `IOOperation`, `DeviceState`, `SchedulerState`, `IAlgorithm`/`ReadyProcess`/
-  `PreemptionMode`/`SchedulerEvent`, `History`/`HistoryEvent`/`Interval`,
+  `PreemptionTrigger`/`SchedulerEvent`, `History`/`HistoryEvent`/`Interval`,
   `SimulationResult`, `Scenario`, `WhatIfBranch`.
 - **Fase 2 — Registro:** registrar y obtener algoritmos por `name`.
 - **Fase 3 — Motor y E/S (`simulate.ts` + `io-subsystem.ts`):** bucle por ticks,
-  desempate global, `select()` según `preemptionMode` (los 5 modos), subsistema de E/S
+  desempate global, `select()` según los `triggers` del algoritmo, subsistema de E/S
   (dispositivo único con contención FCFS), mensajes ricos (`onEvent` → narrativa
   compuesta), derivación pura de `intervals` y `metrics`, `runFrom()` para what-if e
   inyección en vivo, validación y casos límite.
 - **Fase 4 — Player (`player.ts`):** cursor sobre el `history` con límites.
 - **Fase 5 — Algoritmos (los 9), uno a uno con su test:**
 
-| Algoritmo              | `preemptionMode`          | `select` elige…                            |
-|------------------------|---------------------------|--------------------------------------------|
-| FCFS                   | `'none'`                  | menor `arrival_time`, sino menor `id`      |
-| SJF                    | `'none'`                  | menor `remaining`                          |
-| LJF                    | `'none'`                  | mayor `burst_time`                         |
-| Prioridad (NP)         | `'none'`                  | menor `priority`                           |
-| SRTF                   | `'on-better'`             | menor `remaining`                          |
-| Prioridad (P)          | `'on-better'`             | menor `priority`                           |
-| Round Robin            | `'on-quantum'`            | FIFO                                       |
-| Round Robin Virtual    | `'io-return'`             | `auxQueue` → `mainQueue`; slice = sobrante |
-| MLFQ                   | `'on-quantum-and-better'` | nivel no vacío de menor índice             |
+| Algoritmo              | `triggers`                                        | `select` elige…                            |
+|------------------------|---------------------------------------------------|--------------------------------------------|
+| FCFS                   | `{}`                                              | menor `arrival_time`, sino menor `id`      |
+| SJF                    | `{}`                                              | menor `remaining`                          |
+| LJF                    | `{}`                                              | mayor `burst_time`                         |
+| Prioridad (NP)         | `{}`                                              | menor `priority`                           |
+| SRTF                   | `{ on-tick }`                                     | menor `remaining`                          |
+| Prioridad (P)          | `{ on-tick }`                                     | menor `priority`                           |
+| Round Robin            | `{ on-quantum }`                                  | FIFO                                       |
+| Round Robin Virtual    | `{ on-quantum, on-io-return }`                    | `auxQueue` → `mainQueue`; slice = sobrante |
+| MLFQ                   | `{ on-quantum, on-arrival, on-io-return, on-boost }` | nivel no vacío de menor índice          |
 
   Todos declaran `requires.io = false` excepto VRR (`requires.io = true`).
 
@@ -459,7 +471,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
   (escenario base + rama what-if por separado).
 - **Fase 8 — Documentación (`docs/`):** guías (integración, configuración, crear
   algoritmo) y una página de demo por algoritmo que embebe el componente.
-- **Fase 9 — Estética:** revisión visual con tokens de diseño, consistencia y contraste.
+- **Fase 9 — Estética:** revisión visual con tokens de diseño, consistencia y contraste. Incluye el rediseño del `GanttChart` como tabla (cabecera de ticks y columna de procesos en superficie elevada, bordes de rejilla, scroll horizontal, etiquetas «CPU»/«E/S» dentro de la celda, estados de E/S en color de aviso, tipografía monoespaciada) e iconos SVG nativos en los controles. El motivo de este rediseño está en el ADR correspondiente de `DECISIONS.md`.
 - **Fase 10 — Verificación final:** cobertura de `BEHAVIOURSv-02.md`, typecheck, lint
   limpio, build de producción.
 
@@ -511,7 +523,7 @@ Modela E/S (`requires.io = true`). Mantiene **dos colas FIFO** —principal y au
   - Si se bloqueó justo al agotar el quantum, sobrante = 0 → entra en la **prioridad 1**, sino(else) en la auxiliar **prioridad 0**
 4. **Selección (`select`):** si `auxQueue` no está vacía, su cabeza; si no, la cabeza de `mainQueue`. FIFO dentro de cada cola.
 5. **Duración del turno (`quantumFor`):** desde `auxQueue`, el **sobrante** (`remainingSlice.get(pid)`); desde `mainQueue`, el **quantum** completo. Si un proceso de `auxQueue` no completa en su sobrante, pasa a `mainQueue`.
-6. Sí expropia al proceso en CPU cuando aparece un retorno de E/S (`preemptionMode = 'io-return'`). Si la CPU está ejecutando un proceso proveniente de la `mainQueue` (prioridad 1) y un proceso termina su E/S ingresando a la `auxQueue` (prioridad 0), el proceso en ejecución es interrumpido de inmediato y devuelto a la `mainQueue`, permitiendo que el proceso recién llegado a la auxQueue tome el control de la CPU en ese mismo tick.
+6. Sí expropia al proceso en CPU cuando aparece un retorno de E/S (`triggers` incluye `'on-io-return'`). Si la CPU está ejecutando un proceso proveniente de la `mainQueue` (prioridad 1) y un proceso termina su E/S ingresando a la `auxQueue` (prioridad 0), el proceso en ejecución es interrumpido de inmediato y devuelto a la `mainQueue`, permitiendo que el proceso recién llegado a la auxQueue tome el control de la CPU en ese mismo tick.
 
 Estado interno (vía `onEvent`): `mainQueue`, `auxQueue` y `remainingSlice`. `io-start` / `quantum-expiry` actualizan `remainingSlice`; `io-return` mete el proceso en `auxQueue`. `validateParams`: `quantum` entero `> 0`. **(v2)** `paramSchema`: un campo `integer` (`key:'quantum'`, `min: 1`) → editable desde la demo vía `AlgorithmParamsForm`. **(v2)** `reasonFor`:en `io-return` devuelve `{ text: "se inserta en la cola auxiliar con sobrante de ${remainingSlice.get(id)}" }`; en `dispatch` devuelve `{ text: "desde la cola auxiliar (sobrante ${remainingSlice.get(id)})" }` si `id` viene de `auxQueue`, o `{ text: "desde la cola principal" }` si viene de `mainQueue`; en `quantum-expiry` devuelve `{ text: "se reencola en la cola principal" }` (mensaje rico — ver § Mensajes ricos más abajo).
 

@@ -153,3 +153,63 @@ La función privada `_executeSimulationLoop` se renombró a `executeSimulationLo
 ### 3. Consecuencias
 * **Positivas:** `simulate.ts` baja de ~620 a ~110 líneas y expresa solo la orquestación. Cada pieza (bucle, validación, derivaciones) es testeable de forma aislada. La API pública y la frontera ESLint (`src/core/**`) se mantienen intactas. Sienta la base para la Fase R2 (triggers declarativos) sin volver a tocar la estructura.
 * **Negativas:** Más archivos y un salto de importación extra (`simulate → engine/loop`). El refactor de la *política* de preempción (el `if` por modo) sigue pendiente: R1 resuelve el tamaño del archivo, no el acoplamiento del motor a los modos de planificación.
+
+---
+
+## 28-06-2026 - Por qué migrar de `PreemptionMode` (enum) a `triggers` declarativos (inicio Fase R2)
+
+### 1. Contexto y Problema
+Tras R1, `simulate.ts` ya no está sobrecargado, pero el **acoplamiento de fondo persiste**: el motor (`engine/loop.ts`) decide *cuándo* reevaluar `select()` y *cuándo* expropiar mediante un `if/else if` sobre `algo.preemptionMode`, un **enum cerrado** de 5 valores. El problema es conceptual: los valores del enum no son modos atómicos, sino **combinaciones de disparadores**:
+
+| `preemptionMode` | Equivale al conjunto de disparadores |
+|---|---|
+| `none` | `{}` |
+| `on-better` | `{ on-tick }` |
+| `on-quantum` | `{ on-quantum }` |
+| `io-return` | `{ on-quantum, on-io-return }` |
+| `on-quantum-and-better` | `{ on-quantum, on-arrival, on-io-return, on-boost }` |
+
+Mientras siga siendo un enum, cada algoritmo nuevo con una mezcla distinta (p. ej. `quantum + on-tick`) obliga a **inventar un 6.º valor de enum y una 6.ª rama en el motor**. Ese es el techo identificado: el motor "sabe demasiado" de los modos concretos en vez de reaccionar a disparadores genéricos.
+
+### 2. Decisión Tomada
+Sustituir `PreemptionMode` por un conjunto declarativo `triggers: ReadonlySet<PreemptionTrigger>` que cada algoritmo expone. El motor dejará de ramificar por modo: en cada punto de decisión preguntará "¿alguno de los disparadores activos este tick está en `algo.triggers`?" y ejecutará **una sola** rutina genérica de reselección. Añadir un algoritmo con una combinación nueva pasará a ser **declarar su `Set`, sin tocar el motor**.
+
+La migración se hace **escalonada** (R2 → R3 → R4) precisamente porque toca el contrato `IAlgorithm` y, por tanto, los tests:
+- **R2 (esta fase):** introducir el tipo `PreemptionTrigger`, un mapa temporal `triggersFor(preemptionMode)` y el campo `triggers` **opcional** en el contrato, declarado en los 9 algoritmos. El motor **sigue usando el enum**: cero cambios de comportamiento. Se añade una prueba de consistencia que garantiza que cada `algo.triggers` coincide con `triggersFor(algo.preemptionMode)` — la red de seguridad para R3.
+- **R3:** el motor consume `triggers` en lugar de `preemptionMode`. Comportamiento idéntico; los tests del motor existentes son la red.
+- **R4:** retirar `preemptionMode` y el mapa temporal `triggersFor`. Aquí cambian los ~8 tests que afirman `algo.preemptionMode` (pasan a afirmar `algo.triggers`) y las clases inline de `contracts.test.ts`.
+
+El campo se introduce **opcional** en R2 porque las clases minimal de `contracts.test.ts` (`MinimalFCFS`, `RichMessageAlgo`, `NullMessageAlgo`) implementan `IAlgorithm` declarando solo `preemptionMode`; un campo obligatorio rompería su typecheck antes de tiempo.
+
+### 3. Consecuencias
+* **Positivas:** Elimina el techo de escalabilidad del motor: el `if` por modo nunca crecerá a 7 ramas. Mantiene `select()`/`onEvent()` puros. La migración escalonada mantiene los 277 tests verdes en cada subfase y aísla el cambio de tests al final (R4), de forma controlada.
+* **Negativas:** Durante R2-R3 coexisten **dos fuentes de verdad** (`preemptionMode` y `triggers`), sincronizadas por la prueba de consistencia; es deuda transitoria que R4 salda. Es un cambio de contrato que se justifica por el coste evitado en cada algoritmo futuro, no por una necesidad inmediata (hoy hay 5 modos, no 7).
+
+### 4. Estado de la migración
+- **R2.1** ✓ — tipo `PreemptionTrigger` + mapa `triggersFor()` en `types/algorithm.ts` + test del mapa.
+- **R2.2** ✓ — campo `triggers?` opcional en `IAlgorithm`, declarado en los 9 algoritmos + prueba de consistencia (`contracts.test.ts`).
+- **R2.3** ✓ — cierre documental: `TECHNICAL.md` (contrato, tabla de campos, § Migración a disparadores), `PLAN.md` (T-04) y la guía de desarrollador `03-crear-nuevo-algoritmo.mdx`.
+- **R3** ✓ — `engine/loop.ts` consume `triggers` (`algo.triggers ?? triggersFor(algo.preemptionMode)`). Las tres ramas preemptivas de la decisión de reparto se colapsaron en una rutina genérica dirigida por disparadores (`on-tick` / `on-arrival` / `on-io-return` / `on-boost`); la expiración de quantum y la reevaluación de fin de tick pasan a `triggers.has('on-quantum')` / `triggers.has('on-tick')`. **Cero cambios de comportamiento: 294 tests verdes sin tocar ninguno.**
+  - *Matiz preservado:* el slice en el dispatch desde CPU inactiva solo se fija si `triggers.has('on-quantum')` **y** existe fuente de quantum (`quantumFor` o `config.quantum`). En `io-return` (VRR) el quantum es opcional; sin esa guarda, un algoritmo `io-return` sin quantum (p. ej. fixtures de test) iniciaría una expiración espuria. La guarda es genérica (no menciona el modo).
+- **R4** ✓ — retirados `preemptionMode` (campo y tipo `PreemptionMode`) y `triggersFor`. `triggers` es ahora **obligatorio** en `IAlgorithm` y única fuente de verdad. Los 9 algoritmos declaran solo `triggers`; el motor lee `algo.triggers` directamente. Cambios de test concentrados aquí: ~8 aserciones `algo.preemptionMode` → `algo.triggers`, fixtures inline de `contracts.test.ts`/`simulate.test.ts` migradas a `triggers`, y eliminados el test de `triggersFor` y la prueba de consistencia (ya sin objeto). **277 tests verdes**, typecheck y lint limpios. Docs finalizadas (`TECHNICAL.md`, `PLAN.md`, guía `03-crear-nuevo-algoritmo.mdx`). **Migración completa.**
+
+---
+
+## 29-06-2026 - Rediseño visual del GanttChart como tabla legible
+
+### 1. Contexto y Problema
+La matriz original era una cuadrícula de cubos de color sin texto. Para uso didáctico costaba leer de un vistazo qué hacía cada proceso, distinguir el estado de E/S del de espera, y orientarse en simulaciones largas (la tabla se desbordaba dentro del panel de Starlight). Se decidió rediseñar la presentación **sin tocar la lógica del motor** ni los contratos.
+
+### 2. Decisión Tomada
+El `GanttChart` se presenta como una **tabla**:
+- **Cabecera de ticks** (`.rowHeader`) y **columna de nombres** (`.label`) en `--scheduler-surface-elevated`, distintas del cuerpo; bordes de rejilla con `--scheduler-border`.
+- **Etiquetas dentro de la celda:** «CPU» en la celda en CPU (texto blanco con animación de pulso) y «E/S» en la celda en servicio; el nivel MLFQ como `L{n}` en un badge.
+- **Estados de E/S** en **color de aviso** (`--scheduler-danger`, rojo): rayado diagonal en servicio, punteado en cola. CPU inactiva en superficie elevada.
+- **Contención de tamaño:** `.matrix` con `overflow-x: auto` / `overflow-y: hidden` (scroll **horizontal** de filas enteras), borde redondeado y `min-width: 0` para respetar el ancho del content-panel de Starlight (`max-width: 100%`).
+- **Tipografía monoespaciada** y efecto `hover` en celdas; **iconos SVG nativos** (`PlusIcon`, `TrashIcon`) en el `ProcessForm`.
+
+Se actualizaron `BEHAVIOUSv-02.md` (§ Render — GanttChart: etiquetas de celda, colores de E/S, etiquetas de leyenda), `PLAN.md` (T-41) y `TECHNICAL.md` (Fase 9). Los tests de `GanttChart.test.tsx` se ajustaron al nuevo contrato (la celda en CPU muestra «CPU»; nuevas etiquetas de leyenda).
+
+### 3. Consecuencias
+* **Positivas:** Mucho más legible y didáctico; el estado de E/S es inconfundible; la tabla nunca desborda el simulador. La lógica del núcleo y los contratos quedan intactos (solo cambió `src/react/` y `tokens.css`).
+* **Negativas:** Los estados de E/S dejan de usar el color del proceso (usan rojo de aviso), así que en E/S no se distingue *qué* proceso por color sino por fila. Las etiquetas de celda añaden texto que en celdas muy pequeñas podría competir con el color (mitigado con posición absoluta y tamaño reducido).

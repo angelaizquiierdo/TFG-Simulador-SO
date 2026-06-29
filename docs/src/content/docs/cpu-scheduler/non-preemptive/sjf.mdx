@@ -8,7 +8,7 @@ import { SimulationApp } from 'cpu-scheduler';
 El **Shortest Job First** (SJF) selecciona, entre los procesos listos, aquel con la **ráfaga de CPU más corta**. No expropia: el proceso elegido mantiene la CPU hasta completarse.
 
 **Características:**
-- No expropiativo (`preemptionMode: 'none'`).
+- No expropiativo (`triggers: {}`).
 - Minimiza el tiempo de espera promedio para un conjunto de procesos dado.
 - Requiere conocer de antemano la ráfaga de CPU de cada proceso.
 

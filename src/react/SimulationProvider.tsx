@@ -137,20 +137,26 @@ export function SimulationProvider({
   const initialProcessesRef = useRef(initialProcesses);
   const initialParamsRef = useRef(initialParams ?? {});
 
-  // Inicializar desde sessionStorage si existe, o desde props
-  const [localProcesses, setLocalProcesses] = useState<readonly Process[]>(() => {
+  // Carga validada: usa el escenario de sessionStorage solo si simula sin error. Si los
+  // datos guardados son inválidos/obsoletos, se descartan y se usan los props. Evita
+  // quedar bloqueado por un sessionStorage corrupto (un escenario que lanza al simular).
+  const loadValidScenario = (): PersistedScenario | null => {
     const saved = loadScenario(scenarioKey);
-    return saved !== null ? saved.processes : initialProcesses;
-  });
-  const [localParams, setLocalParams] = useState<Readonly<Record<string, unknown>>>(() => {
-    const saved = loadScenario(scenarioKey);
-    return saved !== null ? saved.params : (initialParams ?? {});
-  });
+    if (saved === null) return null;
+    try {
+      run(saved.processes, buildConfig(algorithm, saved.params));
+      return saved;
+    } catch {
+      return null;
+    }
+  };
 
-  // Persistir escenario base en sessionStorage cuando cambia (sin llamar setState)
-  useEffect(() => {
-    ssSet(scenarioKey, JSON.stringify({ processes: localProcesses, params: localParams }));
-  }, [scenarioKey, localProcesses, localParams]);
+  const [localProcesses, setLocalProcesses] = useState<readonly Process[]>(
+    () => loadValidScenario()?.processes ?? initialProcesses,
+  );
+  const [localParams, setLocalParams] = useState<Readonly<Record<string, unknown>>>(
+    () => loadValidScenario()?.params ?? initialParams ?? {},
+  );
 
   // Ejecutar la simulación principal (memoizado)
   const [mainResult, mainError] = useMemo((): [SimulationResult | null, string | null] => {
@@ -161,6 +167,16 @@ export function SimulationProvider({
       return [null, e instanceof Error ? e.message : String(e)];
     }
   }, [algorithm, localProcesses, localParams]);
+
+  // Persistir el escenario base solo cuando simula sin error. Si la simulación falla
+  // (escenario inválido), se limpia el persistido para no quedar bloqueado al recargar.
+  useEffect(() => {
+    if (mainError !== null) {
+      ssRemove(scenarioKey);
+      return;
+    }
+    ssSet(scenarioKey, JSON.stringify({ processes: localProcesses, params: localParams }));
+  }, [scenarioKey, localProcesses, localParams, mainError]);
 
   // Descriptor de requisitos del algoritmo activo
   const requires = useMemo((): AlgorithmRequires => {

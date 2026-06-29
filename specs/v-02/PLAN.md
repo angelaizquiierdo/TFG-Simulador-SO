@@ -212,7 +212,7 @@ interface DeviceState {
 
 **Verificación:** compila; `DeviceState.queue` es `readonly string[]`.
 
-### T-04 · `ReadyProcess`, `PreemptionMode`, `SchedulerEvent` e `IAlgorithm` (`algorithm.ts`)
+### T-04 · `ReadyProcess`, `PreemptionTrigger`, `SchedulerEvent` e `IAlgorithm` (`algorithm.ts`)
 
 ```ts
 interface ReadyProcess {
@@ -224,9 +224,10 @@ interface ReadyProcess {
 }
 // NO lleva `io`: el algoritmo decide CPU, no E/S.
 
-type PreemptionMode =
-  | 'none' | 'on-better' | 'on-quantum'
-  | 'io-return' | 'on-quantum-and-better';
+// Disparadores declarativos: cada algoritmo declara cuándo el motor reevalúa/expropia.
+type PreemptionTrigger =
+  | 'on-tick' | 'on-arrival' | 'on-io-return'
+  | 'on-quantum' | 'on-boost';
 
 type SchedulerEvent =
   | { readonly type: 'arrival';        readonly id: string; readonly tick: number }
@@ -242,7 +243,7 @@ type AlgorithmParams = Readonly<Record<string, unknown>>;
 
 interface IAlgorithm {
   readonly name: string;
-  readonly preemptionMode: PreemptionMode;
+  readonly triggers: ReadonlySet<PreemptionTrigger>;
   readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;
@@ -250,6 +251,8 @@ interface IAlgorithm {
 }
 // `levels: true` (solo MLFQ) → la UI usa quanta por nivel (2 campos) en lugar de un único quantum.
 ```
+
+> **Nota (migración completada, ADR 28-06-2026):** el antiguo enum `preemptionMode` se sustituyó por `triggers` (conjunto declarativo de disparadores). El motor reacciona a los disparadores con una rutina genérica; añadir un algoritmo con una mezcla nueva no exige tocarlo. Detalle en `TECHNICAL.md § Disparadores` y los ADR de `DECISIONS.md`.
 
 **Verificación:** `typecheck` confirma que una clase mínima implementa `IAlgorithm` sin
 errores. El linter rechaza importar React/DOM desde este archivo.
@@ -376,7 +379,7 @@ Inmediatamente antes de invocar `algorithm.select()`, el motor DEBE construir la
 
 ### T-11 · Modo `'none'` (no expropiativo)
 
-Implementar la evaluación de selección. Si `preemptionMode === 'none'`, el motor solo llama a `select()` si la CPU está inactiva (`onCPU === null`).
+Implementar la evaluación de selección. Si `triggers` está vacío (no expropiativo), el motor solo llama a `select()` si la CPU está inactiva (`onCPU === null`).
 
 **Cierra:** `§ Simular — FCFS` — `tests/core/simulate.test.ts`
 
@@ -448,14 +451,14 @@ Dentro del `while` de simulación, si `requires.io` es true, conectar `IOSubsyst
 3. Fin de servicio E/S: Interrogar al subsistema qué procesos han terminado (esto disparará `io-return` en el paso 5).
 4. Ensamblado de Narrativa: Gestionar los mensajes del algoritmo. Al registrar HistoryEvent, si el tick actual tiene un mensaje de entrada (dispatch) y el tick anterior tiene un mensaje de salida (salida de CPU), concatenarlos usando la plantilla: "{salida}. A continuación, {entrada}".
 5. Inserciones en ready (estrictamente en este orden, ordenados por ID dentro de cada grupo): Retornos de E/S (`io-return`) → Llegadas (`arrival`) → Reencolado por quantum (`quantum-expiry`).
-6. Decisión de reparto (Llamar a `select()` según el `preemptionMode`).
+6. Decisión de reparto (Llamar a `select()` según los `triggers` del algoritmo).
 7. Volcar historial: Interrogar al `IOSubsystem` para rellenar `inIO` y `waitingIO`.
 
 **Cierra:** `§ Orden intra-tick y empate ráfaga/quantum` — `tests/core/simulate.test.ts`
 
 ### T-16 · Modo `'io-return'`
 
-Si `preemptionMode === 'io-return'`, el motor forzará una llamada a `select()` en el instante exacto en que haya retornos de E/S (paso 3 del intra-tick), permitiendo al algoritmo expropiar la CPU.
+Si `triggers` incluye `'on-io-return'`, el motor forzará una llamada a `select()` en el instante exacto en que haya retornos de E/S (paso 3 del intra-tick), permitiendo al algoritmo expropiar la CPU.
 
 **Cierra:** `Determinismo con E/S (VRR)` (desempate) — `tests/core/simulate.test.ts`
 
@@ -545,21 +548,21 @@ Puro: sin `requestAnimationFrame`/`setTimeout`/`deltaTime`.
 
 ### T-27–T-33 · Algoritmos clásicos (7)
 
-| ID | Archivo | `preemptionMode` | `require` | `select` | Cierra | Test |
-|----|---------|------------------|:---:|----------|--------|------|
-| T-27 | `non-preemptive/fcfs.ts` | `'none'` |  {} | FIFO | `§ Simular — FCFS` | `fcfs.test.ts` |
-| T-28 | `non-preemptive/sjf.ts` | `'none'` | {} | menor `remaining` | `§ Simular — SJF (no expropiativo)` | `sjf.test.ts` |
-| T-29 | `non-preemptive/ljf.ts` | `'none'` | {} | mayor `burst_time` | `§ Simular — LJF (no expropiativo)` | `ljf.test.ts` |
-| T-30 | `non-preemptive/priority-np.ts` | `'none'` | {priority : true} | menor `priority` | `§ Simular — Prioridad (no expropiativa)` | `priority-np.test.ts` |
-| T-31 | `preemptive/srtf.ts` | `'on-better'` | {} | menor `remaining` | `§ Simular — SRTF` | `srtf.test.ts` |
-| T-32 | `preemptive/priority-p.ts` | `'on-better'` | {priority : true} | menor `priority` | `§ Simular — Prioridad (expropiativa)` | `priority-p.test.ts` |
-| T-33 | `preemptive/round-robin.ts` | `'on-quantum'` | {} | FIFO | `§ Simular — Round Robin` | `round-robin.test.ts` |
+| ID | Archivo | `triggers` | `require` | `select` | Cierra | Test |
+|----|---------|------------|:---:|----------|--------|------|
+| T-27 | `non-preemptive/fcfs.ts` | `{}` |  {} | FIFO | `§ Simular — FCFS` | `fcfs.test.ts` |
+| T-28 | `non-preemptive/sjf.ts` | `{}` | {} | menor `remaining` | `§ Simular — SJF (no expropiativo)` | `sjf.test.ts` |
+| T-29 | `non-preemptive/ljf.ts` | `{}` | {} | mayor `burst_time` | `§ Simular — LJF (no expropiativo)` | `ljf.test.ts` |
+| T-30 | `non-preemptive/priority-np.ts` | `{}` | {priority : true} | menor `priority` | `§ Simular — Prioridad (no expropiativa)` | `priority-np.test.ts` |
+| T-31 | `preemptive/srtf.ts` | `{ on-tick }` | {} | menor `remaining` | `§ Simular — SRTF` | `srtf.test.ts` |
+| T-32 | `preemptive/priority-p.ts` | `{ on-tick }` | {priority : true} | menor `priority` | `§ Simular — Prioridad (expropiativa)` | `priority-p.test.ts` |
+| T-33 | `preemptive/round-robin.ts` | `{ on-quantum }` | {} | FIFO | `§ Simular — Round Robin` | `round-robin.test.ts` |
 
 **Cierra también:** `§ Algoritmos clásicos — solo CPU` (ignoran `io` en procesos)
 
 ### T-34 · Round Robin Virtual (`preemptive/virtual-round-robin.ts`)
 
-`preemptionMode: 'io-return'`, `requires: { io: true, quantum: true }`.
+`triggers: { on-quantum, on-io-return }`, `requires: { io: true, quantum: true }`.
 Estado interno: `mainQueue: FifoQueue<string>`, `auxQueue: FifoQueue<string>`, `remainingSlice: Map<string, number>`, `lastDispatchedFromAux: boolean` (para rastreo de mensajes).
 
 Implementa `select` (auxQueue → mainQueue), `quantumFor` (sobrante desde auxQueue, quantum completo desde mainQueue), y validación de `paramSchema` (`quantum` integer min 1).
@@ -583,7 +586,7 @@ Implementa `select` (auxQueue → mainQueue), `quantumFor` (sobrante desde auxQu
 
 ### T-35 · MLFQ (`preemptive/multilevel-feedback.ts`)
 
-`preemptionMode: 'on-quantum-and-better'`, `requires: { quantum: true, levels: true }`.
+`triggers: { on-quantum, on-arrival, on-io-return, on-boost }`, `requires: { quantum: true, levels: true }`.
 El flag `levels: true` indica a `AlgorithmParamsForm` que renderice un quantum **por nivel** (2 campos) más `boostInterval`, en vez de un único `quantum`.
 Constructor `new MLFQ(quanta: [number, number])`; la fábrica registrada en `src/index.ts` lee `params.quanta` (que llega desde la demo vía `RunConfig.quanta`) y construye la instancia con esos dos quanta.
 Estado interno: `levels: [FifoQueue<string>, FifoQueue<string>, FifoQueue<string>]` (siempre 3), `processLevel: Map<string, number>`.
@@ -757,13 +760,13 @@ Archivos: `GanttChart.tsx`, `style/GanttChart.module.css`.
 
 Layout de arriba abajo:
 1. **Mensaje** — `HistoryEvent.message` del tick actual (mensaje rico).
-2. **Matriz (Cabecera + Grilla)** — Tamaño **fijo desde el inicio**: todas las columnas renderizadas, navegar solo cambia el color. Celdas sin texto, solo color.
-3. **Leyenda** — Estados condicionados: Inactivo, En espera, En CPU; si `requires.io` también En E/S y Esperando E/S. La leyenda debe usar la misma representación visual que la matriz.
+2. **Matriz (Cabecera + Grilla)** — Tamaño **fijo desde el inicio**: todas las columnas renderizadas, navegar solo cambia el color. La matriz tiene borde redondeado, fondo de superficie y **scroll horizontal** (las filas enteras se desplazan juntas, sin scroll vertical) sin superar el ancho del simulador. La celda en CPU muestra la etiqueta «CPU» (texto blanco, animación de pulso) y la celda en servicio de E/S muestra «E/S»; el resto de celdas solo color. La **primera fila** (cabecera de ticks) y la **primera columna** (nombres de proceso) van con color de superficie elevada, distinto al cuerpo. Tipografía monoespaciada.
+3. **Leyenda** — Recuadro con borde y swatches de color. Entradas: «Ejecución (CPU)», «En Espera (Listo)», «Inactivo (Vacío)»; si `requires.io`, además «Bloqueado (E/S)» y «Cola de E/S».
 
 
 ### Estructura de la matriz y Renderizado (React):
 - **Fila 0 (Cabecera Superior):** La primera fila de la matriz DEBE ser una fila de cabecera (`.rowHeader`) que contenga los números de tick (`0`, `1`, `2`, ..., `último tick`). Debe incluir un elemento espaciador inicial invisible/vacío para empujar los números de tick y alinearlos exactamente sobre sus respectivas columnas de celdas inferiores, saltándose el hueco de la cabecera lateral.
-- **Filas de Procesos:** Únicamente se renderiza una fila por cada proceso real (`P1`, `P2`, etc.). **QUEDAN PROHIBIDAS** las filas artificiales para estados intermedios como "Idle" o "Inactivo". El estado de CPU Inactiva se representará pintando con la clase `.idle` (fondo gris) las celdas de la columna correspondiente donde ningún proceso esté en CPU.
+- **Filas de Procesos:** Únicamente se renderiza una fila por cada proceso real (`P1`, `P2`, etc.). **QUEDAN PROHIBIDAS** las filas artificiales para estados intermedios como "Idle" o "Inactivo". El estado de CPU Inactiva se representará pintando con la clase `.idle` (fondo de superficie elevada) las celdas de la columna correspondiente donde ningún proceso esté en CPU.
 - **Estructura de Fila Uniforme:** Cada fila (incluida la cabecera) debe usar exactamente la misma estructura de contenedores y alineación vertical centralizada para evitar desalineaciones (*offsets*) entre la etiqueta de texto y las celdas de color.
 - **Sin estilos en línea destructivos:** Las celdas NO deben recibir estilos en línea (`style={...}`) que sobreescriban el color de fondo directamente si eso destruye los estados CSS de opacidad o tramas. Los colores de los procesos se inyectarán como una variable CSS local al contenedor de la fila (ej. `style={{ '--process-color': color } as React.CSSProperties}`) para que las clases de estado puedan usar ese color base.
 
@@ -828,6 +831,16 @@ El archivo CSS DEBE implementar la siguiente estructura y utilizar obligatoriame
 * Paleta automática de procesos de al menos 10 colores diferenciados (vía tokens predefinidos del tema).
 * En modo oscuro, los colores deben mantener diferenciación y contraste suficiente.
 * Las celdas de los ticks posteriores al actual quedan en estado vacío (`.empty`), sin revelar color.
+
+#### Actualización estética (rediseño aplicado)
+
+El bloque CSS anterior es la base; el rediseño final (ver ADR en `DECISIONS.md`) lo refina:
+* **Etiquetas dentro de la celda:** la celda en CPU muestra «CPU» y la de E/S en servicio «E/S» (`.cpuText`, texto blanco con `@keyframes` de pulso); el nivel MLFQ se muestra como `L{n}` en un badge (`.levelBadge`).
+* **Estados de E/S** usan **color de aviso** (`--scheduler-danger`, rojo) en lugar del color del proceso: `.ioServing` con rayado diagonal, `.ioWaiting` con punteado y opacidad.
+* **CPU inactiva** (`.idle`) usa `--scheduler-surface-elevated`.
+* **Tabla:** `.matrix` con borde, `border-radius`, fondo de superficie y `overflow-x: auto` (scroll horizontal, `overflow-y: hidden`). `.rowHeader` y `.label` con `--scheduler-surface-elevated`. Bordes de rejilla entre filas/columnas con `--scheduler-border`.
+* **Tipografía** monoespaciada en mensaje, números de tick, etiquetas y leyenda; efecto `hover` (brillo) en las celdas.
+* Iconos SVG nativos (`PlusIcon`, `TrashIcon`) en los controles del `ProcessForm`.
 
 **Cierra**: `§ Render — GanttChart` (todos los criterios v02) — `tests/react/GanttChart.test.tsx`
 ### T-42 · `<PlaybackControls>`
@@ -925,6 +938,63 @@ Dos tablas: por proceso y agregadas. Solo visibles en el último tick.
 
 Archivos: `ProcessForm.tsx`, `style/ProcessForm.module.css`.
 
+
+Archivos:
+- ProcessForm.tsx.tsx
+- style/ProcessForm.module.css
+- icons/TrashIcon.tsx
+- icons/PlusIcon.tsx
+
+#### 1. Componentes de Iconos (Crear exactamente con este código)
+
+- **`src/react/icons/TrashIcon.tsx`**
+```tsx
+export const TrashIcon = (): React.ReactElement => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="1em"
+    height="1em"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+``` 
+- **`src/react/icons/PlusIcon.tsx`**
+```tsx
+export const PlusIcon = (): React.ReactElement => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="1em"
+    height="1em"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+``` 
+
+**Edición de operaciones de E/S (solo si `requires.io`):** Cada proceso muestra una sublista editable de operaciones. Cada operación tiene `io_entry` e `io_time`.
+
+- **Añadir operación:** control por proceso, valores por defecto, rederiva.
+- **Eliminar operación:** control por operación, rederiva. Sin operaciones = solo CPU.
+- **Validación individual:** `io_entry > 0 && < burst_time`; `io_time > 0`.
+- **Validación de lista:** `io_entry` estrictamente crecientes.
+- **Cascada:** si `burst_time` se reduce y algún `io_entry ≥ burst_time` → error.
 Panel **cerrado por defecto**. Al abrir: todos los procesos con campos editables.
 Rederiva al instante (sin botón Aplicar). Campos condicionales: `priority` si
 `requires.priority`, `io_entry`/`io_time` si `requires.io`. Añadir/eliminar proceso.
@@ -937,13 +1007,12 @@ Reglas visuales de formularios:
 - Los controles deshabilitados deben ser distinguibles.
 - El panel desplegable debe mostrar claramente su estado abierto/cerrado.
 
-**Edición de operaciones de E/S (solo si `requires.io`):** Cada proceso muestra una sublista editable de operaciones. Cada operación tiene `io_entry` e `io_time`.
 
-- **Añadir operación:** control por proceso, valores por defecto, rederiva.
-- **Eliminar operación:** control por operación, rederiva. Sin operaciones = solo CPU.
-- **Validación individual:** `io_entry > 0 && < burst_time`; `io_time > 0`.
-- **Validación de lista:** `io_entry` estrictamente crecientes.
-- **Cascada:** si `burst_time` se reduce y algún `io_entry ≥ burst_time` → error.
+2. Requisitos de Implementación para <ProcessForm>
+Importar los 2 componentes de iconos anteriores desde `./icons/` .
+* Añadir operación 
+
+
 
 **Cierra:** `§ ProcessForm — panel desplegable de edición de procesos` y `§ ProcessForm — edición de operaciones de E/S` — `tests/react/ProcessForm.test.tsx`
 
@@ -991,7 +1060,7 @@ Reglas visuales de formularios:
 - Los controles deshabilitados deben ser distinguibles.
 - El panel desplegable debe mostrar claramente su estado abierto/cerrado.
 
-**Cierra:** `§ AlgorithmParamsForm — edición de parámetros desde la demo` — `tests/react/AlgorithmParamsForm.test.tsx`
+**Cierra:** `§ Render — AlgorithmParamsForm` — `tests/react/AlgorithmParamsForm.test.tsx`
 
 ---
 
@@ -1076,7 +1145,7 @@ Objetivo: Servir como manual técnico estricto para extender el simulador implem
 
 Estructura del contenido:
 
-El Contrato IAlgorithm: Explicación de las propiedades obligatorias (name, preemptionMode, requires, select).
+El Contrato IAlgorithm: Explicación de las propiedades obligatorias (name, triggers, requires, select).
 
 Patrones Arquitectónicos Permitidos:
 
@@ -1275,7 +1344,7 @@ Fase 0 (T-00, T-01)
 | ProcessForm — panel desplegable de edición de procesos | T-44 | 
 | ProcessForm — edición de operaciones de E/S | T-44 |
 | WhatIfControls — rama what-if | T-45 |
-| `AlgorithmParamsForm` — draft vs applied | T-46 |
+| Render — `AlgorithmParamsForm` | T-46 |
 
 ---
 

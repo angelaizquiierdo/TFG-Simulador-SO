@@ -90,6 +90,54 @@ Componentes intercalados con texto explicativo. Ideal para material didáctico d
 
 ---
 
+## Sincronización y la frontera de islas de Astro
+
+Los subcomponentes se mantienen sincronizados entre sí (mover la reproducción y que el Gantt avance, editar un proceso y que las métricas cambien) porque **comparten una única fuente de verdad por React Context**. La sincronización **no la hace cada componente**, sino el `SimulationProvider` que los envuelve:
+
+1. `AlgorithmParamsForm` (al pulsar **Aplicar**) o `ProcessForm` (al instante, en cada cambio válido) llaman a `updateParams()` / `updateProcesses()`, funciones expuestas por el contexto.
+2. El `SimulationProvider` vuelve a ejecutar `run()`, crea un `Player` nuevo y guarda el resultado en el contexto.
+3. **Todos** los componentes que leen `useSimulation()` (`GanttChart`, `ProcessTable`, `MetricsTable`, `PlaybackControls`…) se re-renderizan a la vez con el nuevo resultado.
+
+Por eso el botón **Aplicar** y la edición instantánea solo deciden *cuándo* se dispara el recálculo: quien mantiene la coherencia es el contexto compartido.
+
+### Importante en Astro: una sola isla
+
+El contexto de React **solo vive dentro de una misma isla**. En un `.mdx`, cada componente que escribes es una isla independiente. Por tanto, **no** repartas el `SimulationProvider` y sus hijos en el `.mdx`:
+
+```mdx
+{/* ❌ NO funciona en Astro: GanttChart queda fuera del árbol React */}
+{/* del Provider (otra isla) → no encuentra el contexto y no se hidrata. */}
+<SimulationProvider algorithm="fcfs" processes={...} client:only="react">
+  <p>texto…</p>
+  <GanttChart />
+</SimulationProvider>
+```
+
+La forma correcta de embeber el simulador en una página es **una única isla** con `SimulationApp`, que compila Provider + subcomponentes juntos y los hidrata como un solo componente. Para intercalarlo con tu propia prosa, usa `mode="interleaved"` (los subcomponentes se apilan en vertical como un bloque) y rodea ese bloque con el texto del `.mdx`:
+
+```mdx
+import { SimulationApp } from 'cpu-scheduler';
+
+<p>Veamos cómo Round Robin reparte la CPU entre los procesos:</p>
+
+<SimulationApp
+  algorithm="round-robin"
+  processes={[
+    { id: 'P1', arrival_time: 0, burst_time: 4 },
+    { id: 'P2', arrival_time: 2, burst_time: 3 },
+  ]}
+  params={{ quantum: 2 }}
+  mode="interleaved"
+  client:only="react"
+/>
+
+<p>Observa en el diagrama y las métricas el efecto del quantum.</p>
+```
+
+> **Regla práctica:** el texto explicativo va **alrededor** del `<SimulationApp>` en el `.mdx`, no entre sus subcomponentes. Todos los subcomponentes deben compartir la misma isla; montar uno suelto fuera del proveedor lanza un error, porque lee sus datos del contexto y no de props propias.
+
+---
+
 ## Uso en Astro (Islas React)
 
 Para renderizar el componente en Astro, usa la directiva `client:only="react"` para evitar la hidratación en el servidor (el simulador es 100 % cliente):

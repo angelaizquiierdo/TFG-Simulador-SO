@@ -73,6 +73,8 @@ function executeSimulationLoop(
   initialRemaining?: ReadonlyMap<string, number>,
 ): HistoryEvent[] {
   const history: HistoryEvent[] = [];
+  // El motor reacciona a los disparadores declarativos que expone el algoritmo.
+  const triggers = algo.triggers;
   const remaining = new Map<string, number>();
   for (const p of processes) {
     remaining.set(p.id, p.burst_time);
@@ -221,11 +223,11 @@ function executeSimulationLoop(
           ready.splice(ready.indexOf(selected.id), 1);
           ticksInSlice = 0;
 
+          // El slice solo se fija si hay fuente de quantum: en `io-return` (VRR) el
+          // quantum es opcional, y sin fuente no debe iniciarse cuenta de expiración.
           if (
-            algo.preemptionMode === 'on-quantum' ||
-            algo.preemptionMode === 'on-quantum-and-better' ||
-            (algo.preemptionMode === 'io-return' &&
-              (algo.quantumFor !== undefined || quantum !== undefined))
+            triggers.has('on-quantum') &&
+            (algo.quantumFor !== undefined || quantum !== undefined)
           ) {
             currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
           }
@@ -245,47 +247,23 @@ function executeSimulationLoop(
         message = 'CPU inactiva';
         prevTickMessage = null;
       }
-    } else if (algo.preemptionMode === 'on-better') {
-      // T-12: reevaluar con on-better (incluyendo proceso actual como candidato)
+    } else {
+      // Reselección dirigida por disparadores (R3). El proceso actual es candidato.
       const currentId = onCPU;
-      const candidateIds = [...ready, currentId];
-      const readyList = buildReadyList(candidateIds, processes, remaining);
-      const selected = algo.select(readyList);
 
-      if (selected.id !== currentId) {
-        const preemptRaw = algo.onEvent?.({ type: 'preempted', id: currentId, tick }) ?? null;
-        message = switchTo(currentId, selected, resolveMsg(preemptRaw, currentId), false);
-      } else {
-        message = `${currentId} en CPU`;
-      }
-    } else if (algo.preemptionMode === 'io-return' && hadIoReturn) {
-      // T-16: expropiación forzada cuando hay retorno de E/S
-      const currentId = onCPU;
-      const candidateIds = [...ready, currentId];
-      const readyList = buildReadyList(candidateIds, processes, remaining);
-      const selected = algo.select(readyList);
-
-      if (selected.id !== currentId) {
-        const preemptRaw = algo.onEvent?.({ type: 'preempted', id: currentId, tick }) ?? null;
-        message = switchTo(currentId, selected, resolveMsg(preemptRaw, currentId), true);
-      } else {
-        message = `${currentId} en CPU`;
-      }
-    } else if (algo.preemptionMode === 'on-quantum-and-better') {
-      // T-17: modo híbrido MLFQ — quantum + on-better (solo en llegadas) + priority-boost
-      const currentId = onCPU;
+      // ── priority-boost (disparador on-boost; MLFQ) ──
+      // Debe emitirse ANTES de reevaluar: el algoritmo mueve todos al nivel 0.
       const boostNow =
+        triggers.has('on-boost') &&
         boostInterval !== undefined &&
         boostInterval > 0 &&
         tick > 0 &&
         tick % boostInterval === 0;
 
       if (boostNow) {
-        // Emitir priority-boost; el algoritmo mueve todos al nivel 0
         const boostRaw = algo.onEvent?.({ type: 'priority-boost', tick }) ?? null;
         const boostMsg = resolveMsg(boostRaw, '') ?? 'priority boost';
         ticksInSlice = 0;
-        // Re-evaluar incluyendo el proceso actual como candidato
         const candidateIds = [...ready, currentId];
         const readyList = buildReadyList(candidateIds, processes, remaining);
         const selected = algo.select(readyList);
@@ -297,23 +275,34 @@ function executeSimulationLoop(
           currentSlice = algo.quantumFor?.(selected) ?? quantum ?? 1;
           message = boostMsg;
         }
-      } else if (arrivals.length > 0 || hadIoReturn) {
-        // Reevaluar solo cuando haya llegadas nuevas o retornos de E/S
-        const candidateIds = [...ready, currentId];
-        const readyList = buildReadyList(candidateIds, processes, remaining);
-        const selected = algo.select(readyList);
+      } else {
+        // ¿Algún disparador activo este tick pide reevaluar la selección?
+        const reselect =
+          triggers.has('on-tick') ||
+          (triggers.has('on-arrival') && arrivals.length > 0) ||
+          (triggers.has('on-io-return') && hadIoReturn);
 
-        if (selected.id !== currentId) {
-          const preemptRaw = algo.onEvent?.({ type: 'preempted', id: currentId, tick }) ?? null;
-          message = switchTo(currentId, selected, resolveMsg(preemptRaw, currentId), true);
+        if (reselect) {
+          const candidateIds = [...ready, currentId];
+          const readyList = buildReadyList(candidateIds, processes, remaining);
+          const selected = algo.select(readyList);
+
+          if (selected.id !== currentId) {
+            const preemptRaw = algo.onEvent?.({ type: 'preempted', id: currentId, tick }) ?? null;
+            // Renueva el quantum solo en modos basados en quantum (on-quantum)
+            message = switchTo(
+              currentId,
+              selected,
+              resolveMsg(preemptRaw, currentId),
+              triggers.has('on-quantum'),
+            );
+          } else {
+            message = `${currentId} en CPU`;
+          }
         } else {
           message = `${currentId} en CPU`;
         }
-      } else {
-        message = `${currentId} en CPU`;
       }
-    } else {
-      message = `${onCPU} en CPU`;
     }
 
     // ── PASO 3: Registrar HistoryEvent (snapshot DURANTE este tick) ──
@@ -360,9 +349,7 @@ function executeSimulationLoop(
         ticksInSlice = 0;
         currentSlice = 0;
       } else if (
-        (algo.preemptionMode === 'on-quantum' ||
-          algo.preemptionMode === 'on-quantum-and-better' ||
-          algo.preemptionMode === 'io-return') &&
+        triggers.has('on-quantum') &&
         currentSlice > 0 &&
         ticksInSlice >= currentSlice
       ) {
@@ -372,7 +359,7 @@ function executeSimulationLoop(
         onCPU = null;
         ticksInSlice = 0;
         currentSlice = 0;
-      } else if (algo.preemptionMode === 'on-better') {
+      } else if (triggers.has('on-tick')) {
         // on-better: reevaluar al final del tick también (sin llegadas nuevas)
         const currentId = onCPU;
         const candidateIds = [...ready, currentId];

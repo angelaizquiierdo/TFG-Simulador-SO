@@ -27,8 +27,9 @@ function renderGantt(
   algorithm = 'fcfs',
   tickOverride?: number,
   requiresOverride?: SimulationContextValue['requires'],
+  runConfig: { quantum?: number; boostInterval?: number; quanta?: readonly number[] } = {},
 ) {
-  const result = run(processes, { algorithm });
+  const result = run(processes, { algorithm, ...runConfig });
   const player = new Player(result.history);
   const tick = tickOverride ?? result.history.length - 1;
   const currentEvent = result.history[tick];
@@ -93,16 +94,11 @@ describe('§ Render — GanttChart', () => {
 
   // ── Celdas sin texto ───────────────────────────────────────────────────────
 
-  it('las celdas de la grilla no contienen texto', () => {
-    renderGantt(PROCS_FCFS);
-    // Todas las celdas con data-testid "gantt-cell-*"
-    const cells = screen.getAllByRole('generic').filter(
-      (el) => el.dataset.testid?.startsWith('gantt-cell-') === true,
-    );
-    expect(cells.length).toBeGreaterThan(0);
-    cells.forEach((cell) => {
-      expect(cell.textContent).toBe('');
-    });
+  it('la celda en CPU muestra la etiqueta "CPU"; las celdas no activas no llevan texto', () => {
+    // FCFS: en tick 0, P1 está en CPU → muestra "CPU"; P2 espera → sin texto
+    renderGantt(PROCS_FCFS, 'fcfs', 0);
+    expect(screen.getByTestId('gantt-cell-P1-0').textContent).toBe('CPU');
+    expect(screen.getByTestId('gantt-cell-P2-0').textContent).toBe('');
   });
 
   // ── Clases de estado ───────────────────────────────────────────────────────
@@ -199,21 +195,21 @@ describe('§ Render — GanttChart', () => {
   it('renderiza la leyenda con los tres estados base', () => {
     renderGantt(PROCS_FCFS, 'fcfs', 0, {});
     expect(screen.getByTestId('gantt-legend')).toBeInTheDocument();
-    expect(screen.getByText('Inactivo')).toBeInTheDocument();
-    expect(screen.getByText('En espera')).toBeInTheDocument();
-    expect(screen.getByText('En CPU')).toBeInTheDocument();
+    expect(screen.getByText('Inactivo (Vacío)')).toBeInTheDocument();
+    expect(screen.getByText('En Espera (Listo)')).toBeInTheDocument();
+    expect(screen.getByText('Ejecución (CPU)')).toBeInTheDocument();
   });
 
   it('la leyenda NO muestra estados de E/S si !requires.io', () => {
     renderGantt(PROCS_FCFS, 'fcfs', 0, {});
-    expect(screen.queryByText('En E/S')).not.toBeInTheDocument();
-    expect(screen.queryByText('Esperando E/S')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bloqueado (E/S)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cola de E/S')).not.toBeInTheDocument();
   });
 
   it('la leyenda muestra estados de E/S si requires.io = true', () => {
     renderGantt(PROCS_FCFS, 'fcfs', 0, { io: true });
-    expect(screen.getByText('En E/S')).toBeInTheDocument();
-    expect(screen.getByText('Esperando E/S')).toBeInTheDocument();
+    expect(screen.getByText('Bloqueado (E/S)')).toBeInTheDocument();
+    expect(screen.getByText('Cola de E/S')).toBeInTheDocument();
   });
 
   // ── Estado idle ────────────────────────────────────────────────────────────
@@ -227,6 +223,85 @@ describe('§ Render — GanttChart', () => {
     const cell = screen.getByTestId('gantt-cell-P1-1');
     // P1 aún está en pending, CPU inactiva → idle
     expect(cell.className).toContain('idle');
+  });
+
+  // ── Estado vacío (sin result) ───────────────────────────────────────────────
+
+  it('renderiza un estado vacío cuando no hay result ni currentEvent', () => {
+    const value: SimulationContextValue = {
+      result: null,
+      currentEvent: undefined,
+      player: new Player([]),
+      error: null,
+      whatIfBranch: null,
+      processes: PROCS_FCFS,
+      algorithmName: 'fcfs',
+      requires: {},
+      params: {},
+      stepForward: () => undefined,
+      stepBackward: () => undefined,
+      seekTo: () => undefined,
+      updateProcesses: () => undefined,
+      updateParams: () => undefined,
+      createWhatIf: () => undefined,
+      discardWhatIf: () => undefined,
+      reset: () => undefined,
+    };
+    render(
+      <SimulationCtx.Provider value={value}>
+        <GanttChart />
+      </SimulationCtx.Provider>,
+    );
+    expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('gantt-message').textContent).toBe('');
+    const cells = screen.queryAllByRole('generic').filter(
+      (el) => el.dataset.testid?.startsWith('gantt-cell-') === true,
+    );
+    expect(cells.length).toBe(0);
+  });
+
+  // ── Estados de E/S (VRR) ────────────────────────────────────────────────────
+
+  const IO_PROCS: readonly Process[] = [
+    { id: 'P1', arrival_time: 0, burst_time: 3, io: [{ io_entry: 1, io_time: 3 }] },
+    { id: 'P2', arrival_time: 0, burst_time: 3, io: [{ io_entry: 1, io_time: 2 }] },
+  ];
+
+  it('celda en servicio de E/S (VRR): estado ioServing con la etiqueta «E/S»', () => {
+    const r = run(IO_PROCS, { algorithm: 'virtual-round-robin', quantum: 2 });
+    const t = r.history.findIndex((e) => e.inIO !== null);
+    expect(t).toBeGreaterThanOrEqual(0);
+    const pid = r.history[t]?.inIO ?? null;
+    expect(pid).not.toBeNull();
+    if (pid === null) return;
+    renderGantt(IO_PROCS, 'virtual-round-robin', t, { io: true, quantum: true }, { quantum: 2 });
+    const cell = screen.getByTestId(`gantt-cell-${pid}-${String(t)}`);
+    expect(cell.className).toContain('ioServing');
+    expect(cell.textContent).toContain('E/S');
+  });
+
+  it('celda esperando el dispositivo (VRR): estado ioWaiting', () => {
+    const r = run(IO_PROCS, { algorithm: 'virtual-round-robin', quantum: 2 });
+    const t = r.history.findIndex((e) => e.waitingIO.length > 0);
+    expect(t).toBeGreaterThanOrEqual(0);
+    const pid = r.history[t]?.waitingIO[0];
+    expect(pid).toBeDefined();
+    if (pid === undefined) return;
+    renderGantt(IO_PROCS, 'virtual-round-robin', t, { io: true, quantum: true }, { quantum: 2 });
+    const cell = screen.getByTestId(`gantt-cell-${pid}-${String(t)}`);
+    expect(cell.className).toContain('ioWaiting');
+  });
+
+  // ── Badge de nivel (MLFQ) ────────────────────────────────────────────────────
+
+  it('MLFQ: la celda muestra el badge de nivel «L{n}»', () => {
+    const MLFQ_PROCS: readonly Process[] = [
+      { id: 'P1', arrival_time: 0, burst_time: 4 },
+      { id: 'P2', arrival_time: 0, burst_time: 4 },
+    ];
+    // En tick 0, P1 está en CPU en el nivel 0 → badge "L0"
+    renderGantt(MLFQ_PROCS, 'mlfq', 0, { levels: true, quantum: true });
+    expect(screen.getAllByText('L0').length).toBeGreaterThan(0);
   });
 
   // ── Tamaño fijo ────────────────────────────────────────────────────────────
