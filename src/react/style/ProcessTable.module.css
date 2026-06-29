@@ -48,3 +48,8 @@
 .table td:first-child {
   font-weight: 600;
 }
+
+/* Celdas combinadas (rowSpan) del proceso: alineadas arriba, junto a su 1ª línea de E/S */
+.table td[rowspan] {
+  vertical-align: top;
+}

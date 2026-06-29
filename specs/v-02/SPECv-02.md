@@ -108,6 +108,12 @@ Al terminar el servicio, el dispositivo queda libre, admite a la cabeza de su co
 - **Inyección en vivo:** añadir un proceso con `arrival_time ≥ tick actual` y rederivar hacia delante desde ese tick.
 El determinismo se mantiene **por escenario/rama resuelto**: misma entrada (o mismo estado de partida) + mismo algoritmo ⇒ mismo resultado.
 
+**Comparación what-if (vista en la demo).** Cuando hay una rama *what-if* activa, la interfaz muestra una **comparación lado a lado** del escenario actual frente a la rama, organizada en **tres secciones desplegables**:
+- **Diagrama de Gantt — comparación:** los dos diagramas (actual y «¿y si?») completos, uno sobre otro, para ver cómo cambia la planificación.
+- **Métricas por proceso — comparación:** por cada proceso, su tiempo de espera y de retorno en el escenario actual, en la rama y la diferencia.
+- **Métricas agregadas — comparación:** espera media, turnaround medio, utilización de CPU y throughput, con su diferencia.
+> **Nota de implementación (v-02):** la rama *what-if* actual se obtiene **rederivando el escenario completo** con el algoritmo/parámetros alternativos (`run()` con *overrides*), no bifurcando desde el `SchedulerState` del tick `T` como describe el párrafo anterior. La bifurcación por estado (`runFrom`) queda como evolución futura; ver `DECISIONS.md`.
+
 ### Navegación temporal y reproducción 
 En cada instante se visualiza el estado del algoritmo: proceso en CPU, cola de listos, procesos **en E/S (en servicio)** y procesos **esperando dispositivo de E/S**, procesos aún no llegados y procesos completados. La navegación recorre el resultado **de la rama actual** ya calculado; moverse por la línea temporal no recalcula nada. Solo las acciones de edición (*what-if*, inyección) rederivan, y lo hacen creando/actualizando la rama, no al navegar.
 

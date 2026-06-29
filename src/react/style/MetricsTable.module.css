@@ -25,7 +25,6 @@
   border-collapse: collapse;
   font-size: 0.875rem;
   color: var(--scheduler-text-primary);
-  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   overflow: hidden;
 }
@@ -36,11 +35,6 @@
   font-weight: 600;
   text-align: left;
   padding: var(--scheduler-space-xs) var(--scheduler-space-sm);
-  border-bottom: 1px solid var(--scheduler-border);
-}
-
-.table tbody tr {
-  border-bottom: 1px solid var(--scheduler-border);
 }
 
 .table tbody tr:nth-child(even) {
@@ -57,4 +51,41 @@
 
 .numeric {
   text-align: right;
+}
+
+/* ─── Métricas agregadas: cuadrícula 2×2 de tarjetas cuadradas ─── */
+.aggregateGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--scheduler-space-sm);
+  /* Limita el tamaño de las tarjetas cuadradas para que no crezcan en exceso
+     cuando el contenedor es ancho. */
+  max-width: 26rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--scheduler-space-xs);
+  /* Cuadrado: el alto sigue al ancho de cada celda de la cuadrícula */
+  aspect-ratio: 1 / 1;
+  padding: var(--scheduler-space-sm);
+  background-color: var(--scheduler-surface);
+  border-radius: var(--scheduler-radius-md);
+}
+
+.cardValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--scheduler-text-primary);
+  line-height: 1;
+}
+
+.cardLabel {
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--scheduler-text-secondary);
 }

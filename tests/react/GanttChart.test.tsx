@@ -186,7 +186,9 @@ describe('§ Render — GanttChart', () => {
     );
     const msg = tick0Event?.message ?? '';
     if (msg !== '') {
-      expect(screen.getByTestId('gantt-message').textContent).toBe(msg);
+      const text = screen.getByTestId('gantt-message').textContent;
+      expect(text).toContain('Tick 0:');
+      expect(text).toContain(msg);
     }
   });
 
@@ -253,7 +255,7 @@ describe('§ Render — GanttChart', () => {
       </SimulationCtx.Provider>,
     );
     expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('gantt-message').textContent).toBe('');
+    expect(screen.getByTestId('gantt-message').textContent).toBe('Tick 0: ');
     const cells = screen.queryAllByRole('generic').filter(
       (el) => el.dataset.testid?.startsWith('gantt-cell-') === true,
     );
@@ -290,18 +292,30 @@ describe('§ Render — GanttChart', () => {
     renderGantt(IO_PROCS, 'virtual-round-robin', t, { io: true, quantum: true }, { quantum: 2 });
     const cell = screen.getByTestId(`gantt-cell-${pid}-${String(t)}`);
     expect(cell.className).toContain('ioWaiting');
+    // Cola de E/S: sin fondo, con el texto «L(E/S)»
+    expect(cell.textContent).toContain('L(E/S)');
   });
 
-  // ── Badge de nivel (MLFQ) ────────────────────────────────────────────────────
+  // ── Número de cola en la etiqueta de CPU (MLFQ / VRR) ────────────────────────
 
-  it('MLFQ: la celda muestra el badge de nivel «L{n}»', () => {
+  it('MLFQ: la celda en CPU muestra «CPU{cola}» y las celdas en espera el badge «L{n}»', () => {
     const MLFQ_PROCS: readonly Process[] = [
       { id: 'P1', arrival_time: 0, burst_time: 4 },
       { id: 'P2', arrival_time: 0, burst_time: 4 },
     ];
-    // En tick 0, P1 está en CPU en el nivel 0 → badge "L0"
+    // En tick 0, P1 está en CPU en el nivel 0 → «CPU0»; P2 espera en nivel 0 → badge «L0»
     renderGantt(MLFQ_PROCS, 'mlfq', 0, { levels: true, quantum: true });
+    expect(screen.getByTestId('gantt-cell-P1-0').textContent).toBe('CPU0');
     expect(screen.getAllByText('L0').length).toBeGreaterThan(0);
+  });
+
+  it('VRR: la celda en CPU muestra el número de cola (cola 1 = principal/RR) en «CPU{cola}»', () => {
+    // En tick 0 P1 se despacha desde la cola principal (RR) → cola 1 → «CPU1»
+    const r = run(IO_PROCS, { algorithm: 'virtual-round-robin', quantum: 2 });
+    expect(r.history[0]?.onCPU).toBe('P1');
+    expect(r.history[0]?.levels?.P1).toBe(1);
+    renderGantt(IO_PROCS, 'virtual-round-robin', 0, { io: true, quantum: true }, { quantum: 2 });
+    expect(screen.getByTestId('gantt-cell-P1-0').textContent).toBe('CPU1');
   });
 
   // ── Tamaño fijo ────────────────────────────────────────────────────────────
@@ -315,5 +329,51 @@ describe('§ Render — GanttChart', () => {
       (el) => el.dataset.testid?.startsWith('gantt-cell-') === true,
     );
     expect(cells.length).toBe(totalCells);
+  });
+
+  // ── Props que sobrescriben el contexto (reutilización en la rama what-if) ────
+
+  it('las props history/currentTick/testId sobrescriben al contexto', () => {
+    // Contexto: FCFS (2 procesos). Props: historial de SJF y testId propio.
+    const branch = run(PROCS_FCFS, { algorithm: 'sjf' });
+    const ctxResult = run(PROCS_FCFS, { algorithm: 'fcfs' });
+    const player = new Player(ctxResult.history);
+    const value: SimulationContextValue = {
+      result: ctxResult,
+      currentEvent: ctxResult.history[0],
+      player,
+      error: null,
+      whatIfBranch: null,
+      processes: PROCS_FCFS,
+      algorithmName: 'fcfs',
+      requires: {},
+      params: {},
+      stepForward: () => undefined,
+      stepBackward: () => undefined,
+      seekTo: () => undefined,
+      updateProcesses: () => undefined,
+      updateParams: () => undefined,
+      createWhatIf: () => undefined,
+      discardWhatIf: () => undefined,
+      reset: () => undefined,
+    };
+    render(
+      <SimulationCtx.Provider value={value}>
+        <GanttChart
+          history={branch.history}
+          processes={PROCS_FCFS}
+          currentTick={branch.history.length - 1}
+          testId="gantt-branch"
+        />
+      </SimulationCtx.Provider>,
+    );
+    // El testId override está presente y el por defecto NO.
+    expect(screen.getByTestId('gantt-branch')).toBeInTheDocument();
+    expect(screen.queryByTestId('gantt-chart')).not.toBeInTheDocument();
+    // El nº de celdas corresponde al historial pasado por props.
+    const cells = screen.getAllByRole('generic').filter(
+      (el) => el.dataset.testid?.startsWith('gantt-cell-') === true,
+    );
+    expect(cells.length).toBe(PROCS_FCFS.length * branch.history.length);
   });
 });

@@ -20,6 +20,8 @@
   justify-content: center;
   width: var(--scheduler-btn-height-sm);
   height: var(--scheduler-btn-height-sm);
+  /* Neutraliza el margin-top que Starlight inyecta a los hermanos en .sl-markdown-content */
+  margin: 0;
   border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   background-color: var(--scheduler-surface);

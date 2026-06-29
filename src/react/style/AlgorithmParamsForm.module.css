@@ -4,7 +4,7 @@
   align-items: flex-end;
   gap: var(--scheduler-space-md);
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   background: var(--scheduler-surface);
 }
@@ -27,7 +27,7 @@
 .field input {
   width: 6rem;
   padding: 2px var(--scheduler-space-sm);
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   font-size: 0.875rem;
   color: var(--scheduler-text-primary);

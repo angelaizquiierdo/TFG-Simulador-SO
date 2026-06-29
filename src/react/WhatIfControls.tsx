@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useSimulation } from './SimulationContext.js';
+import type { AlgorithmRequires } from './SimulationContext.js';
 import { get, list } from '../core/registry.js';
-import type { AggregateMetrics } from '../core/types/simulation-result.js';
+import type { AggregateMetrics, ProcessMetrics } from '../core/types/simulation-result.js';
+import { GanttChart } from './GanttChart.js';
 import styles from './style/WhatIfControls.module.css';
 
 interface DraftParams {
@@ -103,6 +105,47 @@ const METRIC_ROWS: readonly MetricRow[] = [
   { label: 'Throughput', format: (v) => v.toFixed(3), pick: (m) => m.throughput },
 ];
 
+// Requisitos del algoritmo (para la leyenda del Gantt de la rama); {} si no existe.
+function requiresOf(algorithm: string): AlgorithmRequires {
+  try {
+    return get(algorithm).requires;
+  } catch {
+    return {};
+  }
+}
+
+// Fila de comparación por proceso: une métricas del escenario actual y la rama por id.
+interface ProcessCompareRow {
+  readonly id: string;
+  readonly waitingA: number;
+  readonly waitingB: number;
+  readonly turnaroundA: number;
+  readonly turnaroundB: number;
+}
+
+function buildProcessRows(
+  actual: readonly ProcessMetrics[],
+  branch: readonly ProcessMetrics[],
+): readonly ProcessCompareRow[] {
+  const byId = new Map(branch.map((m) => [m.id, m] as const));
+  return actual.map((a) => {
+    const b = byId.get(a.id);
+    return {
+      id: a.id,
+      waitingA: a.waiting,
+      waitingB: b?.waiting ?? a.waiting,
+      turnaroundA: a.turnaround,
+      turnaroundB: b?.turnaround ?? a.turnaround,
+    };
+  });
+}
+
+// Formatea una diferencia con signo explícito ('+' si es positiva).
+function fmtDelta(delta: number): string {
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${String(delta)}`;
+}
+
 /**
  * Panel de análisis "¿y si...?". Solo visible en un tick intermedio
  * (0 < tick_actual < último tick).
@@ -113,8 +156,17 @@ const METRIC_ROWS: readonly MetricRow[] = [
  * comparando las métricas agregadas del escenario actual frente a la rama.
  */
 export function WhatIfControls(): React.ReactElement | null {
-  const { result, currentEvent, whatIfBranch, createWhatIf, discardWhatIf, algorithmName, params } =
-    useSimulation();
+  const {
+    result,
+    currentEvent,
+    whatIfBranch,
+    createWhatIf,
+    discardWhatIf,
+    algorithmName,
+    params,
+    processes,
+    requires,
+  } = useSimulation();
 
   const [algorithm, setAlgorithm] = useState(algorithmName);
   const [draft, setDraft] = useState<DraftParams>(() => paramsToDraft(params));
@@ -147,11 +199,22 @@ export function WhatIfControls(): React.ReactElement | null {
   if (whatIfBranch !== null) {
     const actual = result.metrics.aggregate;
     const branch = whatIfBranch.result.metrics.aggregate;
+    const branchHistory = whatIfBranch.result.history;
+    const branchAlgorithm = whatIfBranch.algorithm;
+    const branchRequires = requiresOf(branchAlgorithm);
+    // Etiquetas: el escenario actual lleva el nombre de su algoritmo; la rama,
+    // "Comparado con <algoritmo>".
+    const actualLabel = algorithmName;
+    const branchLabelText = `Comparado con ${branchAlgorithm}`;
+    const processRows = buildProcessRows(
+      result.metrics.perProcess,
+      whatIfBranch.result.metrics.perProcess,
+    );
     return (
       <div data-testid="whatif-controls" className={styles.container}>
         <div className={styles.header}>
           <span className={styles.branchLabel} data-testid="whatif-branch-indicator">
-            ¿Y si…? {branchLabel ?? 'rama activa'}
+            {branchLabel !== null ? `Comparar · ${branchLabel}` : 'Comparar'}
           </span>
           <button
             type="button"
@@ -162,39 +225,104 @@ export function WhatIfControls(): React.ReactElement | null {
             Descartar rama
           </button>
         </div>
-        <table className={styles.comparison} data-testid="whatif-comparison">
-          <thead>
-            <tr>
-              <th>Métrica</th>
-              <th className={styles.numeric}>Actual</th>
-              <th className={styles.numeric}>¿Y si?</th>
-              <th className={styles.numeric}>Δ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {METRIC_ROWS.map((row) => {
-              const a = row.pick(actual);
-              const b = row.pick(branch);
-              const delta = b - a;
-              const sign = delta > 0 ? '+' : '';
-              return (
-                <tr key={row.label}>
-                  <td>{row.label}</td>
-                  <td className={styles.numeric}>{row.format(a)}</td>
-                  <td className={styles.numeric}>{row.format(b)}</td>
-                  <td className={styles.numeric}>{`${sign}${row.format(delta)}`}</td>
+
+        {/* 1. Comparación de diagramas de Gantt (actual vs rama, revelados completos) */}
+        <details className={styles.section} data-testid="whatif-gantt-comparison" open>
+          <summary className={styles.summary}>Diagrama de Gantt — comparación</summary>
+          <div className={styles.ganttPair}>
+            <div className={styles.ganttBlock} data-testid="whatif-gantt-actual">
+              <span className={styles.subTitle}>{actualLabel}</span>
+              <GanttChart
+                history={result.history}
+                processes={processes}
+                requires={requires}
+                currentTick={result.history.length - 1}
+                message=""
+                testId="whatif-gantt-actual-chart"
+              />
+            </div>
+            <div className={styles.ganttBlock} data-testid="whatif-gantt-branch">
+              <span className={styles.subTitle}>{branchLabelText}</span>
+              <GanttChart
+                history={branchHistory}
+                processes={processes}
+                requires={branchRequires}
+                currentTick={branchHistory.length - 1}
+                message=""
+                testId="whatif-gantt-branch-chart"
+              />
+            </div>
+          </div>
+        </details>
+
+        {/* 2. Comparación de métricas por proceso */}
+        <details className={styles.section} data-testid="whatif-comparison-per-process">
+          <summary className={styles.summary}>Métricas por proceso — comparación</summary>
+          <table className={styles.comparison} data-testid="whatif-per-process-table">
+            <thead>
+              <tr>
+                <th>Proceso</th>
+                <th className={styles.numeric}>Espera ({actualLabel})</th>
+                <th className={styles.numeric}>Espera ({branchAlgorithm})</th>
+                <th className={styles.numeric}>Δ esp.</th>
+                <th className={styles.numeric}>Turn. ({actualLabel})</th>
+                <th className={styles.numeric}>Turn. ({branchAlgorithm})</th>
+                <th className={styles.numeric}>Δ turn.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {processRows.map((row) => (
+                <tr key={row.id} data-testid={`whatif-per-process-row-${row.id}`}>
+                  <td>{row.id}</td>
+                  <td className={styles.numeric}>{row.waitingA}</td>
+                  <td className={styles.numeric}>{row.waitingB}</td>
+                  <td className={styles.numeric}>{fmtDelta(row.waitingB - row.waitingA)}</td>
+                  <td className={styles.numeric}>{row.turnaroundA}</td>
+                  <td className={styles.numeric}>{row.turnaroundB}</td>
+                  <td className={styles.numeric}>{fmtDelta(row.turnaroundB - row.turnaroundA)}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </details>
+
+        {/* 3. Comparación de métricas agregadas */}
+        <details className={styles.section} data-testid="whatif-comparison-aggregate" open>
+          <summary className={styles.summary}>Métricas agregadas — comparación</summary>
+          <table className={styles.comparison} data-testid="whatif-comparison">
+            <thead>
+              <tr>
+                <th>Métrica</th>
+                <th className={styles.numeric}>{actualLabel}</th>
+                <th className={styles.numeric}>{branchLabelText}</th>
+                <th className={styles.numeric}>Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {METRIC_ROWS.map((row) => {
+                const a = row.pick(actual);
+                const b = row.pick(branch);
+                const delta = b - a;
+                const sign = delta > 0 ? '+' : '';
+                return (
+                  <tr key={row.label}>
+                    <td>{row.label}</td>
+                    <td className={styles.numeric}>{row.format(a)}</td>
+                    <td className={styles.numeric}>{row.format(b)}</td>
+                    <td className={styles.numeric}>{`${sign}${row.format(delta)}`}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </details>
       </div>
     );
   }
 
   return (
     <div data-testid="whatif-controls" className={styles.container}>
-      <span className={styles.title}>¿Y si…? Compara un escenario alternativo</span>
+      <span className={styles.title}>Comparar con otro escenario</span>
       <div className={styles.form} data-testid="whatif-form">
         <label className={styles.field}>
           <span>Algoritmo</span>

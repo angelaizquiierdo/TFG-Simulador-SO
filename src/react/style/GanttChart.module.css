@@ -14,10 +14,26 @@
 
 .message {
   font-size: 0.875rem;
-  color: var(--scheduler-text-secondary, #475569);
-  min-height: 1.25em;
+  color: var(--scheduler-text-secondary);
+  /* Alto fijo: ocupa siempre el mismo espacio (≈2 líneas) sin importar la
+     longitud del mensaje; el texto se centra verticalmente y se recorta si
+     excede, de modo que la matriz nunca se desplaza al cambiar de tick. */
+  height: 3.5rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
   font-family: monospace;
   font-weight: 600;
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-md, 8px);
+  padding: var(--scheduler-space-sm, 8px) var(--scheduler-space-md, 16px);
+  background-color: var(--scheduler-surface);
+}
+
+.messageTick {
+  color: var(--scheduler-text-primary);
+  font-weight: 700;
 }
 
 /* ─── Matriz (cabecera + filas de proceso) ────── */
@@ -29,11 +45,11 @@
   min-width: 0; 
   overflow-x: auto;
   overflow-y: hidden;
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-md, 8px);
-  background-color: var(--scheduler-surface, #f8fafc);
+  background-color: var(--scheduler-surface);
   scrollbar-width: thin;
-  scrollbar-color: var(--scheduler-border, #cbd5e1) transparent;
+  scrollbar-color: var(--scheduler-border) transparent;
 }
 /* ─── Filas (cabecera y proceso) ─────────────── */
 .row,
@@ -41,7 +57,7 @@
   display: flex;
   align-items: stretch;
   height: var(--scheduler-gantt-cell-height, 36px);
-  border-bottom: 1px solid var(--scheduler-border, #cbd5e1);
+  border-bottom: 1px solid var(--scheduler-border);
   width: 100%;
   min-width: max-content; 
   
@@ -55,7 +71,7 @@
 }
 
 .rowHeader {
-  background-color: var(--scheduler-surface-elevated, #f1f5f9);
+  background-color: var(--scheduler-surface-elevated);
 }
 
 /* ─── Etiqueta lateral del proceso (columna) ──── */
@@ -69,15 +85,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 1px solid var(--scheduler-border, #cbd5e1);
+  border-right: 1px solid var(--scheduler-border);
 }
 
 .label {
   font-size: 0.75rem;
   font-weight: 700;
   font-family: monospace;
-  color: var(--scheduler-text-primary, #0f172a);
-  background-color: var(--scheduler-surface-elevated, #f1f5f9);
+  color: var(--scheduler-text-primary);
+  background-color: var(--scheduler-surface-elevated);
 }
 
 /* ─── Celdas de la grilla y números de tick ─── */
@@ -89,7 +105,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  border-right: 1px solid var(--scheduler-border, #cbd5e1);
+  border-right: 1px solid var(--scheduler-border);
   position: relative;
   
   /* LA MAGIA: Eliminamos el margen superior que mete Starlight */
@@ -106,7 +122,7 @@
 .tickNumber {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--scheduler-text-primary, #0f172a);
+  color: var(--scheduler-text-primary);
   font-family: monospace;
 }
 
@@ -123,7 +139,7 @@
 .cpuText {
   font-size: 0.55rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--scheduler-text-third);
   font-family: monospace;
   pointer-events: none;
   animation: pulse-cpu 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -137,17 +153,15 @@
   50% { opacity: 0.6; }
 }
 
+/* Indicador de nivel de cola (MLFQ) en celdas en espera: «L0», «L1», «L2».
+   Centrado en la celda, sin fondo ni borde; color por token de tema
+   (negro en claro, blanco en oscuro), igual que el texto de E/S. */
 .levelBadge {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   line-height: 1;
-  font-weight: 700;
-  color: var(--scheduler-text-primary, #0f172a);
-  background-color: rgba(255, 255, 255, 0.6);
-  border-radius: 2px;
-  padding: 1px 3px;
+  font-weight: 800;
+  color: var(--scheduler-gantt-io-text);
+  font-family: monospace;
   pointer-events: none;
 }
 
@@ -167,28 +181,36 @@
 }
 
 .idle {
-  background-color: var(--scheduler-surface-elevated, #f1f5f9);
+  background-color: var(--scheduler-surface-elevated);
 }
 
+/* E/S en servicio: sin fondo, solo el texto «E/S» (ver .ioText). */
 .ioServing {
-  background-color: var(--scheduler-danger, #dc2626);
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 4px,
-    rgba(255, 255, 255, 0.25) 4px,
-    rgba(255, 255, 255, 0.25) 8px
-  );
+  background-color: transparent;
 }
 
+/* Cola de E/S: sin fondo, solo el texto «L(E/S)» (ver .ioQueueText). */
 .ioWaiting {
-  background-color: var(--scheduler-danger, #dc2626);
-  opacity: 0.5;
-  background-image: radial-gradient(
-    rgba(255, 255, 255, 0.5) 15%,
-    transparent 16%
-  );
-  background-size: 4px 4px;
+  background-color: transparent;
+}
+
+/* Texto «E/S» de la celda en servicio y de la leyenda. Color por token de tema:
+   negro en claro, blanco en oscuro. */
+.ioText {
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--scheduler-gantt-io-text);
+  font-family: monospace;
+  pointer-events: none;
+}
+
+/* Texto «L(E/S)» de la celda en cola de E/S y de la leyenda (mismo token de tema). */
+.ioQueueText {
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--scheduler-gantt-io-text);
+  font-family: monospace;
+  pointer-events: none;
 }
 
 /* ─── Leyenda ─────────────────────────────────── */
@@ -197,12 +219,32 @@
   flex-wrap: wrap;
   gap: var(--scheduler-space-md, 16px);
   font-size: 0.75rem;
-  color: var(--scheduler-text-secondary, #475569);
+  color: var(--scheduler-text-secondary);
   padding: var(--scheduler-space-sm, 8px) var(--scheduler-space-md, 16px);
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-md, 8px);
-  background-color: var(--scheduler-surface, #f8fafc);
+  background-color: var(--scheduler-surface);
   font-family: monospace;
+}
+
+.legendTitle {
+  font-weight: 700;
+  color: var(--scheduler-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+  border-bottom: 1px solid var(--scheduler-border);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.legendItems {
+  display: flex;
+  flex-direction: row; /* Fuerza el flujo horizontal */
+  flex-wrap: wrap; /* Permite saltar de línea si la pantalla es pequeña */
+  /* Espaciado: 12px vertical (si salta de línea) y 24px horizontal entre ítems */
+  gap: var(--scheduler-space-sm, 12px) var(--scheduler-space-lg, 24px);
+  width: 100%;
 }
 
 .legendItem {
@@ -210,6 +252,17 @@
   align-items: center;
   gap: var(--scheduler-space-sm, 8px);
   font-weight: 600;
+  /* Neutraliza el margin-top que Starlight inyecta a los hermanos en .sl-markdown-content */
+  margin: 0;
+}
+
+
+.legendItem > :first-child {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px; 
+  flex-shrink: 0;
 }
 
 .legendSwatch {
@@ -218,39 +271,18 @@
   box-sizing: border-box;
   flex-shrink: 0;
   border-radius: 2px;
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
 }
 
 .swatchCpu {
-  background-color: var(--scheduler-process-0, #3b82f6);
+  background-color: var(--scheduler-process-0);
 }
 
 .swatchWaiting {
-  background-color: var(--scheduler-process-0, #3b82f6);
+  background-color: var(--scheduler-process-0);
   opacity: 0.4;
 }
 
 .swatchIdle {
-  background-color: var(--scheduler-surface-elevated, #f1f5f9);
-}
-
-.swatchIoServing {
-  background-color: var(--scheduler-danger, #dc2626);
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 4px,
-    rgba(255, 255, 255, 0.25) 4px,
-    rgba(255, 255, 255, 0.25) 8px
-  );
-}
-
-.swatchIoWaiting {
-  background-color: var(--scheduler-danger, #dc2626);
-  opacity: 0.5;
-  background-image: radial-gradient(
-    rgba(255, 255, 255, 0.5) 15%,
-    transparent 16%
-  );
-  background-size: 4px 4px;
+  background-color: var(--scheduler-surface-elevated);
 }

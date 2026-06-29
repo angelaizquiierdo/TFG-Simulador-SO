@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: var(--scheduler-space-sm);
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   background: var(--scheduler-surface);
   color: var(--scheduler-text-primary);
@@ -112,6 +112,49 @@
 .numeric {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Secciones desplegables de la comparación ────────────────────────── */
+.section {
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-sm);
+  background: var(--scheduler-bg);
+  padding: 0 var(--scheduler-space-sm);
+}
+
+.summary {
+  cursor: pointer;
+  padding: var(--scheduler-space-sm) 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--scheduler-text-primary);
+  user-select: none;
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 1px;
+}
+
+/* Pareja de diagramas de Gantt (actual sobre rama) */
+.ganttPair {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-md);
+  padding-bottom: var(--scheduler-space-sm);
+}
+
+.ganttBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-xs);
+  min-width: 0;
+}
+
+.subTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--scheduler-text-secondary);
 }
 
 /* ── Descartar rama ──────────────────────────────────────────────────── */

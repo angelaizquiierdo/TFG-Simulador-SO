@@ -1,7 +1,26 @@
 import React from 'react';
 import { useSimulation } from './SimulationContext.js';
-import type { HistoryEvent } from '../core/types/history.js';
+import type { AlgorithmRequires } from './SimulationContext.js';
+import type { History, HistoryEvent } from '../core/types/history.js';
+import type { Process } from '../core/types/process.js';
 import styles from './style/GanttChart.module.css';
+
+/**
+ * Props opcionales del GanttChart. Sin props, el componente lee todo del
+ * contexto de simulación (comportamiento por defecto en la página). Con props,
+ * cada valor presente sobrescribe al del contexto, lo que permite reutilizar el
+ * mismo componente para pintar una rama what-if (otro historial) en la
+ * comparación. Ver WhatIfControls.
+ */
+export interface GanttChartProps {
+  readonly history?: History;
+  readonly processes?: readonly Process[];
+  readonly currentTick?: number;
+  readonly requires?: AlgorithmRequires;
+  readonly message?: string;
+  /** Sobrescribe el data-testid raíz para distinguir varias instancias. */
+  readonly testId?: string;
+}
 
 /** Paleta de 10 colores de proceso desde los tokens CSS */
 const PROCESS_COLORS: readonly string[] = [
@@ -40,21 +59,25 @@ function cellClass(
   return styles.empty ?? '';
 }
 
-export function GanttChart(): React.ReactElement {
-  const { result, currentEvent, processes, requires } = useSimulation();
+export function GanttChart(props: GanttChartProps = {}): React.ReactElement {
+  const ctx = useSimulation();
 
-  const history = result?.history ?? [];
+  const history = props.history ?? ctx.result?.history ?? [];
+  const processes = props.processes ?? ctx.processes;
+  const requires = props.requires ?? ctx.requires;
   const totalTicks = history.length;
-  const currentTick = currentEvent?.tick ?? 0;
-  const message = currentEvent?.message ?? '';
+  const currentTick = props.currentTick ?? ctx.currentEvent?.tick ?? 0;
+  const message = props.message ?? ctx.currentEvent?.message ?? '';
   const showIO = requires.io === true;
+  const testId = props.testId ?? 'gantt-chart';
 
   const ticks = Array.from({ length: totalTicks }, (_, i) => i);
 
   return (
-    <div className={styles.chart} data-testid="gantt-chart">
+    <div className={styles.chart} data-testid={testId}>
       {/* 1. Mensaje del tick actual */}
       <div className={styles.message} data-testid="gantt-message">
+        <span className={styles.messageTick}>Tick {String(currentTick)}:</span>{' '}
         {message}
       </div>
 
@@ -86,12 +109,14 @@ export function GanttChart(): React.ReactElement {
                 
                 const isCpu = stateClass === styles.cpu;
                 const isIoServing = stateClass === styles.ioServing;
+                const isIoWaiting = stateClass === styles.ioWaiting;
 
                 const level = event?.levels?.[p.id];
-                const showLevel =
-                  level !== undefined &&
-                  t <= currentTick &&
-                  (stateClass === styles.cpu || stateClass === styles.waiting);
+                const hasLevel = level !== undefined && t <= currentTick;
+                // El número de cola se integra en la etiqueta de CPU («CPU0»); en las
+                // celdas en espera se muestra como badge «L{n}».
+                const cpuLabel = isCpu && hasLevel ? `CPU${String(level)}` : 'CPU';
+                const showLevelBadge = hasLevel && stateClass === styles.waiting;
 
                 return (
                   <div
@@ -103,15 +128,18 @@ export function GanttChart(): React.ReactElement {
                   >
                     {/* Renderizado de texto interno (Absolute) */}
                     {isCpu && (
-                      <span className={styles.cpuText}>CPU</span>
+                      <span className={styles.cpuText}>{cpuLabel}</span>
                     )}
                     {isIoServing && (
-                      <span className={styles.cpuText}>E/S</span>
+                      <span className={styles.ioText}>E/S</span>
+                    )}
+                    {isIoWaiting && (
+                      <span className={styles.ioQueueText}>L(E/S)</span>
                     )}
 
-                    {showLevel && (
+                    {showLevelBadge && (
                       <span className={styles.levelBadge} aria-hidden="true">
-                        L{level}
+                        L{String(level)}
                       </span>
                     )}
                   </div>
@@ -122,32 +150,35 @@ export function GanttChart(): React.ReactElement {
         })}
       </div>
 
-      {/* 3. Leyenda con bordes */}
+      {/* 3. Leyenda: título + lista de ítems */}
       <div className={styles.legend} data-testid="gantt-legend">
-        <div className={styles.legendItem}>
-          <div className={`${styles.legendSwatch ?? ''} ${styles.swatchCpu ?? ''}`} />
-          <span>Ejecución (CPU)</span>
+        <span className={styles.legendTitle}>Leyenda</span>
+        <div className={styles.legendItems}>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendSwatch ?? ''} ${styles.swatchCpu ?? ''}`} />
+            <span>Ejecución (CPU)</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendSwatch ?? ''} ${styles.swatchWaiting ?? ''}`} />
+            <span>En Espera (Listo)</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIdle ?? ''}`} />
+            <span>Inactivo (Vacío)</span>
+          </div>
+          {showIO && (
+            <>
+              <div className={styles.legendItem}>
+                <span className={styles.legendSwatch} aria-hidden="true">E/S</span>
+                <span>Bloqueado (E/S)</span>
+              </div>
+              <div className={styles.legendItem}>
+                <span className={styles.legendSwatch} aria-hidden="true">L(E/S)</span>
+                <span>Cola de E/S</span>
+              </div>
+            </>
+          )}
         </div>
-        <div className={styles.legendItem}>
-          <div className={`${styles.legendSwatch ?? ''} ${styles.swatchWaiting ?? ''}`} />
-          <span>En Espera (Listo)</span>
-        </div>
-        <div className={styles.legendItem}>
-          <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIdle ?? ''}`} />
-          <span>Inactivo (Vacío)</span>
-        </div>
-        {showIO && (
-          <>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIoServing ?? ''}`} />
-              <span>Bloqueado (E/S)</span>
-            </div>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendSwatch ?? ''} ${styles.swatchIoWaiting ?? ''}`} />
-              <span>Cola de E/S</span>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

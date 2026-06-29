@@ -150,7 +150,38 @@ describe('§ Render — ProcessTable', () => {
     ];
     renderWithRequires(withIO, { io: true });
     const dashes = screen.getAllByText('—');
-    // Proceso B tiene 3 columnas de E/S con '—'
+    // Proceso B tiene 4 columnas de E/S con '—' (Operación + entrada/tiempo/salida)
     expect(dashes.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('VRR: un proceso con varias E/S muestra una sub-fila por operación y combina la celda del proceso (rowSpan)', () => {
+    const withIO: readonly Process[] = [
+      {
+        id: 'A',
+        arrival_time: 0,
+        burst_time: 10,
+        io: [
+          { io_entry: 2, io_time: 3 },
+          { io_entry: 6, io_time: 2 },
+        ],
+      },
+    ];
+    renderWithRequires(withIO, { io: true });
+    // La celda del ID del proceso abarca las 2 sub-filas
+    expect(screen.getByText('A').getAttribute('rowspan')).toBe('2');
+    // Salidas derivadas: 2+3=5 y 6+2=8
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('8')).toBeInTheDocument();
+    // Hay una sub-fila por operación
+    expect(screen.getByTestId('process-row-A-io-0')).toBeInTheDocument();
+    expect(screen.getByTestId('process-row-A-io-1')).toBeInTheDocument();
+  });
+
+  it('NO muestra la columna «Operación»', () => {
+    const withIO: readonly Process[] = [
+      { id: 'A', arrival_time: 0, burst_time: 6, io: [{ io_entry: 2, io_time: 3 }] },
+    ];
+    renderWithRequires(withIO, { io: true });
+    expect(screen.queryByText('Operación')).not.toBeInTheDocument();
   });
 });

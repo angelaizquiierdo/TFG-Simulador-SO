@@ -26,11 +26,16 @@
   --scheduler-bg: #ffffff;
   --scheduler-surface: #f8fafc;
   --scheduler-surface-elevated: #f1f5f9;
-  --scheduler-text-primary: #0f172a;
-  --scheduler-text-secondary: #475569;
+  --scheduler-text-primary: #000000;
+  --scheduler-text-secondary: #222325;
+  --scheduler-text-third: #c9cfda;
   --scheduler-border: #cbd5e1;
+  
   /* Borde de las celdas del Gantt: negro en claro, blanco en oscuro */
   --scheduler-gantt-cell-border: #000000;
+  /* Texto de los estados de E/S del Gantt: negro en claro, blanco en oscuro */
+  --scheduler-gantt-io-text: #000000;
+  
   --scheduler-accent: #2563eb;
   --scheduler-focus: #3b82f6;
   --scheduler-danger: #dc2626;
@@ -46,32 +51,52 @@
   --scheduler-process-5: #ec4899;
   --scheduler-process-6: #14b8a6;
   --scheduler-process-7: #f97316;
-  --scheduler-process-8: #6b7280;
+  --scheduler-process-8: #6b7280; /* Gris - se mantiene igual */
   --scheduler-process-9: #06b6d4;
 }
 
-/* Paleta semántica (Tema Oscuro) */
+/* Paleta semántica (Tema Oscuro por preferencia del sistema).
+   Fallback automático SOLO cuando NO hay tema explícito (`:not([data-theme])`).
+   Starlight siempre fija [data-theme] en <html>, así que este bloque deja de
+   pelear contra el toggle del usuario: con un tema explícito mandan las reglas
+   [data-theme="light"]/[data-theme="dark"] y los colores cambian al instante. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    /* Sobreescribir variables semánticas para modo oscuro automático */
+  :root:not([data-theme]) {
     --scheduler-gantt-cell-border: #ffffff;
+    --scheduler-gantt-io-text: #ffffff;
   }
 }
 
+/* Paleta semántica (Tema Oscuro forzado) */
 [data-theme="dark"] {
-  --scheduler-bg: ##17181c;
+  --scheduler-bg: #17181c; /* Corregido el doble # */
   --scheduler-surface: #1e293b;
   --scheduler-surface-elevated: #334155;
   --scheduler-text-primary: #f8fafc;
   --scheduler-text-secondary: #94a3b8;
+  --scheduler-text-third: #c9cfda;
   --scheduler-border: #475569;
+  
   /* Borde de las celdas del Gantt: blanco en oscuro */
   --scheduler-gantt-cell-border: #ffffff;
+  /* Texto de los estados de E/S del Gantt: blanco en oscuro */
+  --scheduler-gantt-io-text: #ffffff;
+  
   --scheduler-accent: #3b82f6;
   --scheduler-focus: #60a5fa;
   --scheduler-danger: #ef4444;
   --scheduler-warning: #f59e0b;
   --scheduler-success: #10b981;
 
-  /* Ajustar opacidades o tonos de los 10 procesos para modo oscuro si es necesario */
+  /* Colores de los 10 procesos (incluyendo el gris) mantenidos exactamente igual para no romper la visualización */
+  --scheduler-process-0: #3b82f6;
+  --scheduler-process-1: #ef4444;
+  --scheduler-process-2: #10b981;
+  --scheduler-process-3: #f59e0b;
+  --scheduler-process-4: #8b5cf6;
+  --scheduler-process-5: #ec4899;
+  --scheduler-process-6: #14b8a6;
+  --scheduler-process-7: #f97316;
+  --scheduler-process-8: #6b7280; /* Gris - se mantiene igual */
+  --scheduler-process-9: #06b6d4;
 }

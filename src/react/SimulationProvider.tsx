@@ -208,7 +208,7 @@ export function SimulationProvider({
     if (saved === null || saved.processes.length === 0) return null;
     try {
       const result = run(saved.processes, buildConfig(saved.algorithm, saved.params));
-      return { result, player: new Player(result.history) };
+      return { result, player: new Player(result.history), algorithm: saved.algorithm };
     } catch {
       return null;
     }
@@ -255,7 +255,7 @@ export function SimulationProvider({
       if (nextProcesses.length === 0) return;
       try {
         const result = run(nextProcesses, buildConfig(nextAlgorithm, nextParams));
-        setWhatIfBranch({ result, player: new Player(result.history) });
+        setWhatIfBranch({ result, player: new Player(result.history), algorithm: nextAlgorithm });
         // Persistir la rama what-if (solo los inputs, no el resultado)
         const persisted: PersistedWhatIf = {
           algorithm: nextAlgorithm,

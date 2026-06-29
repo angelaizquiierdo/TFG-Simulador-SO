@@ -1,5 +1,5 @@
 .container {
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   overflow: hidden;
 }
@@ -36,10 +36,36 @@
 
 .processRow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end; 
-  gap: var(--scheduler-space-md);
+  flex-direction: column;
+  gap: var(--scheduler-space-sm);
   padding: var(--scheduler-space-sm) 0;
+}
+
+/* Línea principal: campos del proceso + «Añadir E/S» + «Eliminar», a la misma altura */
+.mainLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--scheduler-space-md);
+}
+
+/* Lista de operaciones de E/S, apiladas debajo de la línea principal */
+.ioList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-sm);
+  padding-left: var(--scheduler-space-md);
+  border-left: 2px solid var(--scheduler-border);
+}
+
+/* Etiqueta «E/S 1», «E/S 2», … al inicio de cada línea de E/S */
+.ioLabel {
+  align-self: flex-end;
+  padding-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--scheduler-text-secondary);
+  min-width: 3rem;
 }
 
 .processId {
@@ -59,7 +85,7 @@
 .field input {
   width: 5rem;
   padding: 2px var(--scheduler-space-sm);
-  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   font-size: 0.875rem;
   color: var(--scheduler-text-primary);
@@ -90,7 +116,7 @@
 .addButton {
   align-self: flex-start;
   padding: 2px var(--scheduler-space-md);
-  border: 1px dashed var(--scheduler-border, #cbd5e1);
+  border: 1px dashed var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   background: transparent;
   cursor: pointer;

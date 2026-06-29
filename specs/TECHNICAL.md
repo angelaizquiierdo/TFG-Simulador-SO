@@ -363,8 +363,9 @@ interface HistoryEvent {
   readonly inIO: string | null;             // pid en servicio en el dispositivo, o null
   readonly waitingIO: readonly string[];    // cola FCFS del dispositivo
   readonly message: string;
-  readonly levels?: Readonly<Record<string, number>>; // pid → nivel/cola del tick (solo MLFQ);
-                                            // el motor lo copia de algo.levelSnapshot() para anotar el Gantt
+  readonly levels?: Readonly<Record<string, number>>; // pid → nivel/cola del tick (MLFQ y VRR);
+                                            // el motor lo copia de algo.levelSnapshot() para anotar el Gantt.
+                                            // VRR: cola 0 = auxiliar (vuelve de E/S), cola 1 = principal (RR)
 }
 
 type History = readonly HistoryEvent[];     // índice = tick
@@ -471,7 +472,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
   (escenario base + rama what-if por separado).
 - **Fase 8 — Documentación (`docs/`):** guías (integración, configuración, crear
   algoritmo) y una página de demo por algoritmo que embebe el componente.
-- **Fase 9 — Estética:** revisión visual con tokens de diseño, consistencia y contraste. Incluye el rediseño del `GanttChart` como tabla (cabecera de ticks y columna de procesos en superficie elevada, bordes de rejilla, scroll horizontal, etiquetas «CPU»/«E/S» dentro de la celda, estados de E/S en color de aviso, tipografía monoespaciada) e iconos SVG nativos en los controles. El motivo de este rediseño está en el ADR correspondiente de `DECISIONS.md`.
+- **Fase 9 — Estética:** revisión visual con tokens de diseño, consistencia y contraste. Incluye el rediseño del `GanttChart` como tabla (cabecera de ticks y columna de procesos en superficie elevada, bordes de rejilla, scroll horizontal, etiqueta de CPU con el número de cola integrado en algoritmos multinivel («CPU{n}», MLFQ y VRR), estados de E/S **sin fondo** representados solo con texto («E/S» en servicio, «L(E/S)» en cola de E/S; color por token de tema `--scheduler-gantt-io-text`: negro en claro, blanco en oscuro), tipografía monoespaciada) e iconos SVG nativos en los controles. El motivo de este rediseño está en el ADR correspondiente de `DECISIONS.md`.
 - **Fase 10 — Verificación final:** cobertura de `BEHAVIOURSv-02.md`, typecheck, lint
   limpio, build de producción.
 
@@ -525,7 +526,7 @@ Modela E/S (`requires.io = true`). Mantiene **dos colas FIFO** —principal y au
 5. **Duración del turno (`quantumFor`):** desde `auxQueue`, el **sobrante** (`remainingSlice.get(pid)`); desde `mainQueue`, el **quantum** completo. Si un proceso de `auxQueue` no completa en su sobrante, pasa a `mainQueue`.
 6. Sí expropia al proceso en CPU cuando aparece un retorno de E/S (`triggers` incluye `'on-io-return'`). Si la CPU está ejecutando un proceso proveniente de la `mainQueue` (prioridad 1) y un proceso termina su E/S ingresando a la `auxQueue` (prioridad 0), el proceso en ejecución es interrumpido de inmediato y devuelto a la `mainQueue`, permitiendo que el proceso recién llegado a la auxQueue tome el control de la CPU en ese mismo tick.
 
-Estado interno (vía `onEvent`): `mainQueue`, `auxQueue` y `remainingSlice`. `io-start` / `quantum-expiry` actualizan `remainingSlice`; `io-return` mete el proceso en `auxQueue`. `validateParams`: `quantum` entero `> 0`. **(v2)** `paramSchema`: un campo `integer` (`key:'quantum'`, `min: 1`) → editable desde la demo vía `AlgorithmParamsForm`. **(v2)** `reasonFor`:en `io-return` devuelve `{ text: "se inserta en la cola auxiliar con sobrante de ${remainingSlice.get(id)}" }`; en `dispatch` devuelve `{ text: "desde la cola auxiliar (sobrante ${remainingSlice.get(id)})" }` si `id` viene de `auxQueue`, o `{ text: "desde la cola principal" }` si viene de `mainQueue`; en `quantum-expiry` devuelve `{ text: "se reencola en la cola principal" }` (mensaje rico — ver § Mensajes ricos más abajo).
+Estado interno (vía `onEvent`): `mainQueue`, `auxQueue` y `remainingSlice`. `io-start` / `quantum-expiry` actualizan `remainingSlice`; `io-return` mete el proceso en `auxQueue`. `validateParams`: `quantum` entero `> 0`. **(v2)** `paramSchema`: un campo `integer` (`key:'quantum'`, `min: 1`) → editable desde la demo vía `AlgorithmParamsForm`. **(v2)** `reasonFor`:en `io-return` devuelve `{ text: "se inserta en la cola auxiliar con sobrante de ${remainingSlice.get(id)}" }`; en `dispatch` devuelve `{ text: "desde la cola auxiliar (sobrante ${remainingSlice.get(id)})" }` si `id` viene de `auxQueue`, o `{ text: "desde la cola principal" }` si viene de `mainQueue`; en `quantum-expiry` devuelve `{ text: "se reencola en la cola principal" }` (mensaje rico — ver § Mensajes ricos más abajo). **(v2)** `levelSnapshot()`: anota cada proceso con su cola para el Gantt — **0** para los de `auxQueue` (y el proceso en CPU si fue despachado desde ella) y **1** para los de `mainQueue`; la UI lo muestra como «CPU{n}» en la celda en CPU y «L{n}» en las celdas en espera.
 
 
 ### Cola de realimentación — MLFQ (`multilevel-feedback.ts`, `name: 'mlfq'`)
@@ -561,7 +562,11 @@ y `processLevel: Map<string, number>` (`pid → 0 | 1 | 2`).
 - `validateParams`: `quanta` array de exactamente 2 enteros `> 0`; `boostInterval`, si está, entero `> 0`.
 - **Edición desde la demo** (`AlgorithmParamsForm`): MLFQ declara `requires.levels = true`, lo que hace que el formulario renderice **dos campos `integer`** para los quanta por nivel (`Quantum nivel 0` → `quanta[0]`, `Quantum nivel 1` → `quanta[1]`, ambos `min: 1` y obligatorios) **y** un campo `integer` opcional (`Boost interval` → `boostInterval`, `min: 1`). Si se deja `boostInterval` vacío, equivale a omitirlo (sin *priority boost*), no a un error de validación. El formulario emite `params.quanta = [q0, q1]`, que `SimulationProvider.buildConfig` propaga a `RunConfig.quanta` y el motor pasa a la fábrica de MLFQ vía `get(name, params)`.
 
-- **Análisis what-if desde la demo** (`WhatIfControls`): visible solo en un tick intermedio (`0 < tick < último`). Sin rama activa renderiza un formulario con un selector de algoritmo —poblado con `registry.list()` (nombres registrados, en orden de registro)— y los campos de parámetros del algoritmo elegido (mismos `quantum`/`quanta`/`boostInterval` que `AlgorithmParamsForm`, derivados de `get(algorithm).requires`). Al pulsar "Comparar" con valores válidos invoca `createWhatIf({ algorithm, params })`; el `SimulationProvider` rederiva el escenario alternativo con `run()` y expone `whatIfBranch = { result, player }`. Con rama activa, el componente muestra una tabla comparando las métricas agregadas (`result.metrics.aggregate` frente a `whatIfBranch.result.metrics.aggregate`) y un botón "Descartar rama" que llama a `discardWhatIf()`. `WhatIfControls` está montado en `SimulationApp` (slot `whatif`, entre `controls` y `metrics`). La implementación rederiva el escenario completo con overrides, **no** `runFrom(state en T)`; ver `DECISIONS.md`.
+- **Análisis what-if desde la demo** (`WhatIfControls`): visible solo en un tick intermedio (`0 < tick < último`). Sin rama activa renderiza un formulario con un selector de algoritmo —poblado con `registry.list()` (nombres registrados, en orden de registro)— y los campos de parámetros del algoritmo elegido (mismos `quantum`/`quanta`/`boostInterval` que `AlgorithmParamsForm`, derivados de `get(algorithm).requires`). Al pulsar "Comparar" con valores válidos invoca `createWhatIf({ algorithm, params })`; el `SimulationProvider` rederiva el escenario alternativo con `run()` y expone `whatIfBranch = { result, player, algorithm }` (incluye el nombre del algoritmo de la rama, para las etiquetas). Con rama activa, el componente muestra un botón "Descartar rama" (`discardWhatIf()`) y **tres secciones `<details>` desplegables** que comparan el escenario actual frente a la rama. En las etiquetas, la columna del escenario actual lleva el **nombre del algoritmo activo** (`algorithmName`) y la de la rama el texto **"Comparado con `<algoritmo de la rama>`"**; el indicador de la cabecera es **"Comparar"**:
+  1. **Diagrama de Gantt — comparación** (`whatif-gantt-comparison`, abierta por defecto): renderiza dos `GanttChart`, "Actual" (`result.history`) y "¿Y si?" (`whatIfBranch.result.history`), ambos revelados completos (`currentTick = history.length − 1`) para compararlos en paralelo.
+  2. **Métricas por proceso — comparación** (`whatif-comparison-per-process`, cerrada por defecto): tabla con una fila por proceso (unidas por `id`) que muestra espera y turnaround del escenario actual, de la rama y su Δ.
+  3. **Métricas agregadas — comparación** (`whatif-comparison-aggregate`, abierta por defecto): la tabla `whatif-comparison` con espera media, turnaround medio, utilización de CPU y throughput (`result.metrics.aggregate` frente a `whatIfBranch.result.metrics.aggregate`) y su Δ.
+  Para reutilizarse en la comparación, `GanttChart` acepta **props opcionales** (`history`, `processes`, `currentTick`, `requires`, `message`, `testId`); cada prop presente sobrescribe el valor que tomaría del contexto, y sin props mantiene el comportamiento por defecto (lee todo de `useSimulation()`). `WhatIfControls` está montado en `SimulationApp` (slot `whatif`, al final del panel, tras `metrics`; el orden del panel es `params → table → form → gantt → controls → metrics → whatif`). La implementación rederiva el escenario completo con overrides, **no** `runFrom(state en T)`; ver `DECISIONS.md`.
 
 **§ Mensajes Ricos y Narrativa Compuesta :**
 `onEvent` devuelve fragmentos concatenables `{ text: string } | null`:
@@ -592,16 +597,15 @@ y `processLevel: Map<string, number>` (`pid → 0 | 1 | 2`).
 
 ### Edición de operaciones de E/S (solo si `requires.io`)
 
-Cuando el algoritmo activo es Round Robin Virtual, cada proceso del formulario muestra su lista de operaciones de E/S como una **sublista editable** dentro de la fila del proceso. Cada operación expone dos campos: `io_entry` (entero) e `io_time` (entero).
+Cuando el algoritmo activo es Round Robin Virtual, cada proceso del formulario muestra el botón **«Añadir E/S» en su línea principal** (a la misma altura que `id`/`arrival_time`/`burst_time` y el botón «Eliminar»), y sus operaciones de E/S se listan **debajo**, una por línea, etiquetadas «E/S 1», «E/S 2», … Cada operación expone dos campos: `io_entry` (entero) e `io_time` (entero).
 
-**Estructura de la sublista:** 
-Proceso P1 [id] [arrival_time] [burst_time]
-                                          └─ Operación 1: [io_entry] [io_time]  [✕ eliminar]
-                                          └─ Operación 2: [io_entry] [io_time]  [✕ eliminar]
-                                          └─ [+ Añadir operación de E/S]
-**Añadir operación:** un control por proceso; añade al final de la lista con valores
-por defecto (`io_entry` = menor valor válido disponible, `io_time: 1`). Rederiva si
-los valores resultan válidos.
+**Estructura:** 
+Proceso P1 [id] [arrival_time] [burst_time]            [+ E/S]  [✕ Eliminar]
+  └─ E/S 1: [io_entry] [io_time]  [✕]
+  └─ E/S 2: [io_entry] [io_time]  [✕]
+**Añadir operación:** el botón «Añadir E/S» de la línea principal; añade al final de la
+lista con valores por defecto (`io_entry` = menor valor válido disponible, `io_time: 1`).
+Rederiva si los valores resultan válidos.
 
 **Eliminar operación:** un control por operación; elimina de la lista y rederiva al
 instante. Si se eliminan todas, el proceso queda sin E/S (solo CPU dentro de VRR).
@@ -694,6 +698,59 @@ docs:dev      # arranca Astro en desarrollo
 docs:build    # build estático del sitio de documentación
 docs:preview  # sirve el build
 ```
+
+---
+
+## Estética: integración del componente dentro de Starlight
+
+El componente React se embebe en las páginas de docs con `client:only="react"`, de modo
+que se renderiza **dentro de `.sl-markdown-content`** (el contenedor de prosa de Starlight).
+Esto tiene una consecuencia visual que hay que tener presente al maquetar.
+
+### El problema: espaciado automático filtrado
+
+Starlight inyecta espaciado vertical a todo el contenido de prosa con esta regla
+(`@astrojs/starlight/style/markdown.css`):
+
+```css
+@layer starlight.content {
+  .sl-markdown-content
+    :not(a, strong, em, del, span, input, code, br)
+    + :not(a, strong, em, del, span, input, code, br, :where(.not-content *)) {
+    margin-top: var(--sl-content-gap-y);
+  }
+}
+```
+
+Significa: *«a todo elemento que venga después de un hermano, dale `margin-top`»*. Como
+usa un **combinador descendiente**, no se limita a los bloques de markdown: **se cuela
+dentro de los componentes React embebidos**. Resultado: en cualquier fila de elementos
+hermanos (botones, ítems de leyenda, celdas…) los hijos 2.º en adelante reciben un
+`margin-top` parásito y el **primero queda visualmente más arriba que el resto**.
+
+No es un bug de Astro/Starlight: es su auto-espaciado de prosa, intencionado, que se
+filtra a UI interactiva embebida.
+
+### La regla: el módulo se defiende solo
+
+El módulo `src/react/` es **publicable y no debe conocer a Starlight** (no se le añade la
+clase de escape `.not-content`, que acoplaría el código al tema de docs). En su lugar, los
+CSS Modules **resetean el margen parásito** en los contenedores/ítems flex afectados:
+
+```css
+.btn        { margin: 0; }   /* PlaybackControls.module.css */
+.legendItem { margin: 0; }   /* GanttChart.module.css */
+```
+
+**Por qué funciona aunque la regla de Starlight sea más específica:** los CSS Modules del
+módulo son *unlayered* (sin `@layer`), y en la cascada **lo unlayered siempre gana a lo que
+está dentro de una capa** (`@layer starlight.content`), independientemente de la
+especificidad.
+
+**Norma para nuevas vistas:** todo grupo de hermanos en flex/grid dentro de un componente
+React (filas de botones, listas, leyendas, celdas) debe **resetear `margin: 0`** en sus
+ítems. No confiar en el flujo vertical del navegador para el espaciado: usar `gap` en el
+contenedor. Así el componente se ve igual embebido en Starlight que de forma aislada.
 
 ---
 

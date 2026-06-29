@@ -62,20 +62,20 @@ export function SimulationApp({
         <div className={styles.tableSlot}>
           <ProcessTable />
         </div>
+        <div className={styles.formSlot}>
+          <ProcessForm />
+        </div>
         <div className={styles.ganttSlot}>
           <GanttChart />
         </div>
         <div className={styles.controlsSlot}>
           <PlaybackControls />
         </div>
-        <div className={styles.whatifSlot}>
-          <WhatIfControls />
-        </div>
         <div className={styles.metricsSlot}>
           <MetricsTable />
         </div>
-        <div className={styles.formSlot}>
-          <ProcessForm />
+        <div className={styles.whatifSlot}>
+          <WhatIfControls />
         </div>
       </div>
     </SimulationProvider>

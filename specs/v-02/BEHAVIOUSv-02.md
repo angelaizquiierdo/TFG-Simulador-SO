@@ -829,11 +829,23 @@ DADO que el algoritmo activo es Round Robin Virtual
 CUANDO se renderiza la `ProcessTable` y algún proceso tiene `io` declarado
 ENTONCES aparecen las columnas de entrada de E/S, tiempo de E/S y salida de E/S (derivada)
 
+DADO que el algoritmo activo es Round Robin Virtual y un proceso tiene varias operaciones de E/S
+CUANDO se renderiza la `ProcessTable`
+ENTONCES el proceso ocupa una sub-fila por operación (con sus valores entrada, tiempo, salida) y las celdas del proceso (ID, Llegada, Ráfaga y Prioridad si aplica) se **combinan** con `rowSpan` abarcando todas sus sub-filas
+
+DADO que el algoritmo activo es Round Robin Virtual y un proceso no tiene operaciones de E/S
+CUANDO se renderiza la `ProcessTable`
+ENTONCES el proceso ocupa una sola fila con «—» en las columnas de E/S
+
 ## § Render — `GanttChart`
 
 DADO que el historial está completamente calculado
 CUANDO se renderiza el `GanttChart` por primera vez
 ENTONCES la tabla tiene exactamente tantas filas como procesos y tantas columnas como ticks en el historial; su tamaño no cambia durante la reproducción
+
+DADO que se renderiza el `GanttChart` con props opcionales (`history`, `processes`, `currentTick`, `requires`, `message`, `testId`)
+CUANDO alguna prop está presente
+ENTONCES esa prop sobrescribe el valor que el componente tomaría del contexto (`useSimulation()`), lo que permite reutilizarlo para pintar la rama what-if; sin props, el componente lee todo del contexto (comportamiento por defecto)
 
 DADO que el reproductor está en el tick `T`
 CUANDO el `GanttChart` está visible
@@ -851,17 +863,25 @@ DADO que un proceso está en la cola de listos en el tick `T`
 CUANDO se muestra la celda correspondiente
 ENTONCES aparece con el color del proceso pero en tono claro (opacidad reducida)
 
-DADO que el algoritmo es MLFQ y un proceso ocupa la CPU o está en espera en el tick `T`
+DADO que el algoritmo emite niveles de cola (`levels`: MLFQ, o VRR) y un proceso ocupa la CPU en el tick `T`
 CUANDO se muestra la celda correspondiente
-ENTONCES muestra además un pequeño badge con su nivel de cola en formato «L{n}» (p. ej. «L0»)
+ENTONCES la etiqueta de CPU integra el número de cola en formato «CPU{n}» (p. ej. «CPU0», «CPU1»)
+
+DADO que el algoritmo emite niveles de cola y un proceso está en espera (cola de listos) en el tick `T`
+CUANDO se muestra la celda correspondiente
+ENTONCES muestra un pequeño badge con su número de cola en formato «L{n}» (p. ej. «L0»)
+
+DADO que el algoritmo es Round Robin Virtual (dos colas: 0 = auxiliar, vuelve de E/S con sobrante; 1 = principal, RR con quantum)
+CUANDO un proceso ocupa la CPU en el tick `T`
+ENTONCES su etiqueta de CPU muestra «CPU0» si fue despachado desde la cola auxiliar o «CPU1» si lo fue desde la principal
 
 DADO que el algoritmo es Round Robin Virtual y un proceso está en servicio en el dispositivo (`inIO`) en el tick `T`
 CUANDO se muestra la celda correspondiente
-ENTONCES aparece con un color de aviso (rojo) y una trama diagonal (rayado), con la etiqueta «E/S» dentro, distinguible del estado "en espera"
+ENTONCES la celda aparece **sin fondo** y solo muestra el texto «E/S», cuyo color procede de un token de tema (`--scheduler-gantt-io-text`: negro en tema claro, blanco en tema oscuro)
 
 DADO que el algoritmo es Round Robin Virtual y un proceso está esperando el dispositivo (`waitingIO`) en el tick `T`
 CUANDO se muestra la celda correspondiente
-ENTONCES aparece con el color de aviso (rojo) y una trama punteada distinta a la del servicio, de modo que se distingan visualmente "esperando dispositivo" y "en servicio"
+ENTONCES la celda aparece **sin fondo** y solo muestra el texto «L(E/S)» (mismo token de tema), de modo que se distingan visualmente "esperando dispositivo" («L(E/S)») y "en servicio" («E/S»)
 
 DADO que la CPU está inactiva en el tick `T`
 CUANDO se muestra la celda de la fila correspondiente
@@ -877,7 +897,11 @@ ENTONCES renderiza el contenedor con el área de mensaje vacía y sin celdas, si
 
 DADO que se renderiza la leyenda del `GanttChart`
 CUANDO el algoritmo activo es cualquiera
-ENTONCES aparecen siempre las entradas «Ejecución (CPU)», «En Espera (Listo)» e «Inactivo (Vacío)»
+ENTONCES aparece el título «Leyenda» antes de la lista, y siempre las entradas «Ejecución (CPU)», «En Espera (Listo)» e «Inactivo (Vacío)»; los ítems comparten un ancho mínimo común para alinearse al envolver en varias filas
+
+DADO que el algoritmo activo es Round Robin Virtual y se renderiza la leyenda
+CUANDO se muestran las entradas de E/S
+ENTONCES sus marcadores son los textos «E/S» y «L(E/S)» dentro de una caja con borde (no un cuadro de color), de la misma altura que los swatches de color
 
 DADO que el algoritmo activo no es Round Robin Virtual
 CUANDO se renderiza la leyenda del `GanttChart`
@@ -1012,7 +1036,7 @@ ENTONCES los campos `io_entry` e `io_time` no aparecen
 
 DADO que el algoritmo activo requiere E/S (ej. Round Robin Virtual)
 CUANDO se expande un proceso en el formulario
-ENTONCES se muestra una sublista editable con las operaciones de E/S (`io_entry` e `io_time`)
+ENTONCES el botón «Añadir E/S» aparece en la **línea principal** del proceso (a la misma altura que sus campos y el botón «Eliminar»), y las operaciones de E/S se listan **debajo**, una por línea, etiquetadas «E/S 1», «E/S 2», … cada una editable (`io_entry` e `io_time`)
 
 DADO la sublista de operaciones de E/S de un proceso
 CUANDO el usuario añade o elimina una operación
@@ -1036,12 +1060,12 @@ ENTONCES la sublista queda vacía, el proceso se comporta estrictamente como un 
 
 ## § WhatIfControls — rama what-if
 
-> **Nota (v-02, rama `dev-what-if`):** la implementación actual del *what-if* es una
-> **comparación de escenario alternativo**: al crear la rama se rederiva el escenario
-> completo (`run`) con un algoritmo y/o parámetros distintos, y se comparan sus
-> **métricas agregadas** con las del escenario actual. No conserva el historial hasta
-> `T` mediante `runFrom(state)` (ese enfoque queda como trabajo futuro; ver
-> `DECISIONS.md`).
+> **Nota (v-02):** la implementación actual del *what-if* es una **comparación de
+> escenario alternativo**: al crear la rama se rederiva el escenario completo (`run`)
+> con un algoritmo y/o parámetros distintos, y se compara con el escenario actual en
+> **tres vistas desplegables**: diagrama de Gantt, métricas por proceso y métricas
+> agregadas. No conserva el historial hasta `T` mediante `runFrom(state)` (ese enfoque
+> queda como trabajo futuro; ver `DECISIONS.md`).
 
 DADO que el reproductor está en el tick 0, en el último tick, o en reproducción automática
 CUANDO se evalúa el componente `WhatIfControls`
@@ -1051,11 +1075,31 @@ DADO que el reproductor está pausado en un tick intermedio `T` y no hay rama ac
 CUANDO se evalúa el componente `WhatIfControls`
 ENTONCES se muestra un formulario con un selector de algoritmo (los registrados en el `registry`) y los campos de parámetros aplicables al algoritmo elegido (`quantum`, `quanta`, `boostInterval`)
 
+DADO que el usuario elige un algoritmo de colas multinivel (p. ej. `mlfq`, `requires.levels = true`)
+CUANDO se evalúa el formulario de variación
+ENTONCES se muestran los campos de quantum por nivel (`quantum nivel 0`, `quantum nivel 1`) y el campo opcional `boost interval`
+
 DADO que el usuario elige un algoritmo o parámetros alternativos y pulsa "Comparar" con valores válidos
 CUANDO se acciona el control
-ENTONCES se invoca `createWhatIf({ algorithm, params })`, se rederiva el escenario alternativo y la UI muestra una tabla comparando las métricas agregadas (espera media, turnaround medio, utilización de CPU y throughput) del escenario actual frente a la rama, con su diferencia
+ENTONCES se invoca `createWhatIf({ algorithm, params })` y, con la rama creada, la UI muestra **tres secciones desplegables** comparando el escenario actual frente a la rama: diagrama de Gantt, métricas por proceso y métricas agregadas
 
-DADO que el usuario introduce un parámetro inválido (p. ej. `quantum ≤ 0`)
+DADO que existe una rama what-if activa
+CUANDO se evalúa la sección "Diagrama de Gantt — comparación"
+ENTONCES se renderizan dos diagramas de Gantt, el del escenario actual y el de la rama, revelados completos
+
+DADO que existe una rama what-if activa
+CUANDO se evalúa la sección "Métricas por proceso — comparación"
+ENTONCES la tabla muestra una fila por proceso con su espera y turnaround en el escenario actual, en la rama y su diferencia (Δ); por ejemplo, comparar `fcfs` con `sjf` sobre A(ráfaga 4)/B(ráfaga 2) da en A `Δespera = +2`, `Δturnaround = +2` y en B `Δespera = −4`, `Δturnaround = −4`
+
+DADO que existe una rama what-if activa
+CUANDO se evalúa la sección "Métricas agregadas — comparación"
+ENTONCES la tabla compara espera media, turnaround medio, utilización de CPU y throughput del escenario actual frente a la rama, con su diferencia (Δ)
+
+DADO que existe una rama what-if activa (p. ej. escenario `fcfs` comparado con `sjf`)
+CUANDO se evalúan las etiquetas de la comparación
+ENTONCES el indicador de cabecera muestra "Comparar", la columna/etiqueta del escenario actual lleva el nombre del algoritmo activo (`fcfs`) y la de la rama el texto "Comparado con `sjf`"
+
+DADO que el usuario introduce un parámetro inválido (p. ej. `quantum ≤ 0`, o un quantum de nivel `≤ 0` en `mlfq`)
 CUANDO pulsa "Comparar"
 ENTONCES no se crea ninguna rama y se muestra el mensaje de error de validación
 

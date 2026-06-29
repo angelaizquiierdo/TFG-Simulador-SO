@@ -1252,10 +1252,22 @@ Ajustar únicamente:
 - coherencia entre leyenda y Gantt;
 - coherencia entre tablas y formularios.
 
+**Espaciado parásito de Starlight (regla obligatoria).** El componente se renderiza dentro
+de `.sl-markdown-content`, cuyo auto-espaciado de prosa inyecta un `margin-top` a todo
+hermano que no sea el primero (ver *«Estética: integración del componente dentro de
+Starlight»* en `TECHNICAL.md`). Esto hace que, en cualquier fila de hermanos
+(botones de `PlaybackControls`, ítems de leyenda de `GanttChart`, etc.), el **primer
+elemento quede más arriba que el resto**. Regla: cada ítem de un grupo flex/grid debe
+resetear `margin: 0` en su CSS Module y el espaciado se controla con `gap` en el
+contenedor — nunca confiando en el flujo vertical del navegador. Prohibido usar la clase
+`.not-content` de Starlight (acoplaría el módulo publicable al tema de docs).
+
 **Verificación:**
 - Todos los tests de render siguen verdes.
 - No hay colores literales duplicados fuera de tokens.
 - El modo claro y el modo oscuro mantienen contraste suficiente.
+- El primer elemento de cada fila de hermanos (botones, leyenda) queda alineado con el
+  resto al embeberse en una página de Starlight.
 
 ---
 

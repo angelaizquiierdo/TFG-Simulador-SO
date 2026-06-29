@@ -191,6 +191,19 @@ export class VirtualRoundRobin implements IAlgorithm {
     }
   }
 
+  // Snapshot pid → cola para anotar el Gantt: cola 0 = auxiliar (vuelve de E/S con
+  // sobrante), cola 1 = principal (RR con quantum). El proceso en CPU no está en las
+  // colas; se etiqueta según de dónde fue despachado.
+  levelSnapshot(): Readonly<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const id of this.auxQueue.toArray()) out[id] = 0;
+    for (const id of this.mainQueue.toArray()) out[id] = 1;
+    if (this.currentCpuPid !== null) {
+      out[this.currentCpuPid] = this.currentCpuFromAux ? 0 : 1;
+    }
+    return out;
+  }
+
   private _removeFromQueues(id: string): void {
     const auxArr = this.auxQueue.toArray().filter((x) => x !== id);
     const mainArr = this.mainQueue.toArray().filter((x) => x !== id);

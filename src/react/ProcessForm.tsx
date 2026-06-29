@@ -265,88 +265,118 @@ export function ProcessForm(): React.ReactElement {
                 className={styles.processRow}
                 data-testid={`process-row-${String(pIdx)}`}
               >
-                {/* ─── CAMPO DE TEXTO DEL NOMBRE ─── */}
-                <label className={styles.field}>
-                  <span>Proceso</span>
-                  <input
-                    type="text"
-                    value={dp.id}
-                    data-testid={`input-id-${String(pIdx)}`}
-                    onChange={(e) => {
-                      updateField(pIdx, 'id', e.target.value);
-                    }}
-                    style={{ width: '5rem', fontWeight: 'bold' }} /* Ancho ligeramente ajustado */
-                  />
-                  {errors[`${prefix}.id`] !== undefined && (
-                    <span className={styles.error} role="alert">
-                      {errors[`${prefix}.id`]}
-                    </span>
-                  )}
-                </label>
-
-                <label className={styles.field}>
-                  <span>Llegada</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={dp.arrival_time}
-                    data-testid={`input-arrival-${dp.id}`}
-                    onChange={(e) => {
-                      updateField(pIdx, 'arrival_time', e.target.value);
-                    }}
-                  />
-                  {errors[`${prefix}.arrival_time`] !== undefined && (
-                    <span className={styles.error} role="alert">
-                      {errors[`${prefix}.arrival_time`]}
-                    </span>
-                  )}
-                </label>
-                
-                <label className={styles.field}>
-                  <span>Ráfaga</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={dp.burst_time}
-                    data-testid={`input-burst-${dp.id}`}
-                    onChange={(e) => {
-                      updateField(pIdx, 'burst_time', e.target.value);
-                    }}
-                  />
-                  {errors[`${prefix}.burst_time`] !== undefined && (
-                    <span className={styles.error} role="alert">
-                      {errors[`${prefix}.burst_time`]}
-                    </span>
-                  )}
-                </label>
-                
-                {requiresPriority && (
+                {/* ─── LÍNEA PRINCIPAL: campos + Añadir E/S + Eliminar (misma altura) ─── */}
+                <div className={styles.mainLine}>
+                  {/* ─── CAMPO DE TEXTO DEL NOMBRE ─── */}
                   <label className={styles.field}>
-                    <span>Prioridad</span>
+                    <span>Proceso</span>
                     <input
-                      type="number"
-                      value={dp.priority}
-                      data-testid={`input-priority-${dp.id}`}
+                      type="text"
+                      value={dp.id}
+                      data-testid={`input-id-${String(pIdx)}`}
                       onChange={(e) => {
-                        updateField(pIdx, 'priority', e.target.value);
+                        updateField(pIdx, 'id', e.target.value);
                       }}
+                      style={{ width: '5rem', fontWeight: 'bold' }} /* Ancho ligeramente ajustado */
                     />
-                    {errors[`${prefix}.priority`] !== undefined && (
+                    {errors[`${prefix}.id`] !== undefined && (
                       <span className={styles.error} role="alert">
-                        {errors[`${prefix}.priority`]}
+                        {errors[`${prefix}.id`]}
                       </span>
                     )}
                   </label>
-                )}
-                
-                {requiresIO && (
-                  <div className={styles.ioSection}>
+
+                  <label className={styles.field}>
+                    <span>Llegada</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={dp.arrival_time}
+                      data-testid={`input-arrival-${dp.id}`}
+                      onChange={(e) => {
+                        updateField(pIdx, 'arrival_time', e.target.value);
+                      }}
+                    />
+                    {errors[`${prefix}.arrival_time`] !== undefined && (
+                      <span className={styles.error} role="alert">
+                        {errors[`${prefix}.arrival_time`]}
+                      </span>
+                    )}
+                  </label>
+
+                  <label className={styles.field}>
+                    <span>Ráfaga</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={dp.burst_time}
+                      data-testid={`input-burst-${dp.id}`}
+                      onChange={(e) => {
+                        updateField(pIdx, 'burst_time', e.target.value);
+                      }}
+                    />
+                    {errors[`${prefix}.burst_time`] !== undefined && (
+                      <span className={styles.error} role="alert">
+                        {errors[`${prefix}.burst_time`]}
+                      </span>
+                    )}
+                  </label>
+
+                  {requiresPriority && (
+                    <label className={styles.field}>
+                      <span>Prioridad</span>
+                      <input
+                        type="number"
+                        value={dp.priority}
+                        data-testid={`input-priority-${dp.id}`}
+                        onChange={(e) => {
+                          updateField(pIdx, 'priority', e.target.value);
+                        }}
+                      />
+                      {errors[`${prefix}.priority`] !== undefined && (
+                        <span className={styles.error} role="alert">
+                          {errors[`${prefix}.priority`]}
+                        </span>
+                      )}
+                    </label>
+                  )}
+
+                  {requiresIO && (
+                    <button
+                      type="button"
+                      className={styles.addButton}
+                      aria-label={`Añadir E/S a ${dp.id}`}
+                      onClick={() => {
+                        addIOOp(pIdx);
+                      }}
+                    >
+                      <PlusIcon /> E/S
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className={styles.removeButton}
+                    aria-label={`Eliminar proceso ${dp.id}`}
+                    data-testid={`remove-process-${dp.id}`}
+                    onClick={() => {
+                      removeProcess(pIdx);
+                    }}
+                  >
+                    <TrashIcon /> Eliminar
+                  </button>
+                </div>
+
+                {/* ─── LISTA DE E/S: cada operación en su propia línea, debajo ─── */}
+                {requiresIO && dp.io_ops.length > 0 && (
+                  <div className={styles.ioList}>
                     {dp.io_ops.map((op, opIdx) => (
                       <div
                         key={opIdx}
                         className={styles.ioOp}
                         data-testid={`io-op-${dp.id}-${String(opIdx)}`}
                       >
+                        <span className={styles.ioLabel}>E/S {String(opIdx + 1)}</span>
                         <label className={styles.field}>
                           <span>E/S entrada</span>
                           <input
@@ -381,30 +411,8 @@ export function ProcessForm(): React.ReactElement {
                         </button>
                       </div>
                     ))}
-                    <button
-                      type="button"
-                      className={styles.addButton}
-                      aria-label={`Añadir E/S a ${dp.id}`}
-                      onClick={() => {
-                        addIOOp(pIdx);
-                      }}
-                    >
-                      <PlusIcon /> E/S
-                    </button>
                   </div>
                 )}
-                
-                <button
-                  type="button"
-                  className={styles.removeButton}
-                  aria-label={`Eliminar proceso ${dp.id}`}
-                  data-testid={`remove-process-${dp.id}`}
-                  onClick={() => {
-                    removeProcess(pIdx);
-                  }}
-                >
-                  <TrashIcon /> Eliminar
-                </button>
               </div>
             );
           })}

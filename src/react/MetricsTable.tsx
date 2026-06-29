@@ -52,37 +52,30 @@ export function MetricsTable(): React.ReactElement {
         </table>
       </div>
 
-      {/* Tabla agregada */}
+      {/* Métricas agregadas: 4 tarjetas cuadradas en cuadrícula 2×2,
+          cada una con el valor grande y el nombre de la métrica. */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Métricas agregadas</div>
-        <table className={styles.table} data-testid="metrics-aggregate">
-          <thead>
-            <tr>
-              <th>Métrica</th>
-              <th className={styles.numeric}>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Espera media</td>
-              <td className={styles.numeric}>{metrics.aggregate.avgWaiting.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td>Turnaround medio</td>
-              <td className={styles.numeric}>{metrics.aggregate.avgTurnaround.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td>Utilización CPU</td>
-              <td className={styles.numeric}>
-                {(metrics.aggregate.cpuUtilization * 100).toFixed(1)}%
-              </td>
-            </tr>
-            <tr>
-              <td>Throughput</td>
-              <td className={styles.numeric}>{metrics.aggregate.throughput.toFixed(3)}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className={styles.aggregateGrid} data-testid="metrics-aggregate">
+          <div className={styles.card}>
+            <span className={styles.cardValue}>{metrics.aggregate.avgWaiting.toFixed(2)}</span>
+            <span className={styles.cardLabel}>Espera media</span>
+          </div>
+          <div className={styles.card}>
+            <span className={styles.cardValue}>{metrics.aggregate.avgTurnaround.toFixed(2)}</span>
+            <span className={styles.cardLabel}>Turnaround medio</span>
+          </div>
+          <div className={styles.card}>
+            <span className={styles.cardValue}>
+              {(metrics.aggregate.cpuUtilization * 100).toFixed(1)}%
+            </span>
+            <span className={styles.cardLabel}>Utilización CPU</span>
+          </div>
+          <div className={styles.card}>
+            <span className={styles.cardValue}>{metrics.aggregate.throughput.toFixed(3)}</span>
+            <span className={styles.cardLabel}>Throughput</span>
+          </div>
+        </div>
       </div>
     </div>
   );

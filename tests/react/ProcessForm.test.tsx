@@ -208,6 +208,12 @@ describe('§ ProcessForm — edición de operaciones de E/S', () => {
     expect(screen.getByTestId('io-op-A-0')).toBeInTheDocument();
   });
 
+  it('cada operación de E/S se etiqueta «E/S {n}» en su línea', async () => {
+    renderIOForm();
+    await openPanel();
+    expect(screen.getByText('E/S 1')).toBeInTheDocument();
+  });
+
   it('el botón Añadir E/S agrega una operación', async () => {
     renderIOForm();
     await openPanel();
