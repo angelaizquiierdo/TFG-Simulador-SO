@@ -79,42 +79,76 @@ describe('§ WhatIfControls — rama what-if', () => {
     expect(screen.getByTestId('whatif-controls')).toBeInTheDocument();
   });
 
-  it('muestra botón "Crear rama what-if" cuando no hay rama activa', () => {
+  it('muestra el formulario de variación cuando no hay rama activa', () => {
     renderAtTick(2);
-    expect(screen.getByTestId('create-whatif-button')).toBeInTheDocument();
+    expect(screen.getByTestId('whatif-form')).toBeInTheDocument();
+    expect(screen.getByTestId('whatif-algorithm-select')).toBeInTheDocument();
+    expect(screen.getByTestId('whatif-compare-button')).toBeInTheDocument();
   });
 
-  it('el botón "Crear rama what-if" llama a createWhatIf', () => {
+  it('el selector de algoritmo lista los algoritmos registrados', () => {
+    renderAtTick(2);
+    const select = screen.getByTestId('whatif-algorithm-select');
+    // Hay al menos varios algoritmos registrados desde src/index.ts
+    expect(select.querySelectorAll('option').length).toBeGreaterThan(1);
+  });
+
+  it('al elegir round-robin aparece el campo quantum', () => {
+    renderAtTick(2);
+    fireEvent.change(screen.getByTestId('whatif-algorithm-select'), {
+      target: { value: 'round-robin' },
+    });
+    expect(screen.getByTestId('whatif-input-quantum')).toBeInTheDocument();
+  });
+
+  it('"Comparar" llama a createWhatIf con el algoritmo elegido', () => {
     const value = renderAtTick(2);
-    const btn = screen.getByTestId('create-whatif-button');
-    fireEvent.click(btn);
-    expect((value.createWhatIf as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
+    fireEvent.change(screen.getByTestId('whatif-algorithm-select'), {
+      target: { value: 'sjf' },
+    });
+    fireEvent.click(screen.getByTestId('whatif-compare-button'));
+    const mock = value.createWhatIf as ReturnType<typeof vi.fn>;
+    expect(mock.mock.calls.length).toBe(1);
+    expect(mock.mock.calls[0]?.[0]).toMatchObject({ algorithm: 'sjf' });
   });
 
-  it('muestra botón "Descartar rama" cuando hay rama activa', () => {
+  it('un quantum inválido bloquea la comparación y muestra error', () => {
+    const value = renderAtTick(2);
+    fireEvent.change(screen.getByTestId('whatif-algorithm-select'), {
+      target: { value: 'round-robin' },
+    });
+    fireEvent.change(screen.getByTestId('whatif-input-quantum'), {
+      target: { value: '-3' },
+    });
+    fireEvent.click(screen.getByTestId('whatif-compare-button'));
+    expect((value.createWhatIf as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('con rama activa muestra la tabla comparativa y el botón de descartar', () => {
     const result = run(PROCS, { algorithm: 'fcfs' });
     const player = new Player(result.history);
     const branch: WhatIfBranch = { result, player };
     renderAtTick(2, { whatIfBranch: branch });
-    expect(screen.getByTestId('discard-whatif-button')).toBeInTheDocument();
+    expect(screen.getByTestId('whatif-comparison')).toBeInTheDocument();
     expect(screen.getByTestId('whatif-branch-indicator')).toBeInTheDocument();
+    expect(screen.getByTestId('discard-whatif-button')).toBeInTheDocument();
   });
 
-  it('el botón "Descartar rama" llama a discardWhatIf', () => {
+  it('con rama activa no se muestra el formulario de variación', () => {
+    const result = run(PROCS, { algorithm: 'fcfs' });
+    const player = new Player(result.history);
+    const branch: WhatIfBranch = { result, player };
+    renderAtTick(2, { whatIfBranch: branch });
+    expect(screen.queryByTestId('whatif-form')).not.toBeInTheDocument();
+  });
+
+  it('"Descartar rama" llama a discardWhatIf', () => {
     const result = run(PROCS, { algorithm: 'fcfs' });
     const player = new Player(result.history);
     const branch: WhatIfBranch = { result, player };
     const value = renderAtTick(2, { whatIfBranch: branch });
-    const btn = screen.getByTestId('discard-whatif-button');
-    fireEvent.click(btn);
+    fireEvent.click(screen.getByTestId('discard-whatif-button'));
     expect((value.discardWhatIf as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
-  });
-
-  it('no muestra "Crear rama" cuando ya hay rama activa', () => {
-    const result = run(PROCS, { algorithm: 'fcfs' });
-    const player = new Player(result.history);
-    const branch: WhatIfBranch = { result, player };
-    renderAtTick(2, { whatIfBranch: branch });
-    expect(screen.queryByTestId('create-whatif-button')).not.toBeInTheDocument();
   });
 });

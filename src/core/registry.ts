@@ -20,10 +20,15 @@ function get(name: string, params?: AlgorithmParams): IAlgorithm {
   throw new Error(`Algoritmo "${name}" no encontrado. Disponibles: ${available}`);
 }
 
+/** Nombres de todos los algoritmos registrados, en orden de registro. */
+function list(): readonly string[] {
+  return Array.from(_registry.keys());
+}
+
 /** Solo para tests: vacía el registro. */
 function _clear(): void {
   _registry.clear();
 }
 
 export type { AlgorithmFactory };
-export { register, get, _clear };
+export { register, get, list, _clear };

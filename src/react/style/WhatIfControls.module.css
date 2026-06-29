@@ -1,36 +1,24 @@
 .container {
   display: flex;
-  align-items: center;
-  gap: var(--scheduler-space-md);
+  flex-direction: column;
+  gap: var(--scheduler-space-sm);
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
   border: 1px solid var(--scheduler-border, #cbd5e1);
   border-radius: var(--scheduler-radius-sm);
   background: var(--scheduler-surface);
+  color: var(--scheduler-text-primary);
 }
 
-.createButton {
-  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
-  border: 1px solid var(--scheduler-accent);
-  border-radius: var(--scheduler-radius-sm);
-  background: transparent;
-  cursor: pointer;
+.title {
   font-size: 0.875rem;
+  font-weight: 600;
   color: var(--scheduler-accent);
 }
 
-.createButton:hover {
-  background: var(--scheduler-accent);
-  color: var(--scheduler-bg);
-}
-
-.createButton:focus-visible {
-  outline: 2px solid var(--scheduler-focus);
-  outline-offset: 1px;
-}
-
-.branchIndicator {
+.header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--scheduler-space-md);
 }
 
@@ -40,6 +28,93 @@
   color: var(--scheduler-accent);
 }
 
+/* ── Formulario de variación ─────────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--scheduler-space-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--scheduler-space-xs);
+  font-size: 0.8125rem;
+  color: var(--scheduler-text-secondary);
+}
+
+.field input,
+.select {
+  height: var(--scheduler-btn-height-sm);
+  padding: 0 var(--scheduler-space-sm);
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-sm);
+  background: var(--scheduler-bg);
+  color: var(--scheduler-text-primary);
+  font-size: 0.875rem;
+}
+
+.field input {
+  width: 8rem;
+}
+
+.field input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 1px;
+}
+
+.error {
+  color: var(--scheduler-danger);
+  font-size: 0.75rem;
+}
+
+.compareButton {
+  height: var(--scheduler-btn-height-sm);
+  padding: 0 var(--scheduler-space-md);
+  border: 1px solid var(--scheduler-accent);
+  border-radius: var(--scheduler-radius-sm);
+  background: var(--scheduler-accent);
+  color: var(--scheduler-bg);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.compareButton:hover {
+  filter: brightness(1.08);
+}
+
+.compareButton:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 1px;
+}
+
+/* ── Tabla comparativa ───────────────────────────────────────────────── */
+.comparison {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.comparison th,
+.comparison td {
+  padding: var(--scheduler-space-xs) var(--scheduler-space-sm);
+  border-bottom: 1px solid var(--scheduler-border);
+  text-align: left;
+}
+
+.comparison th {
+  color: var(--scheduler-text-secondary);
+  font-weight: 600;
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Descartar rama ──────────────────────────────────────────────────── */
 .discardButton {
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
   border: 1px solid var(--scheduler-danger);

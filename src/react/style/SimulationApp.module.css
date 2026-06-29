@@ -21,6 +21,7 @@
     "table"
     "gantt"
     "controls"
+    "whatif"
     "metrics"
     "form";
   grid-template-columns: 1fr;
@@ -31,6 +32,7 @@
 .unified .tableSlot    { grid-area: table; }
 .unified .ganttSlot    { grid-area: gantt; }
 .unified .controlsSlot { grid-area: controls; }
+.unified .whatifSlot   { grid-area: whatif; }
 .unified .metricsSlot  { grid-area: metrics; }
 .unified .formSlot     { grid-area: form; }
 

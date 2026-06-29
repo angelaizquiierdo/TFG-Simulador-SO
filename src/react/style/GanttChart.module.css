@@ -1,129 +1,191 @@
-/* GanttChart — diagrama de Gantt del simulador */
+/* GanttChart.module.css */
 
 /* ─── Contenedor raíz ─────────────────────────── */
 .chart {
   display: flex;
   flex-direction: column;
-  gap: var(--scheduler-space-sm);
-  overflow-x: auto;
+  gap: var(--scheduler-space-md, 16px);
+  
+  /* REGLAS ANTI-DESBORDAMIENTO PARA STARLIGHT */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0; /* Obliga al contenedor a respetar los límites del content-panel */
 }
 
-/* ─── Área de mensaje ─────────────────────────── */
 .message {
   font-size: 0.875rem;
-  color: var(--scheduler-text-secondary);
+  color: var(--scheduler-text-secondary, #475569);
   min-height: 1.25em;
+  font-family: monospace;
+  font-weight: 600;
 }
 
 /* ─── Matriz (cabecera + filas de proceso) ────── */
 .matrix {
   display: flex;
   flex-direction: column;
-  gap: var(--scheduler-gantt-cell-gap);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0; 
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border-radius: var(--scheduler-radius-md, 8px);
+  background-color: var(--scheduler-surface, #f8fafc);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scheduler-border, #cbd5e1) transparent;
 }
-
 /* ─── Filas (cabecera y proceso) ─────────────── */
 .row,
 .rowHeader {
   display: flex;
-  align-items: center;
-  gap: var(--scheduler-gantt-cell-gap);
-  height: var(--scheduler-gantt-cell-height);
+  align-items: stretch;
+  height: var(--scheduler-gantt-cell-height, 36px);
+  border-bottom: 1px solid var(--scheduler-border, #cbd5e1);
+  width: 100%;
+  min-width: max-content; 
+  
+  /* Bloqueo contra estilos globales de Astro */
+  margin: 0 !important;
+  padding: 0;
 }
 
-/* ─── Etiqueta lateral del proceso ───────────── */
-.label {
-  width: 2.5rem;
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--scheduler-text-primary);
-  text-align: right;
-  padding-right: var(--scheduler-space-xs);
+.row:last-child {
+  border-bottom: none;
 }
 
-/* Espaciador invisible en la fila de cabecera para
-   alinear los números de tick sobre las celdas */
+.rowHeader {
+  background-color: var(--scheduler-surface-elevated, #f1f5f9);
+}
+
+/* ─── Etiqueta lateral del proceso (columna) ──── */
+
+.label,
 .labelSpacer {
-  width: 2.5rem;
-  flex-shrink: 0;
+  /* Fijo: no crece (0), no se encoge (0), tamaño base (4rem) */
+  flex: 0 0 4rem;
+  width: 4rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--scheduler-border, #cbd5e1);
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--scheduler-text-primary, #0f172a);
+  background-color: var(--scheduler-surface-elevated, #f1f5f9);
 }
 
 /* ─── Celdas de la grilla y números de tick ─── */
 .cell,
 .tickNumber {
-  width: var(--scheduler-gantt-cell-width);
-  height: var(--scheduler-gantt-cell-height);
+  flex: 1 0 var(--scheduler-gantt-cell-width, 36px);
+  min-width: var(--scheduler-gantt-cell-width, 36px);
   box-sizing: border-box;
-  flex-shrink: 0;
-}
-
-.cell {
-  position: relative;
-}
-
-/* Número de cola/nivel (MLFQ): pequeño, en la parte superior de la celda */
-.levelBadge {
-  position: absolute;
-  top: 0;
-  left: 1px;
-  font-size: 0.5rem;
-  line-height: 1;
-  font-weight: 700;
-  color: var(--scheduler-text-primary, #1e293b);
-  pointer-events: none;
-}
-
-.tickNumber {
   display: flex;
   justify-content: center;
   align-items: center;
+  border-right: 1px solid var(--scheduler-border, #cbd5e1);
+  position: relative;
+  
+  /* LA MAGIA: Eliminamos el margen superior que mete Starlight */
+  margin: 0 !important;
+  padding: 0;
+  height: 100%; /* Forzamos a que ocupe todo el alto de la fila */
+}
+
+.cell:last-child,
+.tickNumber:last-child {
+  border-right: none; /* Evita doble borde al final del componente */
+}
+
+.tickNumber {
   font-size: 0.75rem;
-  color: var(--scheduler-text-secondary);
+  font-weight: 600;
+  color: var(--scheduler-text-primary, #0f172a);
+  font-family: monospace;
+}
+
+
+.cell {
+  transition: filter 0.2s ease;
+}
+
+.cell:hover {
+  filter: brightness(1.1);
+}
+
+/* ─── Indicador de CPU interno ────────────────── */
+.cpuText {
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: monospace;
+  pointer-events: none;
+  animation: pulse-cpu 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  
+  /* Absolute previene que el texto estire la celda si el tamaño base es muy pequeño */
+  position: absolute;
+}
+
+@keyframes pulse-cpu {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.levelBadge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 0.5rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--scheduler-text-primary, #0f172a);
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  padding: 1px 3px;
+  pointer-events: none;
 }
 
 /* ─── Estados de celda ────────────────────────── */
-
-/* Celda vacía / no revelada / antes de llegada / tras completar */
 .empty {
   background-color: transparent;
 }
 
-/* Proceso en CPU: color sólido del proceso */
 .cpu {
   background-color: var(--process-color);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Proceso en cola de listos: mismo color a baja opacidad.
-   opacity afecta solo al elemento — la variable --process-color
-   se hereda del contenedor .row y no se pierde. */
 .waiting {
   background-color: var(--process-color);
   opacity: 0.4;
 }
 
-/* CPU inactiva: gris distinguible */
 .idle {
-  background-color: var(--scheduler-border, #cbd5e1);
+  background-color: var(--scheduler-surface-elevated, #f1f5f9);
 }
 
-/* Proceso siendo servido en E/S: color + trama diagonal */
 .ioServing {
-  background-color: var(--process-color);
+  background-color: var(--scheduler-danger, #dc2626);
   background-image: repeating-linear-gradient(
     45deg,
     transparent,
     transparent 4px,
-    rgba(255, 255, 255, 0.15) 4px,
-    rgba(255, 255, 255, 0.15) 8px
+    rgba(255, 255, 255, 0.25) 4px,
+    rgba(255, 255, 255, 0.25) 8px
   );
 }
 
-/* Proceso en cola del dispositivo de E/S: color + punteado */
 .ioWaiting {
-  background-color: var(--process-color);
+  background-color: var(--scheduler-danger, #dc2626);
+  opacity: 0.5;
   background-image: radial-gradient(
-    rgba(255, 255, 255, 0.3) 15%,
+    rgba(255, 255, 255, 0.5) 15%,
     transparent 16%
   );
   background-size: 4px 4px;
@@ -133,55 +195,61 @@
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--scheduler-space-sm);
+  gap: var(--scheduler-space-md, 16px);
   font-size: 0.75rem;
-  color: var(--scheduler-text-secondary);
+  color: var(--scheduler-text-secondary, #475569);
+  padding: var(--scheduler-space-sm, 8px) var(--scheduler-space-md, 16px);
+  border: 1px solid var(--scheduler-border, #cbd5e1);
+  border-radius: var(--scheduler-radius-md, 8px);
+  background-color: var(--scheduler-surface, #f8fafc);
+  font-family: monospace;
 }
 
 .legendItem {
   display: flex;
   align-items: center;
-  gap: var(--scheduler-space-xs);
+  gap: var(--scheduler-space-sm, 8px);
+  font-weight: 600;
 }
 
-/* Muestra de color en la leyenda: usa los mismos estilos
-   de celda pero en tamaño reducido */
 .legendSwatch {
-  width: var(--scheduler-gantt-cell-width);
-  height: var(--scheduler-gantt-cell-height);
+  width: 16px;
+  height: 16px;
   box-sizing: border-box;
   flex-shrink: 0;
-  /* El color base se fija explícitamente en los swatches de proceso */
+  border-radius: 2px;
+  border: 1px solid var(--scheduler-border, #cbd5e1);
 }
 
 .swatchCpu {
-  background-color: var(--scheduler-process-0);
+  background-color: var(--scheduler-process-0, #3b82f6);
 }
 
 .swatchWaiting {
-  background-color: var(--scheduler-process-0);
+  background-color: var(--scheduler-process-0, #3b82f6);
   opacity: 0.4;
 }
 
 .swatchIdle {
-  background-color: var(--scheduler-border, #cbd5e1);
+  background-color: var(--scheduler-surface-elevated, #f1f5f9);
 }
 
 .swatchIoServing {
-  background-color: var(--scheduler-process-0);
+  background-color: var(--scheduler-danger, #dc2626);
   background-image: repeating-linear-gradient(
     45deg,
     transparent,
     transparent 4px,
-    rgba(255, 255, 255, 0.15) 4px,
-    rgba(255, 255, 255, 0.15) 8px
+    rgba(255, 255, 255, 0.25) 4px,
+    rgba(255, 255, 255, 0.25) 8px
   );
 }
 
 .swatchIoWaiting {
-  background-color: var(--scheduler-process-0);
+  background-color: var(--scheduler-danger, #dc2626);
+  opacity: 0.5;
   background-image: radial-gradient(
-    rgba(255, 255, 255, 0.3) 15%,
+    rgba(255, 255, 255, 0.5) 15%,
     transparent 16%
   );
   background-size: 4px 4px;
