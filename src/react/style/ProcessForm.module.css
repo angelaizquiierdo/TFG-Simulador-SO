@@ -62,15 +62,15 @@
 .ioLabel {
   align-self: flex-end;
   padding-bottom: 4px;
-  font-size: 0.75rem;
+  font-size: var(--scheduler-font-size-xs);
   font-weight: 600;
   color: var(--scheduler-text-secondary);
-  min-width: 3rem;
+  min-width: var(--scheduler-size-2xs);
 }
 
 .processId {
   font-weight: 600;
-  min-width: 3rem;
+  min-width: var(--scheduler-size-2xs);
   color: var(--scheduler-text-primary);
 }
 
@@ -78,16 +78,16 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 0.75rem;
+  font-size: var(--scheduler-font-size-xs);
   color: var(--scheduler-text-secondary);
 }
 
 .field input {
-  width: 5rem;
+  width: var(--scheduler-size-md);
   padding: 2px var(--scheduler-space-sm);
   border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
-  font-size: 0.875rem;
+  font-size: var(--scheduler-font-size-base);
   color: var(--scheduler-text-primary);
 }
 
@@ -120,7 +120,7 @@
   border-radius: var(--scheduler-radius-sm);
   background: transparent;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: var(--scheduler-font-size-xs);
   color: var(--scheduler-text-secondary);
 }
 
@@ -130,7 +130,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px; /* Espacio entre el icono SVG y la palabra */
-  height: 1.75rem; /* Ajusta esto para que coincida con la altura de tus <input> */
+  height: var(--scheduler-size-3xs); /* Ajusta esto para que coincida con la altura de tus <input> */
 }
 
 /* Le da un poco más de tamaño a los SVG para que no se vean diminutos */
@@ -157,7 +157,7 @@
   border-radius: var(--scheduler-radius-sm);
   background: transparent;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: var(--scheduler-font-size-xs);
   color: var(--scheduler-danger);
 }
 
@@ -173,5 +173,5 @@
 
 .error {
   color: var(--scheduler-danger);
-  font-size: 0.7rem;
+  font-size: var(--scheduler-font-size-2xs);
 }

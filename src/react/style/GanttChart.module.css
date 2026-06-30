@@ -13,12 +13,12 @@
 }
 
 .message {
-  font-size: 0.875rem;
+  font-size: var(--scheduler-font-size-base);
   color: var(--scheduler-text-secondary);
   /* Alto fijo: ocupa siempre el mismo espacio (≈2 líneas) sin importar la
      longitud del mensaje; el texto se centra verticalmente y se recorta si
      excede, de modo que la matriz nunca se desplaza al cambiar de tick. */
-  height: 3.5rem;
+  height: var(--scheduler-size-xs);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -78,9 +78,9 @@
 
 .label,
 .labelSpacer {
-  /* Fijo: no crece (0), no se encoge (0), tamaño base (4rem) */
-  flex: 0 0 4rem;
-  width: 4rem;
+  /* Fijo: no crece (0), no se encoge (0), tamaño base (--scheduler-size-sm) */
+  flex: 0 0 var(--scheduler-size-sm);
+  width: var(--scheduler-size-sm);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -89,7 +89,7 @@
 }
 
 .label {
-  font-size: 0.75rem;
+  font-size: var(--scheduler-font-size-xs);
   font-weight: 700;
   font-family: monospace;
   color: var(--scheduler-text-primary);
@@ -109,7 +109,7 @@
   position: relative;
   
   /* LA MAGIA: Eliminamos el margen superior que mete Starlight */
-  margin: 0 !important;
+  margin: 0;
   padding: 0;
   height: 100%; /* Forzamos a que ocupe todo el alto de la fila */
 }
@@ -120,7 +120,7 @@
 }
 
 .tickNumber {
-  font-size: 0.75rem;
+  font-size: var(--scheduler-font-size-xs);
   font-weight: 600;
   color: var(--scheduler-text-primary);
   font-family: monospace;
@@ -137,7 +137,7 @@
 
 /* ─── Indicador de CPU interno ────────────────── */
 .cpuText {
-  font-size: 0.55rem;
+  font-size: var(--scheduler-font-size-4xs);
   font-weight: 800;
   color: var(--scheduler-text-third);
   font-family: monospace;
@@ -157,7 +157,7 @@
    Centrado en la celda, sin fondo ni borde; color por token de tema
    (negro en claro, blanco en oscuro), igual que el texto de E/S. */
 .levelBadge {
-  font-size: 0.6rem;
+  font-size: var(--scheduler-font-size-3xs);
   line-height: 1;
   font-weight: 800;
   color: var(--scheduler-gantt-io-text);
@@ -197,7 +197,7 @@
 /* Texto «E/S» de la celda en servicio y de la leyenda. Color por token de tema:
    negro en claro, blanco en oscuro. */
 .ioText {
-  font-size: 0.55rem;
+  font-size: var(--scheduler-font-size-4xs);
   font-weight: 800;
   color: var(--scheduler-gantt-io-text);
   font-family: monospace;
@@ -206,7 +206,7 @@
 
 /* Texto «L(E/S)» de la celda en cola de E/S y de la leyenda (mismo token de tema). */
 .ioQueueText {
-  font-size: 0.5rem;
+  font-size: var(--scheduler-font-size-5xs);
   font-weight: 700;
   color: var(--scheduler-gantt-io-text);
   font-family: monospace;
@@ -218,7 +218,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--scheduler-space-md, 16px);
-  font-size: 0.75rem;
+  font-size: var(--scheduler-font-size-xs);
   color: var(--scheduler-text-secondary);
   padding: var(--scheduler-space-sm, 8px) var(--scheduler-space-md, 16px);
   border: 1px solid var(--scheduler-border);
@@ -232,7 +232,7 @@
   color: var(--scheduler-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 0.7rem;
+  font-size: var(--scheduler-font-size-2xs);
   border-bottom: 1px solid var(--scheduler-border);
   padding-bottom: 6px;
   margin-bottom: 4px;

@@ -225,6 +225,31 @@ describe('§ Render — SimulationProvider y Gestión de Estado', () => {
     fireEvent.click(getByRole('button', { name: 'Descartar' }));
     expect(getByTestId('branch').textContent).toBe('no');
   });
+
+  it('editar los procesos rederiva la rama what-if con los nuevos procesos', () => {
+    function ConsumerSync() {
+      const { whatIfBranch, createWhatIf, updateProcesses } = useSimulation();
+      const branchProcs = whatIfBranch?.result.metrics.perProcess.length ?? 0;
+      return (
+        <div>
+          <span data-testid="branch-procs">{String(branchProcs)}</span>
+          <button type="button" onClick={() => { createWhatIf({ algorithm: 'sjf' }); }}>Crear</button>
+          <button type="button" onClick={() => { updateProcesses([P1, P2]); }}>Editar</button>
+        </div>
+      );
+    }
+    const { getByRole, getByTestId } = render(
+      <SimulationProvider algorithm="fcfs" processes={[P1]}>
+        <ConsumerSync />
+      </SimulationProvider>,
+    );
+    // Rama creada con 1 proceso
+    fireEvent.click(getByRole('button', { name: 'Crear' }));
+    expect(getByTestId('branch-procs').textContent).toBe('1');
+    // Al añadir un proceso, la rama se rederiva y pasa a tener 2
+    fireEvent.click(getByRole('button', { name: 'Editar' }));
+    expect(getByTestId('branch-procs').textContent).toBe('2');
+  });
 });
 
 describe('§ Persistencia por sesión — T-47', () => {

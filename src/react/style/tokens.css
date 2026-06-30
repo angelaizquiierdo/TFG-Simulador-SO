@@ -18,6 +18,27 @@
   --scheduler-gantt-cell-gap: 2px;
 
   --scheduler-icon-size-md: 1.125rem;
+
+  /* Escala de tamaños de fuente (única fuente; antes literales en los *.module.css) */
+  --scheduler-font-size-5xs: 0.5rem;
+  --scheduler-font-size-4xs: 0.55rem;
+  --scheduler-font-size-3xs: 0.6rem;
+  --scheduler-font-size-2xs: 0.7rem;
+  --scheduler-font-size-xs: 0.75rem;
+  --scheduler-font-size-sm: 0.8125rem;
+  --scheduler-font-size-base: 0.875rem;
+  --scheduler-font-size-lg: 1.125rem;
+  --scheduler-font-size-xl: 2rem;
+
+  /* Escala de dimensiones de layout (anchos/altos antes literales en los módulos) */
+  --scheduler-size-3xs: 1.75rem;
+  --scheduler-size-2xs: 3rem;
+  --scheduler-size-xs: 3.5rem;
+  --scheduler-size-sm: 4rem;
+  --scheduler-size-md: 5rem;
+  --scheduler-size-lg: 6rem;
+  --scheduler-size-xl: 8rem;
+  --scheduler-size-2xl: 26rem;
 }
 
 /* Paleta semántica por defecto (Tema Claro) */

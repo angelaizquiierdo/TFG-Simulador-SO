@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { useSimulation } from './SimulationContext.js';
+import React, { useState, useEffect, useLayoutEffect, useRef, useContext } from 'react';
+import { SimulationCtx } from './SimulationContext.js';
 import { FirstIcon } from './icons/FirstIcon.js';
 import { PreviousIcon } from './icons/PreviousIcon.js';
 import { PlayIcon } from './icons/PlayIcon.js';
@@ -12,19 +12,60 @@ import styles from './style/PlaybackControls.module.css';
 const MS_PER_TICK = 1000;
 
 /**
- * Controles de reproducción del simulador.
- * ÚNICO componente con requestAnimationFrame y deltaTime.
+ * Fuente de reproducción: cursor + límites + acciones de navegación. Permite
+ * instanciar varios `PlaybackControls` con líneas de tiempo independientes
+ * (p. ej. el simulador principal y la rama what-if) sin duplicar el bucle RAF.
  */
-export function PlaybackControls(): React.ReactElement {
-  const { result, currentEvent, stepForward, stepBackward, seekTo } = useSimulation();
+export interface PlaybackController {
+  readonly currentTick: number;
+  readonly lastTick: number;
+  readonly hasHistory: boolean;
+  stepForward: () => void;
+  stepBackward: () => void;
+  seekTo: (n: number) => void;
+}
 
-  const totalTicks = result?.history.length ?? 0;
-  const lastTick = Math.max(0, totalTicks - 1);
-  const currentTick = currentEvent?.tick ?? 0;
+export interface PlaybackControlsProps {
+  /** Controlador externo. Si se omite, se deriva del `SimulationProvider` (simulador principal). */
+  readonly controller?: PlaybackController;
+  /** Prefijo de `data-testid` (raíz, `-range`, `-tick`). Permite varias instancias. */
+  readonly testId?: string;
+}
+
+/**
+ * Controles de reproducción. ÚNICO componente con requestAnimationFrame y deltaTime.
+ * Sin `controller` usa el contexto (simulador principal); con `controller` reproduce
+ * la línea de tiempo que se le pase (rama what-if).
+ */
+export function PlaybackControls({
+  controller,
+  testId = 'playback-controls',
+}: PlaybackControlsProps = {}): React.ReactElement {
+  // `useContext` (no `useSimulation`) para no lanzar cuando se usa con `controller`
+  // fuera de un `SimulationProvider`.
+  const ctx = useContext(SimulationCtx);
+  let ctrl: PlaybackController;
+  if (controller !== undefined) {
+    ctrl = controller;
+  } else {
+    if (ctx === null) {
+      throw new Error('<PlaybackControls> sin `controller` debe usarse dentro de <SimulationProvider>.');
+    }
+    const totalTicks = ctx.result?.history.length ?? 0;
+    ctrl = {
+      currentTick: ctx.currentEvent?.tick ?? 0,
+      lastTick: Math.max(0, totalTicks - 1),
+      hasHistory: totalTicks > 0,
+      stepForward: ctx.stepForward,
+      stepBackward: ctx.stepBackward,
+      seekTo: ctx.seekTo,
+    };
+  }
+
+  const { currentTick, lastTick, hasHistory, stepForward, stepBackward, seekTo } = ctrl;
 
   const atStart = currentTick === 0;
   const atEnd = currentTick >= lastTick;
-  const hasHistory = totalTicks > 0;
 
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -109,7 +150,7 @@ export function PlaybackControls(): React.ReactElement {
   };
 
   return (
-    <div className={styles.controls} data-testid="playback-controls">
+    <div className={styles.controls} data-testid={testId}>
       {/* Botones: Inicio · Anterior · Play/Pausa · Siguiente · Final */}
       <div className={styles.buttons}>
         <button
@@ -169,11 +210,11 @@ export function PlaybackControls(): React.ReactElement {
         onChange={handleRange}
         disabled={!hasHistory}
         aria-label="Posición en la simulación"
-        data-testid="playback-range"
+        data-testid={`${testId}-range`}
       />
 
       {/* Indicador de tick: formato estricto "Tick: N / Total" */}
-      <div className={styles.tickIndicator} data-testid="playback-tick">
+      <div className={styles.tickIndicator} data-testid={`${testId}-tick`}>
         {`Tick: ${String(currentTick)} / ${String(lastTick)}`}
       </div>
     </div>

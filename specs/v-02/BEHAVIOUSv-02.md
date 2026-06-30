@@ -222,6 +222,10 @@ DADO que MLFQ está activo y se aplica un *priority boost*
 CUANDO el motor compone el mensaje del tick
 ENTONCES el mensaje menciona explícitamente "priority boost" y que todos los procesos suben al nivel 0; este mensaje es distinto al de una degradación normal o expropiación
 
+DADO que un algoritmo multicola (MLFQ o Round Robin Virtual) tiene un proceso que CONTINÚA en CPU en un tick sin evento (ni dispatch, ni expropiación, ni boost)
+CUANDO el motor compone el mensaje de ese tick
+ENTONCES el mensaje no se queda en la frase básica ("A en CPU") sino que indica la cola/prioridad desde la que se ejecuta: "A en CPU de la cola de prioridad N", donde N es el nivel actual del proceso (MLFQ: 0/1/2; VRR: 0 = auxiliar, 1 = principal). El motor obtiene N de `levelSnapshot()`; los algoritmos que no lo implementan conservan la frase básica sin sufijo.
+
 DADO que el test verifica el contenido de un `message`
 CUANDO comprueba si el vocabulario clave aparece
 ENTONCES usa `toMatch(/cola auxiliar/)`, `toMatch(/nivel 1/)`, etc., en vez de igualdad exacta de string, para no acoplarse a la redacción exacta del motor
@@ -784,6 +788,10 @@ DADO un `SimulationProvider`
 CUANDO se monta en el DOM
 ENTONCES no renderiza absolutamente ningún elemento visual propio ni layout, limitándose a renderizar estrictamente los `children` que recibe envueltos en el contexto
 
+DADO que existe una rama what-if activa y se editan los procesos del escenario (`updateProcesses`)
+CUANDO el proveedor aplica la edición
+ENTONCES la rama what-if se **rederiva con los procesos nuevos** conservando su algoritmo y parámetros alternativos (la rama comparte siempre los procesos con el escenario actual); si la edición la invalida (lista vacía o error), la rama se descarta
+
 ## § Render — SimulationApp (Orquestador Visual)
 
 DADO que se proporciona una configuración inicial al componente principal
@@ -980,6 +988,14 @@ DADO que el reproductor alcanza el último tick
 CUANDO la `MetricsTable` se hace visible
 ENTONCES muestra las métricas por proceso y las agregadas coherentes con el historial completo
 
+DADO que la `MetricsTable` es visible (último tick)
+CUANDO se evalúa su estructura
+ENTONCES **todas** las métricas (la tabla por proceso y las métricas agregadas) están agrupadas dentro de un **único desplegable** (`<details>`) con un `summary` "Métricas", y el desplegable está **inicialmente abierto** (atributo `open`)
+
+DADO que la `MetricsTable` está visible con su desplegable abierto
+CUANDO el usuario lo cierra (clic en el `summary`)
+ENTONCES se ocultan a la vez la tabla por proceso y las métricas agregadas; al volver a abrirlo reaparecen ambas
+
 
 ## § ProcessForm — panel desplegable de edición de procesos
 
@@ -1067,11 +1083,11 @@ ENTONCES la sublista queda vacía, el proceso se comporta estrictamente como un 
 > agregadas. No conserva el historial hasta `T` mediante `runFrom(state)` (ese enfoque
 > queda como trabajo futuro; ver `DECISIONS.md`).
 
-DADO que el reproductor está en el tick 0, en el último tick, o en reproducción automática
+DADO que el reproductor está en el tick 0
 CUANDO se evalúa el componente `WhatIfControls`
-ENTONCES el componente permanece completamente oculto
+ENTONCES el componente permanece completamente oculto (en cualquier otro tick, incluido el último al finalizar el simulador, es visible)
 
-DADO que el reproductor está pausado en un tick intermedio `T` y no hay rama activa
+DADO que el reproductor está en un tick `T > 0` y no hay rama activa
 CUANDO se evalúa el componente `WhatIfControls`
 ENTONCES se muestra un formulario con un selector de algoritmo (los registrados en el `registry`) y los campos de parámetros aplicables al algoritmo elegido (`quantum`, `quanta`, `boostInterval`)
 
@@ -1084,8 +1100,20 @@ CUANDO se acciona el control
 ENTONCES se invoca `createWhatIf({ algorithm, params })` y, con la rama creada, la UI muestra **tres secciones desplegables** comparando el escenario actual frente a la rama: diagrama de Gantt, métricas por proceso y métricas agregadas
 
 DADO que existe una rama what-if activa
-CUANDO se evalúa la sección "Diagrama de Gantt — comparación"
-ENTONCES se renderizan dos diagramas de Gantt, el del escenario actual y el de la rama, revelados completos
+CUANDO se evalúa la sección "Diagrama de Gantt — rama «¿y si?»"
+ENTONCES se renderiza **solo el diagrama de Gantt de la rama** (el del escenario actual NO se repite aquí: ya se muestra arriba en el simulador principal), acompañado de su **propio `PlaybackControls` independiente** (con sus `data-testid` propios, p. ej. `whatif-playback`), separado del reproductor del simulador principal
+
+DADO que el reproductor propio de la rama está en un tick `T`
+CUANDO se acciona (paso adelante/atrás, ir al inicio/final o arrastrar la barra)
+ENTONCES revela el diagrama de la rama hasta `T`, sin afectar al reproductor del simulador principal ni a su diagrama; con `T` intermedio, las celdas de la rama con tick > `T` aún no están reveladas
+
+DADO que la rama what-if dura más o menos ticks que el escenario actual
+CUANDO se reproduce con el control propio de la rama
+ENTONCES su rango es la **longitud de la propia rama** (no la del escenario actual), de modo que la rama **siempre** se puede recorrer completa
+
+DADO que existe una rama what-if activa
+CUANDO se evalúa la comparación en cualquier tick
+ENTONCES las tablas de métricas de comparación (por proceso y agregadas) se muestran siempre, sin depender del tick actual
 
 DADO que existe una rama what-if activa
 CUANDO se evalúa la sección "Métricas por proceso — comparación"

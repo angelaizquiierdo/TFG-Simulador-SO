@@ -208,7 +208,7 @@ export function SimulationProvider({
     if (saved === null || saved.processes.length === 0) return null;
     try {
       const result = run(saved.processes, buildConfig(saved.algorithm, saved.params));
-      return { result, player: new Player(result.history), algorithm: saved.algorithm };
+      return { result, player: new Player(result.history), algorithm: saved.algorithm, params: saved.params };
     } catch {
       return null;
     }
@@ -237,10 +237,40 @@ export function SimulationProvider({
   );
 
   // Mutaciones de escenario: actualizan estado local y rederivan al instante
-  const updateProcesses = useCallback((next: readonly Process[]) => {
-    setLocalProcesses(next);
-    setTickIndex(0);
-  }, []);
+  const updateProcesses = useCallback(
+    (next: readonly Process[]) => {
+      setLocalProcesses(next);
+      setTickIndex(0);
+
+      // La rama what-if comparte los procesos con el escenario actual: al editarlos,
+      // se rederiva la rama con los NUEVOS procesos conservando su algoritmo/params.
+      // Si la edición la invalida (lista vacía o error), se descarta.
+      if (whatIfBranch === null) return;
+      if (next.length === 0) {
+        setWhatIfBranch(null);
+        ssRemove(whatifKey);
+        return;
+      }
+      try {
+        const { algorithm: branchAlgorithm, params: branchParams } = whatIfBranch;
+        const result = run(next, buildConfig(branchAlgorithm, branchParams));
+        setWhatIfBranch({
+          result,
+          player: new Player(result.history),
+          algorithm: branchAlgorithm,
+          params: branchParams,
+        });
+        ssSet(
+          whatifKey,
+          JSON.stringify({ algorithm: branchAlgorithm, processes: next, params: branchParams }),
+        );
+      } catch {
+        setWhatIfBranch(null);
+        ssRemove(whatifKey);
+      }
+    },
+    [whatIfBranch, whatifKey],
+  );
 
   const updateParams = useCallback((next: Readonly<Record<string, unknown>>) => {
     setLocalParams(next);
@@ -255,7 +285,7 @@ export function SimulationProvider({
       if (nextProcesses.length === 0) return;
       try {
         const result = run(nextProcesses, buildConfig(nextAlgorithm, nextParams));
-        setWhatIfBranch({ result, player: new Player(result.history), algorithm: nextAlgorithm });
+        setWhatIfBranch({ result, player: new Player(result.history), algorithm: nextAlgorithm, params: nextParams });
         // Persistir la rama what-if (solo los inputs, no el resultado)
         const persisted: PersistedWhatIf = {
           algorithm: nextAlgorithm,

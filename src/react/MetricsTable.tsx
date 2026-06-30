@@ -24,7 +24,11 @@ export function MetricsTable(): React.ReactElement {
   const { metrics } = result;
 
   return (
-    <div className={styles.wrapper} data-testid="metrics-table">
+    // Desplegable: agrupa TODAS las métricas (por proceso + agregadas) para poder
+    // ocultarlas a voluntad. Inicialmente abierto (`open`).
+    <details className={styles.panel} data-testid="metrics-table" open>
+      <summary className={styles.summary}>Métricas</summary>
+      <div className={styles.wrapper}>
       {/* Tabla por proceso */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Métricas por proceso</div>
@@ -33,7 +37,7 @@ export function MetricsTable(): React.ReactElement {
             <tr>
               <th>ID</th>
               <th className={styles.numeric}>Finalización</th>
-              <th className={styles.numeric}>Turnaround</th>
+              <th className={styles.numeric}>Tiempo de retorno</th>
               <th className={styles.numeric}>Espera</th>
               <th className={styles.numeric}>Respuesta</th>
             </tr>
@@ -63,7 +67,7 @@ export function MetricsTable(): React.ReactElement {
           </div>
           <div className={styles.card}>
             <span className={styles.cardValue}>{metrics.aggregate.avgTurnaround.toFixed(2)}</span>
-            <span className={styles.cardLabel}>Turnaround medio</span>
+            <span className={styles.cardLabel}>Tiempo de retorno medio</span>
           </div>
           <div className={styles.card}>
             <span className={styles.cardValue}>
@@ -73,10 +77,11 @@ export function MetricsTable(): React.ReactElement {
           </div>
           <div className={styles.card}>
             <span className={styles.cardValue}>{metrics.aggregate.throughput.toFixed(3)}</span>
-            <span className={styles.cardLabel}>Throughput</span>
+            <span className={styles.cardLabel}>Rendimiento</span>
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
   );
 }

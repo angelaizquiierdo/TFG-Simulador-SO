@@ -45,6 +45,13 @@ describe('§ Simular — MLFQ (expropiativa) — sin boostInterval', () => {
     expect(h?.message).toMatch(/nivel 1/);
   });
 
+  it('el proceso que CONTINÚA en CPU indica su cola de prioridad (no solo "P1 en CPU")', () => {
+    // tick 1: P1 sigue en CPU en la cola de prioridad 0 (recién despachado en t=0)
+    expect(result.history[1]?.message).toMatch(/P1 en CPU de la cola de prioridad 0/);
+    // tick 5: P1 sigue en CPU ya degradado, en la cola de prioridad 1
+    expect(result.history[5]?.message).toMatch(/P1 en CPU de la cola de prioridad 1/);
+  });
+
   it('determinismo: dos ejecuciones producen resultado idéntico', () => {
     const r2 = run([P1, P2], { algorithm: 'test-mlfq-2-10' });
     expect(result.intervals).toEqual(r2.intervals);

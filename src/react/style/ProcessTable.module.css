@@ -3,7 +3,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--scheduler-font-size-base);
   color: var(--scheduler-text-primary);
   border: none;
   border-radius: var(--scheduler-radius-sm);

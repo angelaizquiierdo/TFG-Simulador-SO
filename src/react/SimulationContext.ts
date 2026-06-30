@@ -5,12 +5,14 @@ import type { Player } from '../core/player.js';
 import type { Process } from '../core/types/process.js';
 import type { IAlgorithm } from '../core/types/algorithm.js';
 
-// Rama what-if: resultado, reproductor y nombre del algoritmo de la alternativa
+// Rama what-if: resultado, reproductor y los inputs alternativos (algoritmo + params)
 export interface WhatIfBranch {
   readonly result: SimulationResult;
   readonly player: Player;
   /** Nombre del algoritmo con el que se rederivó la rama (para etiquetas). */
   readonly algorithm: string;
+  /** Parámetros alternativos de la rama (para rederivarla al editar los procesos). */
+  readonly params: Readonly<Record<string, unknown>>;
 }
 
 // Parámetros para sobrescribir en la rama what-if

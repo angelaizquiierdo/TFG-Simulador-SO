@@ -10,6 +10,7 @@
 .buttons {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--scheduler-space-xs);
 }
 
@@ -60,7 +61,7 @@
 
 /* Indicador de tick */
 .tickIndicator {
-  font-size: 0.875rem;
+  font-size: var(--scheduler-font-size-base);
   color: var(--scheduler-text-secondary);
   text-align: center;
 }

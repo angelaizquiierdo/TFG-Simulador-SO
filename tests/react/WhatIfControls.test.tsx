@@ -67,11 +67,11 @@ describe('§ WhatIfControls — rama what-if', () => {
     expect(screen.queryByTestId('whatif-controls')).not.toBeInTheDocument();
   });
 
-  it('no se renderiza en el último tick', () => {
+  it('SÍ se renderiza en el último tick (al finalizar el simulador)', () => {
     const result = run(PROCS, { algorithm: 'fcfs' });
     const lastTick = result.history.length - 1;
     renderAtTick(lastTick);
-    expect(screen.queryByTestId('whatif-controls')).not.toBeInTheDocument();
+    expect(screen.getByTestId('whatif-controls')).toBeInTheDocument();
   });
 
   it('se renderiza en tick intermedio', () => {
@@ -168,7 +168,7 @@ describe('§ WhatIfControls — rama what-if', () => {
   it('con rama activa muestra la tabla comparativa y el botón de descartar', () => {
     const result = run(PROCS, { algorithm: 'fcfs' });
     const player = new Player(result.history);
-    const branch: WhatIfBranch = { result, player, algorithm: 'fcfs' };
+    const branch: WhatIfBranch = { result, player, algorithm: 'fcfs', params: {} };
     renderAtTick(2, { whatIfBranch: branch });
     expect(screen.getByTestId('whatif-comparison')).toBeInTheDocument();
     expect(screen.getByTestId('whatif-branch-indicator')).toBeInTheDocument();
@@ -178,7 +178,7 @@ describe('§ WhatIfControls — rama what-if', () => {
   it('con rama activa no se muestra el formulario de variación', () => {
     const result = run(PROCS, { algorithm: 'fcfs' });
     const player = new Player(result.history);
-    const branch: WhatIfBranch = { result, player, algorithm: 'fcfs' };
+    const branch: WhatIfBranch = { result, player, algorithm: 'fcfs', params: {} };
     renderAtTick(2, { whatIfBranch: branch });
     expect(screen.queryByTestId('whatif-form')).not.toBeInTheDocument();
   });
@@ -186,7 +186,7 @@ describe('§ WhatIfControls — rama what-if', () => {
   it('"Descartar rama" llama a discardWhatIf', () => {
     const result = run(PROCS, { algorithm: 'fcfs' });
     const player = new Player(result.history);
-    const branch: WhatIfBranch = { result, player, algorithm: 'fcfs' };
+    const branch: WhatIfBranch = { result, player, algorithm: 'fcfs', params: {} };
     const value = renderAtTick(2, { whatIfBranch: branch });
     fireEvent.click(screen.getByTestId('discard-whatif-button'));
     expect((value.discardWhatIf as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
@@ -201,7 +201,7 @@ describe('§ WhatIfControls — comparación desplegable (Gantt + métricas)', (
   // Rama SJF frente al escenario actual FCFS sobre PROCS (A burst 4, B burst 2).
   function renderWithBranch() {
     const result = run(PROCS, { algorithm: 'sjf' });
-    const branch: WhatIfBranch = { result, player: new Player(result.history), algorithm: 'sjf' };
+    const branch: WhatIfBranch = { result, player: new Player(result.history), algorithm: 'sjf', params: {} };
     return renderAtTick(2, { whatIfBranch: branch });
   }
 
@@ -224,18 +224,38 @@ describe('§ WhatIfControls — comparación desplegable (Gantt + métricas)', (
     expect(within(aggregate).getByText('Comparado con sjf')).toBeInTheDocument();
   });
 
-  it('los diagramas de Gantt se etiquetan con el algoritmo actual y la rama', () => {
+  it('el diagrama de Gantt de la rama se etiqueta con "Comparado con <rama>"', () => {
     renderWithBranch();
-    expect(within(screen.getByTestId('whatif-gantt-actual')).getByText('fcfs')).toBeInTheDocument();
     expect(
       within(screen.getByTestId('whatif-gantt-branch')).getByText('Comparado con sjf'),
     ).toBeInTheDocument();
   });
 
-  it('la comparación de Gantt renderiza el diagrama actual y el de la rama', () => {
+  it('la sección de Gantt muestra solo el diagrama de la rama, no el del escenario actual', () => {
+    // El diagrama del escenario actual ya se ve arriba en el simulador principal; aquí
+    // solo se repite el de la rama «¿y si?».
     renderWithBranch();
-    expect(screen.getByTestId('whatif-gantt-actual-chart')).toBeInTheDocument();
     expect(screen.getByTestId('whatif-gantt-branch-chart')).toBeInTheDocument();
+    expect(screen.queryByTestId('whatif-gantt-actual-chart')).not.toBeInTheDocument();
+  });
+
+  it('la rama tiene su PROPIO control de reproducción, independiente del principal', () => {
+    renderWithBranch();
+    expect(screen.getByTestId('whatif-playback')).toBeInTheDocument();
+    expect(screen.getByTestId('whatif-playback-range')).toBeInTheDocument();
+  });
+
+  it('el control propio de la rama revela su Gantt de forma independiente', () => {
+    // Rama SJF sobre A(ráfaga 4)/B(ráfaga 2): B en CPU en t=0..1, A en CPU en t=2..5.
+    // El cursor de la rama arranca al final (revelado completo); al llevarlo al tick 1
+    // con SU control, B-0 (≤ 1) sigue revelada (CPU) pero A-3 (> 1) deja de estarlo.
+    renderWithBranch();
+    const range = screen.getByTestId('whatif-playback-range');
+    fireEvent.change(range, { target: { value: '1' } });
+    const chart = within(screen.getByTestId('whatif-gantt-branch-chart'));
+    const revealed = chart.getByTestId('gantt-cell-B-0').getAttribute('data-state');
+    const beyondCursor = chart.getByTestId('gantt-cell-A-3').getAttribute('data-state');
+    expect(revealed).not.toBe(beyondCursor);
   });
 
   it('la tabla por proceso tiene una fila por proceso', () => {

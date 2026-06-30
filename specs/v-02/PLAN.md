@@ -922,6 +922,7 @@ Importar los 6 componentes de iconos anteriores desde `./icons/` .
 * Incluir un indicador de texto con el formato estricto: Tick: N / Total.
 * Controlar los estados deshabilitados (disabled con opacidad reducida) cuando el recorrido llegue a los límites (0 o el tick final).
 * Centralizar la lógica de requestAnimationFrame y deltaTime exclusivamente en este componente para la reproducción automática.
+* **Reutilizable con varias líneas de tiempo:** acepta una prop opcional `controller` (`{ currentTick, lastTick, hasHistory, stepForward, stepBackward, seekTo }`) y un prefijo `testId` (raíz, `-range`, `-tick`). Sin `controller` se deriva del `SimulationProvider` (simulador principal); con `controller` reproduce la línea de tiempo que se le pase (p. ej. la rama what-if), sin duplicar el bucle RAF.
 
 
 **Cierra:** `§ Reproducción automática`, `§ Navegación manual`, `§ Render — PlaybackControls`, `§ Iconos SVG`,` § Tamaño consistente de botones`— `tests/react/PlaybackControls.test.tsx`
@@ -1038,6 +1039,14 @@ Archivos: `WhatIfControls.tsx`, `style/WhatIfControls.module.css`.
 - `createWhatIf(tick: number): void` — crea la rama.
 - `discardWhatIf(): void` — descarta la rama.
 - `whatIfBranch: WhatIfBranch | null` — estado de la rama activa.
+
+**Vista de comparación (estado actual implementado):** la sección "Diagrama de Gantt"
+muestra **solo el diagrama de la rama** (el del escenario actual ya está arriba en el
+simulador principal) con su **propio `PlaybackControls` independiente** (prop `controller`
+de T-42, `testId="whatif-playback"`), cuyo cursor `branchTick` recorre la rama completa
+(rango = longitud de la rama). Las tablas de comparación (métricas por proceso y
+agregadas) son siempre visibles. El componente es visible en cualquier tick `T > 0`
+(incluido el último).
 
 **Cierra:** `§ WhatIfControls — rama what-if` — `tests/react/WhatIfControls.test.tsx`
 

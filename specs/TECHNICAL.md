@@ -344,6 +344,15 @@ Ejemplos de lo que devuelve `onEvent` en cada algoritmo:
 | MLFQ | `preempted` | `"llega al nivel 0"` |
 | MLFQ | `priority-boost` | `"todos los procesos suben al nivel 0"` |
 
+**Mensaje del proceso que continúa en CPU (multicola).** En un tick sin evento (el
+mismo proceso sigue en CPU), la frase básica del motor era `"A en CPU"`. Para los
+algoritmos multicola que exponen `levelSnapshot()` (MLFQ, VRR), el motor le añade el
+sufijo `" de la cola de prioridad N"` (N = nivel actual del proceso: MLFQ 0/1/2; VRR
+0 = auxiliar, 1 = principal), quedando `"A en CPU de la cola de prioridad 0"`. Los
+algoritmos sin `levelSnapshot()` conservan la frase básica. El motor lo resuelve con un
+helper (`cpuQueueSuffix`) que lee `levelSnapshot()` — el mismo dato que alimenta los
+niveles del Gantt —, sin tocar el contrato `IAlgorithm`.
+
 El motor entrega `ready` ya ordenado por el desempate global (`arrival_time`, luego `id`);
 cada algoritmo solo aplica su criterio principal.
 
@@ -468,6 +477,27 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
   (estado + API what-if), `SimulationApp` (contenedor visual), `GanttChart`,
   `ProcessTable`, `PlaybackControls`, `MetricsTable`, `ProcessForm`, `AlgorithmParamsForm`,
   `WhatIfControls`.
+  - **Reproductor independiente de la rama what-if:** la sección de Gantt del what-if
+    muestra **solo el diagrama de la rama** (el del escenario actual no se repite: ya
+    está arriba en el simulador principal) y tiene su **propio `PlaybackControls`**. Para
+    permitir varias instancias sin duplicar el bucle RAF, `PlaybackControls` acepta una
+    prop opcional `controller` (`{ currentTick, lastTick, hasHistory, stepForward,
+    stepBackward, seekTo }`) y un prefijo `testId`; sin `controller` se deriva del
+    contexto (simulador principal, comportamiento de siempre). `WhatIfControls` mantiene
+    un cursor local `branchTick` y le pasa un `controller` propio cuyo rango es la
+    **longitud de la rama** — así la rama se recorre completa con independencia de la
+    duración del escenario actual. `requestAnimationFrame`/`deltaTime` siguen viviendo
+    solo en `PlaybackControls`. Las tablas de métricas de comparación son siempre
+    visibles.
+  - **La rama what-if comparte los procesos con el escenario actual.** `WhatIfBranch`
+    guarda en memoria su `algorithm` **y** sus `params`; cuando `updateProcesses` edita
+    los procesos, el provider **rederiva la rama** con los procesos nuevos conservando
+    esos inputs alternativos (y reescribe su entrada en `sessionStorage`). Si la edición
+    la invalida (lista vacía o error de `run`), la rama se descarta.
+  - **`MetricsTable` es un desplegable.** Todas las métricas (la tabla **por proceso** y
+    las **agregadas**) se agrupan dentro de un único `<details>` con `summary` "Métricas",
+    **inicialmente abierto** (`open`), para que el usuario pueda ocultarlas/omitirlas a
+    voluntad. El `data-testid="metrics-table"` pasa a ser el propio `<details>`.
 - **Fase 7 — Persistencia por sesión:** `sessionStorage` con clave por algoritmo
   (escenario base + rama what-if por separado).
 - **Fase 8 — Documentación (`docs/`):** guías (integración, configuración, crear

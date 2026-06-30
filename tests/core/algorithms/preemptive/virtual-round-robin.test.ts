@@ -126,6 +126,14 @@ describe('VirtualRoundRobin — mensajes ricos', () => {
     const ev0 = result.history.find((e) => e.tick === 0);
     expect(ev0?.message).toMatch(/cola principal/i);
   });
+
+  it('el proceso que CONTINÚA en CPU indica su cola de prioridad (principal=1, auxiliar=0)', () => {
+    const result = run(processes, { algorithm: 'virtual-round-robin', quantum: 4 });
+    // tick 1: P1 sigue en CPU desde la cola principal → prioridad 1
+    expect(result.history[1]?.message).toMatch(/P1 en CPU de la cola de prioridad 1/);
+    // tick 6: P1 sigue en CPU tras volver de E/S, desde la cola auxiliar → prioridad 0
+    expect(result.history[6]?.message).toMatch(/P1 en CPU de la cola de prioridad 0/);
+  });
 });
 
 // § Proceso que bloquea para E/S y agota exactamente su quantum (sobrante=0) → cola principal

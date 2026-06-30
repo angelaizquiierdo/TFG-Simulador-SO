@@ -138,6 +138,14 @@ function executeSimulationLoop(
     return exitMsg !== null ? `${exitMsg}. A continuación, ${entryMsg}` : entryMsg;
   };
 
+  // Sufijo de cola/prioridad para el proceso que CONTINÚA en CPU. Solo los
+  // algoritmos multicola (MLFQ, VRR) exponen levelSnapshot(); para el resto
+  // devuelve "" y el mensaje se queda en la frase básica ("X en CPU").
+  const cpuQueueSuffix = (id: string): string => {
+    const level = algo.levelSnapshot?.()[id];
+    return level !== undefined ? ` de la cola de prioridad ${String(level)}` : '';
+  };
+
   const TICK_LIMIT = 100_000;
 
   while (completed.length < processes.length) {
@@ -297,10 +305,10 @@ function executeSimulationLoop(
               triggers.has('on-quantum'),
             );
           } else {
-            message = `${currentId} en CPU`;
+            message = `${currentId} en CPU${cpuQueueSuffix(currentId)}`;
           }
         } else {
-          message = `${currentId} en CPU`;
+          message = `${currentId} en CPU${cpuQueueSuffix(currentId)}`;
         }
       }
     }

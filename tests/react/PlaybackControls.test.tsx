@@ -103,14 +103,14 @@ describe('§ Render — PlaybackControls', () => {
 
   it('muestra el indicador de tick con formato "Tick: N / Total"', () => {
     renderControls(0);
-    expect(screen.getByTestId('playback-tick').textContent).toMatch(/Tick:\s*0\s*\/\s*\d+/);
+    expect(screen.getByTestId('playback-controls-tick').textContent).toMatch(/Tick:\s*0\s*\/\s*\d+/);
   });
 
   it('muestra el input range vinculado al tick actual', () => {
     const result = run(PROCS, { algorithm: 'fcfs' });
     const totalTicks = result.history.length;
     renderControls(0);
-    const range = screen.getByTestId('playback-range');
+    const range = screen.getByTestId('playback-controls-range');
     expect(range).toHaveAttribute('type', 'range');
     expect(range).toHaveAttribute('min', '0');
     expect(range).toHaveAttribute('max', String(totalTicks - 1));
@@ -166,7 +166,7 @@ describe('§ Navegación manual', () => {
 
   it('cambiar el range llama a seekTo con el valor seleccionado', () => {
     const { seekTo } = renderControls(0);
-    const range = screen.getByTestId('playback-range');
+    const range = screen.getByTestId('playback-controls-range');
     fireEvent.change(range, { target: { value: '2' } });
     expect(seekTo).toHaveBeenCalledWith(2);
   });
@@ -220,5 +220,39 @@ describe('§ Reproducción automática', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reproducir' })); // → Pausar
     fireEvent.click(screen.getByRole('button', { name: 'Pausar' })); // → Reproducir
     expect(screen.getByRole('button', { name: 'Reproducir' })).toBeInTheDocument();
+  });
+});
+
+describe('§ PlaybackControls con `controller` externo (sin contexto)', () => {
+  afterEach(() => { cleanup(); });
+
+  function makeController(currentTick: number, lastTick: number) {
+    return {
+      currentTick,
+      lastTick,
+      hasHistory: true,
+      stepForward: vi.fn(),
+      stepBackward: vi.fn(),
+      seekTo: vi.fn(),
+    };
+  }
+
+  it('usa el `testId` parametrizado y el rango/valor del controlador', () => {
+    const ctrl = makeController(2, 5);
+    render(<PlaybackControls controller={ctrl} testId="whatif-playback" />);
+    expect(screen.getByTestId('whatif-playback')).toBeInTheDocument();
+    const range = screen.getByTestId('whatif-playback-range');
+    expect(range).toHaveAttribute('max', '5');
+    expect(range).toHaveAttribute('value', '2');
+    expect(screen.getByTestId('whatif-playback-tick').textContent).toMatch(/Tick:\s*2\s*\/\s*5/);
+  });
+
+  it('los controles llaman a los handlers del controlador, no al contexto', () => {
+    const ctrl = makeController(2, 5);
+    render(<PlaybackControls controller={ctrl} testId="whatif-playback" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Paso adelante' }));
+    expect(ctrl.stepForward).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByTestId('whatif-playback-range'), { target: { value: '4' } });
+    expect(ctrl.seekTo).toHaveBeenCalledWith(4);
   });
 });

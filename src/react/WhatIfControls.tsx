@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSimulation } from './SimulationContext.js';
 import type { AlgorithmRequires } from './SimulationContext.js';
 import { get, list } from '../core/registry.js';
 import type { AggregateMetrics, ProcessMetrics } from '../core/types/simulation-result.js';
 import { GanttChart } from './GanttChart.js';
+import { PlaybackControls } from './PlaybackControls.js';
+import type { PlaybackController } from './PlaybackControls.js';
 import styles from './style/WhatIfControls.module.css';
 
 interface DraftParams {
@@ -100,9 +102,9 @@ interface MetricRow {
 
 const METRIC_ROWS: readonly MetricRow[] = [
   { label: 'Espera media', format: (v) => v.toFixed(2), pick: (m) => m.avgWaiting },
-  { label: 'Turnaround medio', format: (v) => v.toFixed(2), pick: (m) => m.avgTurnaround },
+  { label: 'Tiempo de retorno medio', format: (v) => v.toFixed(2), pick: (m) => m.avgTurnaround },
   { label: 'Utilización CPU', format: (v) => `${(v * 100).toFixed(1)}%`, pick: (m) => m.cpuUtilization },
-  { label: 'Throughput', format: (v) => v.toFixed(3), pick: (m) => m.throughput },
+  { label: 'Rendimiento', format: (v) => v.toFixed(3), pick: (m) => m.throughput },
 ];
 
 // Requisitos del algoritmo (para la leyenda del Gantt de la rama); {} si no existe.
@@ -147,8 +149,8 @@ function fmtDelta(delta: number): string {
 }
 
 /**
- * Panel de análisis "¿y si...?". Solo visible en un tick intermedio
- * (0 < tick_actual < último tick).
+ * Panel de análisis "¿y si...?". Visible desde el primer tick útil hasta el
+ * último inclusive (0 < tick_actual <= último tick); oculto solo en el tick 0.
  *
  * Sin rama activa: muestra un formulario para elegir un algoritmo y parámetros
  * alternativos. Al pulsar "Comparar" se crea una rama (`createWhatIf`) que
@@ -165,19 +167,29 @@ export function WhatIfControls(): React.ReactElement | null {
     algorithmName,
     params,
     processes,
-    requires,
   } = useSimulation();
 
   const [algorithm, setAlgorithm] = useState(algorithmName);
   const [draft, setDraft] = useState<DraftParams>(() => paramsToDraft(params));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [branchLabel, setBranchLabel] = useState<string | null>(null);
+  // Cursor PROPIO de la rama what-if, independiente del reproductor principal.
+  const [branchTick, setBranchTick] = useState(0);
+
+  // Al crear/descartar una rama, sitúa su cursor en el último tick (revelado completo);
+  // a partir de ahí el usuario la reproduce con su control independiente.
+  const branchLast = whatIfBranch !== null ? whatIfBranch.result.history.length - 1 : 0;
+  useEffect(() => {
+    setBranchTick(branchLast);
+  }, [whatIfBranch, branchLast]);
 
   if (result === null || currentEvent === undefined) return null;
 
-  const lastTick = result.history.length - 1;
   const currentTick = currentEvent.tick;
-  if (currentTick <= 0 || currentTick >= lastTick) return null;
+  // Visible desde el primer tick útil hasta el FINAL inclusive: el what-if compara
+  // una re-ejecución completa del escenario, así que tiene pleno sentido también
+  // cuando el simulador ha terminado (último tick), junto a las métricas finales.
+  if (currentTick <= 0) return null;
 
   const algorithms = list();
   const vis = visibilityFor(algorithm);
@@ -202,6 +214,17 @@ export function WhatIfControls(): React.ReactElement | null {
     const branchHistory = whatIfBranch.result.history;
     const branchAlgorithm = whatIfBranch.algorithm;
     const branchRequires = requiresOf(branchAlgorithm);
+    // Reproductor INDEPENDIENTE de la rama: su propio cursor y su propio rango (la
+    // longitud de la rama), desacoplado del reproductor del simulador principal.
+    const safeBranchTick = Math.min(Math.max(branchTick, 0), branchLast);
+    const branchController: PlaybackController = {
+      currentTick: safeBranchTick,
+      lastTick: branchLast,
+      hasHistory: branchHistory.length > 0,
+      stepForward: () => { setBranchTick((t) => Math.min(t + 1, branchLast)); },
+      stepBackward: () => { setBranchTick((t) => Math.max(t - 1, 0)); },
+      seekTo: (n) => { setBranchTick(Math.max(0, Math.min(n, branchLast))); },
+    };
     // Etiquetas: el escenario actual lleva el nombre de su algoritmo; la rama,
     // "Comparado con <algoritmo>".
     const actualLabel = algorithmName;
@@ -226,33 +249,26 @@ export function WhatIfControls(): React.ReactElement | null {
           </button>
         </div>
 
-        {/* 1. Comparación de diagramas de Gantt (actual vs rama, revelados completos) */}
+        {/* 1. Diagrama de Gantt de la rama «¿y si?» con su PROPIO reproductor. El
+            diagrama del escenario actual NO se repite aquí: ya está arriba en el
+            simulador principal con su control. Este control es independiente: mueve
+            solo la rama, con el rango propio de la rama. */}
         <details className={styles.section} data-testid="whatif-gantt-comparison" open>
-          <summary className={styles.summary}>Diagrama de Gantt — comparación</summary>
+          <summary className={styles.summary}>Diagrama de Gantt — rama «¿y si?»</summary>
           <div className={styles.ganttPair}>
-            <div className={styles.ganttBlock} data-testid="whatif-gantt-actual">
-              <span className={styles.subTitle}>{actualLabel}</span>
-              <GanttChart
-                history={result.history}
-                processes={processes}
-                requires={requires}
-                currentTick={result.history.length - 1}
-                message=""
-                testId="whatif-gantt-actual-chart"
-              />
-            </div>
             <div className={styles.ganttBlock} data-testid="whatif-gantt-branch">
               <span className={styles.subTitle}>{branchLabelText}</span>
               <GanttChart
                 history={branchHistory}
                 processes={processes}
                 requires={branchRequires}
-                currentTick={branchHistory.length - 1}
+                currentTick={safeBranchTick}
                 message=""
                 testId="whatif-gantt-branch-chart"
               />
             </div>
           </div>
+          <PlaybackControls controller={branchController} testId="whatif-playback" />
         </details>
 
         {/* 2. Comparación de métricas por proceso */}

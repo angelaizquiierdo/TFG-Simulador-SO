@@ -73,6 +73,27 @@ describe('§ Render — MetricsTable', () => {
     expect(screen.getByTestId('metrics-aggregate')).toBeInTheDocument();
   });
 
+  it('TODAS las métricas (por proceso + agregadas) están dentro de un desplegable inicialmente abierto', () => {
+    renderMetrics(true);
+    const panel = screen.getByTestId('metrics-table');
+    expect(panel.tagName).toBe('DETAILS');
+    expect(panel).toHaveAttribute('open'); // inicialmente abierto
+    // El summary "Métricas" agrupa AMBAS secciones
+    expect(screen.getByText('Métricas')).toBeInTheDocument();
+    expect(panel.querySelector('[data-testid="metrics-per-process"]')).not.toBeNull();
+    expect(panel.querySelector('[data-testid="metrics-aggregate"]')).not.toBeNull();
+  });
+
+  it('el desplegable de métricas se puede cerrar (omitir) y volver a abrir', () => {
+    renderMetrics(true);
+    const panel = screen.getByTestId('metrics-table');
+    expect(panel).toHaveAttribute('open');
+    panel.removeAttribute('open'); // el usuario lo cierra para omitir las métricas
+    expect(panel).not.toHaveAttribute('open');
+    panel.setAttribute('open', '');
+    expect(panel).toHaveAttribute('open');
+  });
+
   it('la tabla por proceso muestra una fila por proceso', () => {
     renderMetrics(true);
     const table = screen.getByTestId('metrics-per-process');
@@ -89,9 +110,9 @@ describe('§ Render — MetricsTable', () => {
   it('la tabla agregada muestra las 4 métricas de resumen', () => {
     renderMetrics(true);
     expect(screen.getByText('Espera media')).toBeInTheDocument();
-    expect(screen.getByText('Turnaround medio')).toBeInTheDocument();
+    expect(screen.getByText('Tiempo de retorno medio')).toBeInTheDocument();
     expect(screen.getByText('Utilización CPU')).toBeInTheDocument();
-    expect(screen.getByText('Throughput')).toBeInTheDocument();
+    expect(screen.getByText('Rendimiento')).toBeInTheDocument();
   });
 
   it('§ Coherencia de métricas y estado: los valores numéricos son coherentes con el resultado', () => {
