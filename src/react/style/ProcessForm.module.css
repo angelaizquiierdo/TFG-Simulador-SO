@@ -1,7 +1,9 @@
 .container {
+  margin: 0;
   border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
   overflow: hidden;
+  background: var(--scheduler-bg);
 }
 
 .toggle {
@@ -18,6 +20,12 @@
   color: var(--scheduler-text-primary);
 }
 
+.toggle svg {
+  width: var(--scheduler-icon-size-em);
+  height: var(--scheduler-icon-size-em);
+  transition: transform var(--scheduler-transition-fast);
+}
+
 .toggle:hover {
   background: var(--scheduler-surface-elevated);
 }
@@ -25,6 +33,10 @@
 .toggle:focus-visible {
   outline: 2px solid var(--scheduler-focus);
   outline-offset: -2px;
+}
+
+.toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
 }
 
 .panel {
@@ -54,18 +66,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--scheduler-space-sm);
-  padding-left: var(--scheduler-space-md);
-  border-left: 2px solid var(--scheduler-border);
-}
-
-/* Etiqueta «E/S 1», «E/S 2», … al inicio de cada línea de E/S */
-.ioLabel {
-  align-self: flex-end;
-  padding-bottom: 4px;
-  font-size: var(--scheduler-font-size-xs);
-  font-weight: 600;
-  color: var(--scheduler-text-secondary);
-  min-width: var(--scheduler-size-2xs);
+  padding: var(--scheduler-space-sm);
+  border: 1px solid var(--scheduler-border);
+  border-radius: var(--scheduler-radius-sm);
 }
 
 .processId {
@@ -129,15 +132,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px; /* Espacio entre el icono SVG y la palabra */
-  height: var(--scheduler-size-3xs); /* Ajusta esto para que coincida con la altura de tus <input> */
+  gap: 6px;
+  height: var(--scheduler-size-3xs);
 }
 
-/* Le da un poco más de tamaño a los SVG para que no se vean diminutos */
 .addButton svg,
 .removeButton svg {
   width: 1.1em;
   height: 1.1em;
+}
+
+/* Botón «+ E/S» de la línea principal: alineado al fondo, a la altura de los inputs */
+.ioAddButton {
+  align-self: flex-end;
 }
 
 .addButton:hover {

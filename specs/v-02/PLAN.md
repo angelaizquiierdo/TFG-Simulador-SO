@@ -1021,22 +1021,24 @@ Importar los 2 componentes de iconos anteriores desde `./icons/` .
 
 Archivos: `WhatIfControls.tsx`, `style/WhatIfControls.module.css`.
 
-**Visible solo cuando el reproductor está pausado en un tick intermedio** (`0 < T <
-último tick`). No aparece si la simulación está en reproducción automática, ni en el tick
-0, ni en el último tick.
+**Visible en cualquier tick**, incluidos el tick 0 y el último (al finalizar el
+simulador). No se oculta en ningún tick.
 
 **Funcionalidad:**
-- Botón **"Crear rama what-if"**: toma `SchedulerState` en el tick `T`, llama a
-  `runFrom(state)`, conserva el historial hasta `T` y muestra un indicador de rama
-  activa.
+- Formulario **"Comparar con otro escenario"**: elige un algoritmo y parámetros
+  alternativos. El botón **"Comparar"** llama a `createWhatIf({ algorithm, params })`, que
+  **rederiva el escenario completo** con `run()` y esos *overrides* (no bifurca desde el
+  `SchedulerState` del tick `T`; `runFrom` queda como evolución futura — ver la nota de
+  implementación en `SPECv-02.md` y `DECISIONS.md`). La rama **comparte los procesos** del
+  escenario actual.
 - Botón **"Descartar rama"** (visible solo dentro de una rama): restaura el escenario
-  original y lleva el reproductor al tick `T`.
+  original.
 - **Solo una rama a la vez:** crear una nueva descarta la anterior sin confirmación.
 - Persistencia: la rama se guarda en `sessionStorage`
   (`scheduler-whatif:${algorithmName}`). Se pierde al cerrar la pestaña.
 
 **Cableado con el Provider:** `SimulationProvider` expone por contexto:
-- `createWhatIf(tick: number): void` — crea la rama.
+- `createWhatIf(overrides: WhatIfOverrides): void` — crea la rama (algoritmo/parámetros alternativos).
 - `discardWhatIf(): void` — descarta la rama.
 - `whatIfBranch: WhatIfBranch | null` — estado de la rama activa.
 
@@ -1270,6 +1272,55 @@ elemento quede más arriba que el resto**. Regla: cada ítem de un grupo flex/gr
 resetear `margin: 0` en su CSS Module y el espaciado se controla con `gap` en el
 contenedor — nunca confiando en el flujo vertical del navegador. Prohibido usar la clase
 `.not-content` de Starlight (acoplaría el módulo publicable al tema de docs).
+
+#### Desplegables colapsables con chevron (icono propio)
+
+Los paneles `<details>`/`<summary>` (`MetricsTable`, las tres secciones internas del
+`WhatIfControls` y su panel raíz, y el toggle de `ProcessForm`) muestran un **chevron SVG
+propio** como indicador de estado: **apunta hacia abajo cuando está cerrado y hacia arriba
+cuando está abierto** (rotación de 180° por CSS, no se cambia de icono). Queda prohibido
+usar caracteres Unicode o emojis para la flecha.
+
+Archivos:
+- icons/ChevronIcon.tsx
+- style/MetricsTable.module.css
+- style/WhatIfControls.module.css
+- style/ProcessForm.module.css
+
+##### Componente de icono (Crear exactamente con este código)
+
+- **`src/react/icons/ChevronIcon.tsx`**
+```tsx
+export const ChevronIcon = (): React.ReactElement => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="1em"
+    height="1em"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+```
+
+##### Requisitos de implementación
+
+- Importar `ChevronIcon` desde `./icons/` y colocarlo **dentro** del `<summary>` (o del
+  botón toggle en `ProcessForm`), antes del texto. El tamaño se controla con `width/height: 1.1em`.
+- La rotación a estado abierto se hace por CSS, sin estado extra en React:
+  - `<details>`: `.<contenedor>[open] > .<summary> svg { transform: rotate(180deg); }`.
+  - `ProcessForm` (toggle controlado): `.toggle[aria-expanded='true'] svg { transform: rotate(180deg); }`.
+- **Marcador de Starlight:** Starlight inyecta su propio chevron en `summary::before`
+  (regla dentro de `@layer starlight.content`). Para que solo se vea nuestro icono, cada
+  CSS Module oculta ese pseudo-elemento con `.<summary>::before { display: none; }`. La
+  regla gana por ser **unlayered** (mismo mecanismo que el reset de margen parásito; ver
+  `TECHNICAL.md`), **no** por especificidad — prohibido usar `!important` o `.not-content`.
 
 **Verificación:**
 - Todos los tests de render siguen verdes.

@@ -1,11 +1,9 @@
 import React from 'react';
 import { useSimulation } from './SimulationContext.js';
+import { ChevronIcon } from './icons/ChevronIcon.js';
 import styles from './style/MetricsTable.module.css';
 
-/**
- * Tablas de métricas (por proceso y agregadas).
- * Solo visibles cuando el reproductor está en el último tick.
- */
+/** Tablas de métricas (por proceso y agregadas). */
 export function MetricsTable(): React.ReactElement {
   const { result, currentEvent } = useSimulation();
 
@@ -16,7 +14,6 @@ export function MetricsTable(): React.ReactElement {
   const lastTick = result.history.length - 1;
   const atEnd = currentEvent.tick >= lastTick;
 
-  // Solo mostrar métricas en el último tick
   if (!atEnd) {
     return <div data-testid="metrics-table" />;
   }
@@ -24,10 +21,8 @@ export function MetricsTable(): React.ReactElement {
   const { metrics } = result;
 
   return (
-    // Desplegable: agrupa TODAS las métricas (por proceso + agregadas) para poder
-    // ocultarlas a voluntad. Inicialmente abierto (`open`).
     <details className={styles.panel} data-testid="metrics-table" open>
-      <summary className={styles.summary}>Métricas</summary>
+      <summary className={styles.summary}><ChevronIcon /> Métricas</summary>
       <div className={styles.wrapper}>
       {/* Tabla por proceso */}
       <div className={styles.section}>
@@ -56,8 +51,7 @@ export function MetricsTable(): React.ReactElement {
         </table>
       </div>
 
-      {/* Métricas agregadas: 4 tarjetas cuadradas en cuadrícula 2×2,
-          cada una con el valor grande y el nombre de la métrica. */}
+      {/* Métricas agregadas */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Métricas agregadas</div>
         <div className={styles.aggregateGrid} data-testid="metrics-aggregate">

@@ -22,7 +22,7 @@
 
 /* Filas del cuerpo */
 .table tbody tr {
-  min-height: 36px; /* aproximación al token de altura */
+  min-height: 36px;
   border-bottom: 1px solid var(--scheduler-border);
 }
 
@@ -49,7 +49,7 @@
   font-weight: 600;
 }
 
-/* Celdas combinadas (rowSpan) del proceso: alineadas arriba, junto a su 1ª línea de E/S */
+/* Celdas combinadas (rowSpan) del proceso */
 .table td[rowspan] {
   vertical-align: top;
 }

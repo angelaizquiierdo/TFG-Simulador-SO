@@ -925,10 +925,6 @@ DADO una simulación ya calculada en el tick 0
 CUANDO el usuario pulsa "reproducir" hacia delante
 ENTONCES el tick mostrado avanza automáticamente hasta el último y se detiene
 
-DADO una reproducción detenida en el último tick
-CUANDO el usuario pulsa "reproducir" hacia atrás
-ENTONCES el tick mostrado disminuye automáticamente hasta 0 y se detiene
-
 
 ## § Render — `PlaybackControls`
 
@@ -1083,11 +1079,11 @@ ENTONCES la sublista queda vacía, el proceso se comporta estrictamente como un 
 > agregadas. No conserva el historial hasta `T` mediante `runFrom(state)` (ese enfoque
 > queda como trabajo futuro; ver `DECISIONS.md`).
 
-DADO que el reproductor está en el tick 0
+DADO que el reproductor está en cualquier tick (incluidos el tick 0 y el último al finalizar el simulador)
 CUANDO se evalúa el componente `WhatIfControls`
-ENTONCES el componente permanece completamente oculto (en cualquier otro tick, incluido el último al finalizar el simulador, es visible)
+ENTONCES el componente es visible (no se oculta en ningún tick)
 
-DADO que el reproductor está en un tick `T > 0` y no hay rama activa
+DADO que el reproductor está en un tick cualquiera y no hay rama activa
 CUANDO se evalúa el componente `WhatIfControls`
 ENTONCES se muestra un formulario con un selector de algoritmo (los registrados en el `registry`) y los campos de parámetros aplicables al algoritmo elegido (`quantum`, `quanta`, `boostInterval`)
 

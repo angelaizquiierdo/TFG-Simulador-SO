@@ -9,9 +9,6 @@ interface DraftParams {
   boostInterval: string;
 }
 
-// Default de quanta por nivel (coincide con el constructor de MLFQ). Evita que un
-// sessionStorage obsoleto (formato antiguo de un solo `quantum`, sin `quanta`) deje
-// los campos vacíos y bloquee "Aplicar".
 const DEFAULT_QUANTA = [2, 4] as const;
 
 function paramsToDraft(params: Readonly<Record<string, unknown>>): DraftParams {
@@ -26,7 +23,6 @@ function paramsToDraft(params: Readonly<Record<string, unknown>>): DraftParams {
   };
 }
 
-// Qué campos están activos según el algoritmo: quanta por nivel (MLFQ) o quantum único (RR/VRR)
 interface FieldVisibility {
   readonly showQuanta: boolean;
   readonly showQuantum: boolean;
@@ -42,7 +38,6 @@ function validateDraft(draft: DraftParams, vis: FieldVisibility): ValidationResu
   const errors: Record<string, string> = {};
   const result: Record<string, unknown> = {};
 
-  // Quantum único (Round Robin / VRR): opcional, solo se valida si tiene valor
   if (vis.showQuantum && draft.quantum !== '') {
     const q = Number(draft.quantum);
     if (!Number.isFinite(q) || q <= 0) {
@@ -52,7 +47,6 @@ function validateDraft(draft: DraftParams, vis: FieldVisibility): ValidationResu
     }
   }
 
-  // Quanta por nivel (MLFQ): ambos campos obligatorios y enteros positivos
   if (vis.showQuanta) {
     const q0 = Number(draft.quantum0);
     const q1 = Number(draft.quantum1);
@@ -67,7 +61,6 @@ function validateDraft(draft: DraftParams, vis: FieldVisibility): ValidationResu
     }
   }
 
-  // boostInterval (MLFQ): opcional; vacío equivale a "sin priority boost"
   if (vis.showBoost && draft.boostInterval !== '') {
     const b = Number(draft.boostInterval);
     if (!Number.isFinite(b) || b <= 0) {
@@ -83,16 +76,10 @@ function validateDraft(draft: DraftParams, vis: FieldVisibility): ValidationResu
   return { errors: {}, params: result };
 }
 
-/**
- * Formulario de parámetros del algoritmo activo.
- * Usa estado draft/applied: los cambios no se aplican hasta pulsar "Aplicar".
- * Se resetea al cambiar de algoritmo.
- */
+/** Formulario de parámetros del algoritmo activo. */
 export function AlgorithmParamsForm(): React.ReactElement | null {
   const { requires, algorithmName, params, updateParams } = useSimulation();
 
-  // MLFQ declara `levels: true` → quanta por nivel (2 campos) + boostInterval.
-  // Round Robin / VRR declaran `quantum: true` sin `levels` → un único quantum.
   const showQuanta = requires.levels === true;
   const showQuantum = requires.quantum === true && !showQuanta;
   const showBoost = showQuanta;
@@ -102,7 +89,6 @@ export function AlgorithmParamsForm(): React.ReactElement | null {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDirty, setIsDirty] = useState(false);
 
-  // Reset al cambiar de algoritmo (patrón de estado derivado sin useEffect)
   if (algorithmName !== prevAlgName) {
     setPrevAlgName(algorithmName);
     setDraft(paramsToDraft(params));
@@ -110,7 +96,6 @@ export function AlgorithmParamsForm(): React.ReactElement | null {
     setIsDirty(false);
   }
 
-  // No mostrar si el algoritmo no tiene parámetros configurables
   if (!showQuantum && !showQuanta && !showBoost) return null;
 
   function handleApply(): void {

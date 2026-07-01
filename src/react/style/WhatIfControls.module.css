@@ -12,20 +12,43 @@
 .title {
   font-size: var(--scheduler-font-size-base);
   font-weight: 600;
-  color: var(--scheduler-accent);
+  color: var(--scheduler-text-primary);
 }
 
-.header {
+/* Encabezado plegable del panel */
+.panelSummary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--scheduler-space-md);
+  gap: var(--scheduler-space-sm);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.panelSummary::-webkit-details-marker {
+  display: none;
+}
+
+.panelSummary svg {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.container[open] > .panelSummary svg {
+  transform: rotate(180deg);
+}
+
+.panelSummary:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: 1px;
 }
 
 .branchLabel {
   font-size: var(--scheduler-font-size-base);
   font-weight: 600;
-  color: var(--scheduler-accent);
+  color: var(--scheduler-text-primary);
 }
 
 /* ── Formulario de variación ─────────────────────────────────────────── */
@@ -123,18 +146,36 @@
   transition: box-shadow 0.15s;
 }
 
-/* Al pasar por encima del desplegable: línea de acento a la izquierda (antes de la flecha) */
 .section:hover {
   box-shadow: inset 3px 0 0 0 var(--scheduler-accent);
 }
 
 .summary {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-space-sm);
   cursor: pointer;
   padding: var(--scheduler-space-sm) 0;
   font-size: var(--scheduler-font-size-base);
   font-weight: 600;
   color: var(--scheduler-text-primary);
   user-select: none;
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary svg {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.section[open] > .summary svg {
+  transform: rotate(180deg);
 }
 
 .summary:focus-visible {
@@ -142,12 +183,10 @@
   outline-offset: 1px;
 }
 
-/* Pareja de diagramas de Gantt (actual sobre rama) */
-.ganttPair {
-  display: flex;
-  flex-direction: column;
-  gap: var(--scheduler-space-md);
-  padding-bottom: var(--scheduler-space-sm);
+/* Oculta el marcador de Starlight (summary::before); ver TECHNICAL.md */
+.panelSummary::before,
+.summary::before {
+  display: none;
 }
 
 .ganttBlock {
@@ -155,6 +194,7 @@
   flex-direction: column;
   gap: var(--scheduler-space-xs);
   min-width: 0;
+  padding-bottom: var(--scheduler-space-sm);
 }
 
 .subTitle {
@@ -165,6 +205,7 @@
 
 /* ── Descartar rama ──────────────────────────────────────────────────── */
 .discardButton {
+  margin-left: auto;
   padding: var(--scheduler-space-sm) var(--scheduler-space-md);
   border: 1px solid var(--scheduler-danger);
   border-radius: var(--scheduler-radius-sm);

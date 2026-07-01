@@ -8,24 +8,14 @@
   background-color: var(--scheduler-bg);
   color: var(--scheduler-text-primary);
   border-radius: var(--scheduler-radius-md);
-  
-  /* LÍMITES DE ALTURA Y SCROLL VERTICAL */
-  max-height: 85vh; /* Ocupa como máximo el 85% de la pantalla */
-  overflow-y: auto; /* Activa la barra de scroll vertical si el contenido se pasa */
-  /* El scroll horizontal lo gestiona la matriz del GanttChart, no el panel:
-     fijamos overflow-x explícito para que overflow-y:auto no lo convierta en auto
-     y aparezca una segunda barra horizontal a nivel de panel. */
+  height: auto;
+  overflow-y: auto;
   overflow-x: hidden;
-
-  /* Estilizado sutil de la barra de scroll */
   scrollbar-width: thin;
   scrollbar-color: var(--scheduler-border) transparent;
 }
 
-/* ──────────────────────────────────────────────
-   Modo Panel Unificado
-   Todos los subcomponentes en una cuadrícula.
-────────────────────────────────────────────── */
+/* ─── Modo Panel Unificado ─── */
 .unified {
   display: grid;
   grid-template-areas:
@@ -36,9 +26,6 @@
     "controls"
     "metrics"
     "whatif";
-  /* minmax(0, 1fr) en vez de 1fr: permite que cada slot (p. ej. el del GanttChart)
-     encoja por debajo de su contenido, de modo que la matriz scrollee dentro de sí
-     misma en lugar de ensanchar el panel. */
   grid-template-columns: minmax(0, 1fr);
   gap: var(--scheduler-space-md);
 }
@@ -51,11 +38,7 @@
 .unified .metricsSlot  { grid-area: metrics; }
 .unified .formSlot     { grid-area: form; }
 
-/* ──────────────────────────────────────────────
-   Modo Componentes Intercalados
-   Los slots se apilan verticalmente para poder
-   intercalarlos con contenido textual externo.
-────────────────────────────────────────────── */
+/* ─── Modo Componentes Intercalados ─── */
 .interleaved {
   display: flex;
   flex-direction: column;

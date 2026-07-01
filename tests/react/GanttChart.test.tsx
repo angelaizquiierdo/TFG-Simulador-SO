@@ -187,7 +187,7 @@ describe('§ Render — GanttChart', () => {
     const msg = tick0Event?.message ?? '';
     if (msg !== '') {
       const text = screen.getByTestId('gantt-message').textContent;
-      expect(text).toContain('Tick 0:');
+      expect(text).toContain('Tick 0');
       expect(text).toContain(msg);
     }
   });
@@ -255,7 +255,7 @@ describe('§ Render — GanttChart', () => {
       </SimulationCtx.Provider>,
     );
     expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('gantt-message').textContent).toBe('Tick 0: ');
+    expect(screen.getByTestId('gantt-message').textContent).toBe('Tick 0');
     const cells = screen.queryAllByRole('generic').filter(
       (el) => el.dataset.testid?.startsWith('gantt-cell-') === true,
     );

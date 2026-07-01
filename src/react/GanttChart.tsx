@@ -5,13 +5,7 @@ import type { History, HistoryEvent } from '../core/types/history.js';
 import type { Process } from '../core/types/process.js';
 import styles from './style/GanttChart.module.css';
 
-/**
- * Props opcionales del GanttChart. Sin props, el componente lee todo del
- * contexto de simulación (comportamiento por defecto en la página). Con props,
- * cada valor presente sobrescribe al del contexto, lo que permite reutilizar el
- * mismo componente para pintar una rama what-if (otro historial) en la
- * comparación. Ver WhatIfControls.
- */
+/** Props opcionales del GanttChart; cada valor presente sobrescribe al del contexto. */
 export interface GanttChartProps {
   readonly history?: History;
   readonly processes?: readonly Process[];
@@ -22,7 +16,6 @@ export interface GanttChartProps {
   readonly testId?: string;
 }
 
-/** Paleta de 10 colores de proceso desde los tokens CSS */
 const PROCESS_COLORS: readonly string[] = [
   'var(--scheduler-process-0)',
   'var(--scheduler-process-1)',
@@ -36,7 +29,6 @@ const PROCESS_COLORS: readonly string[] = [
   'var(--scheduler-process-9)',
 ];
 
-/** Determina la clase CSS de una celda (proceso × tick). */
 function cellClass(
   pid: string,
   tickIdx: number,
@@ -77,11 +69,11 @@ export function GanttChart(props: GanttChartProps = {}): React.ReactElement {
     <div className={styles.chart} data-testid={testId}>
       {/* 1. Mensaje del tick actual */}
       <div className={styles.message} data-testid="gantt-message">
-        <span className={styles.messageTick}>Tick {String(currentTick)}:</span>{' '}
+        <span className={styles.messageTick}>Tick {String(currentTick)}</span>
         {message}
       </div>
 
-      {/* 2. Matriz con cuadrícula explícita garantizada por min-width: max-content */}
+      {/* 2. Matriz */}
       <div className={styles.matrix} data-testid="gantt-matrix">
         <div className={styles.rowHeader} data-testid="gantt-header">
           <div className={styles.labelSpacer} aria-hidden="true" />
@@ -113,8 +105,6 @@ export function GanttChart(props: GanttChartProps = {}): React.ReactElement {
 
                 const level = event?.levels?.[p.id];
                 const hasLevel = level !== undefined && t <= currentTick;
-                // El número de cola se integra en la etiqueta de CPU («CPU0»); en las
-                // celdas en espera se muestra como badge «L{n}».
                 const cpuLabel = isCpu && hasLevel ? `CPU${String(level)}` : 'CPU';
                 const showLevelBadge = hasLevel && stateClass === styles.waiting;
 
@@ -126,7 +116,6 @@ export function GanttChart(props: GanttChartProps = {}): React.ReactElement {
                     data-state={stateClass.split(' ').pop() ?? ''}
                     title={`${p.id} - Tick ${String(t)}`}
                   >
-                    {/* Renderizado de texto interno (Absolute) */}
                     {isCpu && (
                       <span className={styles.cpuText}>{cpuLabel}</span>
                     )}
@@ -150,7 +139,7 @@ export function GanttChart(props: GanttChartProps = {}): React.ReactElement {
         })}
       </div>
 
-      {/* 3. Leyenda: título + lista de ítems */}
+      {/* 3. Leyenda */}
       <div className={styles.legend} data-testid="gantt-legend">
         <span className={styles.legendTitle}>Leyenda</span>
         <div className={styles.legendItems}>

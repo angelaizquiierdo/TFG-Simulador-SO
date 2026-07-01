@@ -20,7 +20,6 @@ export interface SimulationProviderProps {
   readonly children: React.ReactNode;
 }
 
-// Extrae campos conocidos de params para RunConfig
 function buildConfig(
   algorithm: string,
   params: Readonly<Record<string, unknown>> | undefined,
@@ -42,7 +41,6 @@ function buildConfig(
   };
 }
 
-// Lee del sessionStorage de forma segura; devuelve null si no existe o hay error
 function ssGet(key: string): string | null {
   try {
     return sessionStorage.getItem(key);
@@ -51,7 +49,6 @@ function ssGet(key: string): string | null {
   }
 }
 
-// Escribe al sessionStorage de forma segura
 function ssSet(key: string, value: string): void {
   try {
     sessionStorage.setItem(key, value);
@@ -60,7 +57,6 @@ function ssSet(key: string, value: string): void {
   }
 }
 
-// Borra una clave del sessionStorage de forma segura
 function ssRemove(key: string): void {
   try {
     sessionStorage.removeItem(key);
@@ -80,7 +76,6 @@ interface PersistedWhatIf {
   readonly params: Readonly<Record<string, unknown>>;
 }
 
-// Intenta restaurar escenario persistido; devuelve null si falla o no existe
 function loadScenario(key: string): PersistedScenario | null {
   const raw = ssGet(key);
   if (raw === null) return null;
@@ -100,7 +95,6 @@ function loadScenario(key: string): PersistedScenario | null {
   return null;
 }
 
-// Intenta restaurar rama what-if persistida; devuelve null si falla o no existe
 function loadWhatIf(key: string): PersistedWhatIf | null {
   const raw = ssGet(key);
   if (raw === null) return null;
@@ -120,7 +114,6 @@ function loadWhatIf(key: string): PersistedWhatIf | null {
   return null;
 }
 
-// Descriptor de requisitos vacío para cuando el algoritmo no existe
 const EMPTY_REQUIRES: AlgorithmRequires = {};
 
 export function SimulationProvider({
@@ -129,17 +122,12 @@ export function SimulationProvider({
   params: initialParams,
   children,
 }: SimulationProviderProps): React.ReactElement {
-  // Claves de sessionStorage — determinadas por el algoritmo (clave por página)
   const scenarioKey = `scheduler-scenario:${algorithm}`;
   const whatifKey = `scheduler-whatif:${algorithm}`;
 
-  // Refs a los valores iniciales de props, para la acción reset
   const initialProcessesRef = useRef(initialProcesses);
   const initialParamsRef = useRef(initialParams ?? {});
 
-  // Carga validada: usa el escenario de sessionStorage solo si simula sin error. Si los
-  // datos guardados son inválidos/obsoletos, se descartan y se usan los props. Evita
-  // quedar bloqueado por un sessionStorage corrupto (un escenario que lanza al simular).
   const loadValidScenario = (): PersistedScenario | null => {
     const saved = loadScenario(scenarioKey);
     if (saved === null) return null;
@@ -158,7 +146,6 @@ export function SimulationProvider({
     () => loadValidScenario()?.params ?? initialParams ?? {},
   );
 
-  // Ejecutar la simulación principal (memoizado)
   const [mainResult, mainError] = useMemo((): [SimulationResult | null, string | null] => {
     if (localProcesses.length === 0) return [null, null];
     try {
@@ -168,8 +155,6 @@ export function SimulationProvider({
     }
   }, [algorithm, localProcesses, localParams]);
 
-  // Persistir el escenario base solo cuando simula sin error. Si la simulación falla
-  // (escenario inválido), se limpia el persistido para no quedar bloqueado al recargar.
   useEffect(() => {
     if (mainError !== null) {
       ssRemove(scenarioKey);
@@ -178,7 +163,6 @@ export function SimulationProvider({
     ssSet(scenarioKey, JSON.stringify({ processes: localProcesses, params: localParams }));
   }, [scenarioKey, localProcesses, localParams, mainError]);
 
-  // Descriptor de requisitos del algoritmo activo
   const requires = useMemo((): AlgorithmRequires => {
     try {
       return get(algorithm).requires;
@@ -187,22 +171,18 @@ export function SimulationProvider({
     }
   }, [algorithm]);
 
-  // Instancia del Player (memoizada — se recrea cuando cambia mainResult)
   const player = useMemo(
     () => (mainResult !== null ? new Player(mainResult.history) : null),
     [mainResult],
   );
 
-  // tickIndex se almacena en estado para forzar re-renders al navegar
   const [tickIndex, setTickIndex] = useState(0);
 
-  // currentEvent derivado del historial y el tick actual
   const currentEvent: HistoryEvent | undefined = useMemo(
     () => mainResult?.history[tickIndex],
     [mainResult, tickIndex],
   );
 
-  // Inicializar rama what-if desde sessionStorage si existe
   const [whatIfBranch, setWhatIfBranch] = useState<WhatIfBranch | null>(() => {
     const saved = loadWhatIf(whatifKey);
     if (saved === null || saved.processes.length === 0) return null;
@@ -214,7 +194,6 @@ export function SimulationProvider({
     }
   });
 
-  // Funciones de navegación: mueven el Player Y sincronizan tickIndex
   const stepForward = useCallback(() => {
     if (player === null) return;
     player.stepForward();
@@ -236,15 +215,11 @@ export function SimulationProvider({
     [player],
   );
 
-  // Mutaciones de escenario: actualizan estado local y rederivan al instante
   const updateProcesses = useCallback(
     (next: readonly Process[]) => {
       setLocalProcesses(next);
       setTickIndex(0);
 
-      // La rama what-if comparte los procesos con el escenario actual: al editarlos,
-      // se rederiva la rama con los NUEVOS procesos conservando su algoritmo/params.
-      // Si la edición la invalida (lista vacía o error), se descarta.
       if (whatIfBranch === null) return;
       if (next.length === 0) {
         setWhatIfBranch(null);
@@ -286,7 +261,6 @@ export function SimulationProvider({
       try {
         const result = run(nextProcesses, buildConfig(nextAlgorithm, nextParams));
         setWhatIfBranch({ result, player: new Player(result.history), algorithm: nextAlgorithm, params: nextParams });
-        // Persistir la rama what-if (solo los inputs, no el resultado)
         const persisted: PersistedWhatIf = {
           algorithm: nextAlgorithm,
           processes: nextProcesses,
@@ -294,7 +268,7 @@ export function SimulationProvider({
         };
         ssSet(whatifKey, JSON.stringify(persisted));
       } catch (err: unknown) {
-        void err; // silenciar errores en la rama what-if
+        void err;
       }
     },
     [algorithm, localProcesses, localParams, whatifKey],
@@ -305,7 +279,6 @@ export function SimulationProvider({
     ssRemove(whatifKey);
   }, [whatifKey]);
 
-  // Restaurar al estado inicial de props y limpiar sessionStorage
   const reset = useCallback(() => {
     setLocalProcesses(initialProcessesRef.current);
     setLocalParams(initialParamsRef.current);

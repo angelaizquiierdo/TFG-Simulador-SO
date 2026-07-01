@@ -5,19 +5,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--scheduler-space-md, 16px);
-  
-  /* REGLAS ANTI-DESBORDAMIENTO PARA STARLIGHT */
   width: 100%;
   max-width: 100%;
-  min-width: 0; /* Obliga al contenedor a respetar los límites del content-panel */
+  min-width: 0;
 }
 
 .message {
   font-size: var(--scheduler-font-size-base);
   color: var(--scheduler-text-secondary);
-  /* Alto fijo: ocupa siempre el mismo espacio (≈2 líneas) sin importar la
-     longitud del mensaje; el texto se centra verticalmente y se recorta si
-     excede, de modo que la matriz nunca se desplaza al cambiar de tick. */
   height: var(--scheduler-size-xs);
   box-sizing: border-box;
   display: flex;
@@ -34,6 +29,14 @@
 .messageTick {
   color: var(--scheduler-text-primary);
   font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding-right: var(--scheduler-space-md, 16px);
+  margin-right: var(--scheduler-space-md, 16px);
+  border-right: 1px solid var(--scheduler-border);
 }
 
 /* ─── Matriz (cabecera + filas de proceso) ────── */
@@ -59,9 +62,7 @@
   height: var(--scheduler-gantt-cell-height, 36px);
   border-bottom: 1px solid var(--scheduler-border);
   width: 100%;
-  min-width: max-content; 
-  
-  /* Bloqueo contra estilos globales de Astro */
+  min-width: max-content;
   margin: 0 !important;
   padding: 0;
 }
@@ -78,7 +79,6 @@
 
 .label,
 .labelSpacer {
-  /* Fijo: no crece (0), no se encoge (0), tamaño base (--scheduler-size-sm) */
   flex: 0 0 var(--scheduler-size-sm);
   width: var(--scheduler-size-sm);
   box-sizing: border-box;
@@ -107,16 +107,14 @@
   align-items: center;
   border-right: 1px solid var(--scheduler-border);
   position: relative;
-  
-  /* LA MAGIA: Eliminamos el margen superior que mete Starlight */
   margin: 0;
   padding: 0;
-  height: 100%; /* Forzamos a que ocupe todo el alto de la fila */
+  height: 100%;
 }
 
 .cell:last-child,
 .tickNumber:last-child {
-  border-right: none; /* Evita doble borde al final del componente */
+  border-right: none;
 }
 
 .tickNumber {
@@ -139,23 +137,18 @@
 .cpuText {
   font-size: var(--scheduler-font-size-4xs);
   font-weight: 800;
-  color: var(--scheduler-text-third);
+  color: var(--scheduler-text-fourth);
   font-family: monospace;
   pointer-events: none;
   animation: pulse-cpu 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  
-  /* Absolute previene que el texto estire la celda si el tamaño base es muy pequeño */
   position: absolute;
 }
 
-@keyframes pulse-cpu {
+/* @keyframes pulse-cpu {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
-}
+} */
 
-/* Indicador de nivel de cola (MLFQ) en celdas en espera: «L0», «L1», «L2».
-   Centrado en la celda, sin fondo ni borde; color por token de tema
-   (negro en claro, blanco en oscuro), igual que el texto de E/S. */
 .levelBadge {
   font-size: var(--scheduler-font-size-3xs);
   line-height: 1;
@@ -184,18 +177,14 @@
   background-color: var(--scheduler-surface-elevated);
 }
 
-/* E/S en servicio: sin fondo, solo el texto «E/S» (ver .ioText). */
 .ioServing {
   background-color: transparent;
 }
 
-/* Cola de E/S: sin fondo, solo el texto «L(E/S)» (ver .ioQueueText). */
 .ioWaiting {
   background-color: transparent;
 }
 
-/* Texto «E/S» de la celda en servicio y de la leyenda. Color por token de tema:
-   negro en claro, blanco en oscuro. */
 .ioText {
   font-size: var(--scheduler-font-size-4xs);
   font-weight: 800;
@@ -204,7 +193,6 @@
   pointer-events: none;
 }
 
-/* Texto «L(E/S)» de la celda en cola de E/S y de la leyenda (mismo token de tema). */
 .ioQueueText {
   font-size: var(--scheduler-font-size-5xs);
   font-weight: 700;
@@ -240,9 +228,8 @@
 
 .legendItems {
   display: flex;
-  flex-direction: row; /* Fuerza el flujo horizontal */
-  flex-wrap: wrap; /* Permite saltar de línea si la pantalla es pequeña */
-  /* Espaciado: 12px vertical (si salta de línea) y 24px horizontal entre ítems */
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--scheduler-space-sm, 12px) var(--scheduler-space-lg, 24px);
   width: 100%;
 }
@@ -252,7 +239,6 @@
   align-items: center;
   gap: var(--scheduler-space-sm, 8px);
   font-weight: 600;
-  /* Neutraliza el margin-top que Starlight inyecta a los hermanos en .sl-markdown-content */
   margin: 0;
 }
 

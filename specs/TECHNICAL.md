@@ -782,6 +782,22 @@ React (filas de botones, listas, leyendas, celdas) debe **resetear `margin: 0`**
 ítems. No confiar en el flujo vertical del navegador para el espaciado: usar `gap` en el
 contenedor. Así el componente se ve igual embebido en Starlight que de forma aislada.
 
+### Caso análogo: el marcador de `<details>`
+
+El mismo mecanismo aplica a los `<details>`/`<summary>` del módulo. Starlight estiliza la
+prosa con su propio chevron en `summary::before` (también en `@layer starlight.content`,
+`@astrojs/starlight/style/markdown.css`). Como los componentes muestran su **propio icono
+`ChevronIcon`** dentro del `summary`, ese marcador de Starlight se ocultaría duplicando la
+flecha. La solución, coherente con lo anterior, es un CSS Module *unlayered*:
+
+```css
+.summary::before { display: none; }   /* MetricsTable / WhatIfControls */
+```
+
+Gana por estar fuera de toda capa, **no** por especificidad: por eso basta el selector
+simple y **no** se usa `!important` ni la clase `.not-content` (que acoplaría el módulo al
+tema de docs).
+
 ---
 
 ## Decisiones abiertas / riesgos

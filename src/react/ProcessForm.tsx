@@ -4,6 +4,7 @@ import type { Process } from '../core/types/process.js';
 import type { IOOperation } from '../core/types/io.js';
 import { TrashIcon } from './icons/TrashIcon.js';
 import { PlusIcon } from './icons/PlusIcon.js';
+import { ChevronIcon } from './icons/ChevronIcon.js';
 import styles from './style/ProcessForm.module.css';
 
 interface DraftIOOp {
@@ -44,7 +45,7 @@ function validateDraft(
 ): ValidationResult {
   const errors: Record<string, string> = {};
   const result: Process[] = [];
-  const seenIds = new Set<string>(); // Control de nombres duplicados
+  const seenIds = new Set<string>();
 
   for (const dp of draft) {
     const prefix = dp.id;
@@ -253,7 +254,7 @@ export function ProcessForm(): React.ReactElement {
           setOpen((v) => !v);
         }}
       >
-        {open ? '▲' : '▼'} Procesos
+        <ChevronIcon /> Procesos
       </button>
       {open && (
         <div className={styles.panel} data-testid="process-form-panel">
@@ -261,11 +262,11 @@ export function ProcessForm(): React.ReactElement {
             const prefix = dp.id;
             return (
               <div
-                key={pIdx} /* IMPORTANTE: Usamos el índice pIdx como key para no perder el foco al editar el texto del ID */
+                key={pIdx}
                 className={styles.processRow}
                 data-testid={`process-row-${String(pIdx)}`}
               >
-                {/* ─── LÍNEA PRINCIPAL: campos + Añadir E/S + Eliminar (misma altura) ─── */}
+                {/* ─── LÍNEA PRINCIPAL ─── */}
                 <div className={styles.mainLine}>
                   {/* ─── CAMPO DE TEXTO DEL NOMBRE ─── */}
                   <label className={styles.field}>
@@ -277,7 +278,7 @@ export function ProcessForm(): React.ReactElement {
                       onChange={(e) => {
                         updateField(pIdx, 'id', e.target.value);
                       }}
-                      style={{ width: '5rem', fontWeight: 'bold' }} /* Ancho ligeramente ajustado */
+                      style={{ width: '5rem', fontWeight: 'bold' }}
                     />
                     {errors[`${prefix}.id`] !== undefined && (
                       <span className={styles.error} role="alert">
@@ -344,7 +345,7 @@ export function ProcessForm(): React.ReactElement {
                   {requiresIO && (
                     <button
                       type="button"
-                      className={styles.addButton}
+                      className={`${String(styles.addButton)} ${String(styles.ioAddButton)}`}
                       aria-label={`Añadir E/S a ${dp.id}`}
                       onClick={() => {
                         addIOOp(pIdx);
@@ -367,7 +368,7 @@ export function ProcessForm(): React.ReactElement {
                   </button>
                 </div>
 
-                {/* ─── LISTA DE E/S: cada operación en su propia línea, debajo ─── */}
+                {/* ─── LISTA DE E/S ─── */}
                 {requiresIO && dp.io_ops.length > 0 && (
                   <div className={styles.ioList}>
                     {dp.io_ops.map((op, opIdx) => (
@@ -376,7 +377,6 @@ export function ProcessForm(): React.ReactElement {
                         className={styles.ioOp}
                         data-testid={`io-op-${dp.id}-${String(opIdx)}`}
                       >
-                        <span className={styles.ioLabel}>E/S {String(opIdx + 1)}</span>
                         <label className={styles.field}>
                           <span>E/S entrada</span>
                           <input

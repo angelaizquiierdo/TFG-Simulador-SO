@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronIcon } from './icons/ChevronIcon.js';
 import { useSimulation } from './SimulationContext.js';
 import type { AlgorithmRequires } from './SimulationContext.js';
 import { get, list } from '../core/registry.js';
@@ -35,7 +36,6 @@ interface FieldVisibility {
   readonly showBoost: boolean;
 }
 
-// Qué campos de parámetros muestra el algoritmo seleccionado para la rama.
 function visibilityFor(algorithm: string): FieldVisibility {
   const requires = get(algorithm).requires;
   const showQuanta = requires.levels === true;
@@ -85,7 +85,6 @@ function buildParams(draft: DraftParams, vis: FieldVisibility): BuildResult {
   return { errors: {}, params: result };
 }
 
-// Etiqueta legible de la rama: "round-robin · quantum 4".
 function describeBranch(algorithm: string, params: Readonly<Record<string, unknown>>): string {
   const parts: string[] = [];
   if (typeof params.quantum === 'number') parts.push(`quantum ${String(params.quantum)}`);
@@ -107,7 +106,6 @@ const METRIC_ROWS: readonly MetricRow[] = [
   { label: 'Rendimiento', format: (v) => v.toFixed(3), pick: (m) => m.throughput },
 ];
 
-// Requisitos del algoritmo (para la leyenda del Gantt de la rama); {} si no existe.
 function requiresOf(algorithm: string): AlgorithmRequires {
   try {
     return get(algorithm).requires;
@@ -116,7 +114,6 @@ function requiresOf(algorithm: string): AlgorithmRequires {
   }
 }
 
-// Fila de comparación por proceso: une métricas del escenario actual y la rama por id.
 interface ProcessCompareRow {
   readonly id: string;
   readonly waitingA: number;
@@ -142,21 +139,12 @@ function buildProcessRows(
   });
 }
 
-// Formatea una diferencia con signo explícito ('+' si es positiva).
-function fmtDelta(delta: number): string {
+function fmtSignedDelta(delta: number, format: (n: number) => string = String): string {
   const sign = delta > 0 ? '+' : '';
-  return `${sign}${String(delta)}`;
+  return `${sign}${format(delta)}`;
 }
 
-/**
- * Panel de análisis "¿y si...?". Visible desde el primer tick útil hasta el
- * último inclusive (0 < tick_actual <= último tick); oculto solo en el tick 0.
- *
- * Sin rama activa: muestra un formulario para elegir un algoritmo y parámetros
- * alternativos. Al pulsar "Comparar" se crea una rama (`createWhatIf`) que
- * rederiva el escenario con esos cambios. Con rama activa: muestra una tabla
- * comparando las métricas agregadas del escenario actual frente a la rama.
- */
+/** Panel de análisis "¿y si...?". */
 export function WhatIfControls(): React.ReactElement | null {
   const {
     result,
@@ -173,23 +161,14 @@ export function WhatIfControls(): React.ReactElement | null {
   const [draft, setDraft] = useState<DraftParams>(() => paramsToDraft(params));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [branchLabel, setBranchLabel] = useState<string | null>(null);
-  // Cursor PROPIO de la rama what-if, independiente del reproductor principal.
   const [branchTick, setBranchTick] = useState(0);
 
-  // Al crear/descartar una rama, sitúa su cursor en el último tick (revelado completo);
-  // a partir de ahí el usuario la reproduce con su control independiente.
   const branchLast = whatIfBranch !== null ? whatIfBranch.result.history.length - 1 : 0;
   useEffect(() => {
     setBranchTick(branchLast);
   }, [whatIfBranch, branchLast]);
 
   if (result === null || currentEvent === undefined) return null;
-
-  const currentTick = currentEvent.tick;
-  // Visible desde el primer tick útil hasta el FINAL inclusive: el what-if compara
-  // una re-ejecución completa del escenario, así que tiene pleno sentido también
-  // cuando el simulador ha terminado (último tick), junto a las métricas finales.
-  if (currentTick <= 0) return null;
 
   const algorithms = list();
   const vis = visibilityFor(algorithm);
@@ -214,8 +193,6 @@ export function WhatIfControls(): React.ReactElement | null {
     const branchHistory = whatIfBranch.result.history;
     const branchAlgorithm = whatIfBranch.algorithm;
     const branchRequires = requiresOf(branchAlgorithm);
-    // Reproductor INDEPENDIENTE de la rama: su propio cursor y su propio rango (la
-    // longitud de la rama), desacoplado del reproductor del simulador principal.
     const safeBranchTick = Math.min(Math.max(branchTick, 0), branchLast);
     const branchController: PlaybackController = {
       currentTick: safeBranchTick,
@@ -225,17 +202,15 @@ export function WhatIfControls(): React.ReactElement | null {
       stepBackward: () => { setBranchTick((t) => Math.max(t - 1, 0)); },
       seekTo: (n) => { setBranchTick(Math.max(0, Math.min(n, branchLast))); },
     };
-    // Etiquetas: el escenario actual lleva el nombre de su algoritmo; la rama,
-    // "Comparado con <algoritmo>".
-    const actualLabel = algorithmName;
     const branchLabelText = `Comparado con ${branchAlgorithm}`;
     const processRows = buildProcessRows(
       result.metrics.perProcess,
       whatIfBranch.result.metrics.perProcess,
     );
     return (
-      <div data-testid="whatif-controls" className={styles.container}>
-        <div className={styles.header}>
+      <details data-testid="whatif-controls" className={styles.container} open>
+        <summary className={styles.panelSummary}>
+          <ChevronIcon />
           <span className={styles.branchLabel} data-testid="whatif-branch-indicator">
             {branchLabel !== null ? `Comparar · ${branchLabel}` : 'Comparar'}
           </span>
@@ -243,45 +218,38 @@ export function WhatIfControls(): React.ReactElement | null {
             type="button"
             className={styles.discardButton}
             data-testid="discard-whatif-button"
-            onClick={handleDiscard}
+            onClick={(e) => { e.stopPropagation(); handleDiscard(); }}
           >
             Descartar rama
           </button>
-        </div>
-
-        {/* 1. Diagrama de Gantt de la rama «¿y si?» con su PROPIO reproductor. El
-            diagrama del escenario actual NO se repite aquí: ya está arriba en el
-            simulador principal con su control. Este control es independiente: mueve
-            solo la rama, con el rango propio de la rama. */}
+        </summary>
         <details className={styles.section} data-testid="whatif-gantt-comparison" open>
-          <summary className={styles.summary}>Diagrama de Gantt — rama «¿y si?»</summary>
-          <div className={styles.ganttPair}>
-            <div className={styles.ganttBlock} data-testid="whatif-gantt-branch">
-              <span className={styles.subTitle}>{branchLabelText}</span>
-              <GanttChart
-                history={branchHistory}
-                processes={processes}
-                requires={branchRequires}
-                currentTick={safeBranchTick}
-                message=""
-                testId="whatif-gantt-branch-chart"
-              />
-            </div>
+          <summary className={styles.summary}><ChevronIcon /> Diagrama de Gantt comparativo </summary>
+          <div className={styles.ganttBlock} data-testid="whatif-gantt-branch">
+            <span className={styles.subTitle}>{branchLabelText}</span>
+            <GanttChart
+              history={branchHistory}
+              processes={processes}
+              requires={branchRequires}
+              currentTick={safeBranchTick}
+              message={branchHistory[safeBranchTick]?.message ?? ''}
+              testId="whatif-gantt-branch-chart"
+            />
           </div>
           <PlaybackControls controller={branchController} testId="whatif-playback" />
         </details>
 
         {/* 2. Comparación de métricas por proceso */}
         <details className={styles.section} data-testid="whatif-comparison-per-process">
-          <summary className={styles.summary}>Métricas por proceso — comparación</summary>
+          <summary className={styles.summary}><ChevronIcon /> Métricas por proceso — comparación</summary>
           <table className={styles.comparison} data-testid="whatif-per-process-table">
             <thead>
               <tr>
                 <th>Proceso</th>
-                <th className={styles.numeric}>Espera ({actualLabel})</th>
+                <th className={styles.numeric}>Espera ({algorithmName})</th>
                 <th className={styles.numeric}>Espera ({branchAlgorithm})</th>
                 <th className={styles.numeric}>Δ esp.</th>
-                <th className={styles.numeric}>Turn. ({actualLabel})</th>
+                <th className={styles.numeric}>Turn. ({algorithmName})</th>
                 <th className={styles.numeric}>Turn. ({branchAlgorithm})</th>
                 <th className={styles.numeric}>Δ turn.</th>
               </tr>
@@ -292,10 +260,10 @@ export function WhatIfControls(): React.ReactElement | null {
                   <td>{row.id}</td>
                   <td className={styles.numeric}>{row.waitingA}</td>
                   <td className={styles.numeric}>{row.waitingB}</td>
-                  <td className={styles.numeric}>{fmtDelta(row.waitingB - row.waitingA)}</td>
+                  <td className={styles.numeric}>{fmtSignedDelta(row.waitingB - row.waitingA)}</td>
                   <td className={styles.numeric}>{row.turnaroundA}</td>
                   <td className={styles.numeric}>{row.turnaroundB}</td>
-                  <td className={styles.numeric}>{fmtDelta(row.turnaroundB - row.turnaroundA)}</td>
+                  <td className={styles.numeric}>{fmtSignedDelta(row.turnaroundB - row.turnaroundA)}</td>
                 </tr>
               ))}
             </tbody>
@@ -304,12 +272,12 @@ export function WhatIfControls(): React.ReactElement | null {
 
         {/* 3. Comparación de métricas agregadas */}
         <details className={styles.section} data-testid="whatif-comparison-aggregate" open>
-          <summary className={styles.summary}>Métricas agregadas — comparación</summary>
+          <summary className={styles.summary}><ChevronIcon /> Métricas agregadas — comparación</summary>
           <table className={styles.comparison} data-testid="whatif-comparison">
             <thead>
               <tr>
                 <th>Métrica</th>
-                <th className={styles.numeric}>{actualLabel}</th>
+                <th className={styles.numeric}>{algorithmName}</th>
                 <th className={styles.numeric}>{branchLabelText}</th>
                 <th className={styles.numeric}>Δ</th>
               </tr>
@@ -319,26 +287,28 @@ export function WhatIfControls(): React.ReactElement | null {
                 const a = row.pick(actual);
                 const b = row.pick(branch);
                 const delta = b - a;
-                const sign = delta > 0 ? '+' : '';
                 return (
                   <tr key={row.label}>
                     <td>{row.label}</td>
                     <td className={styles.numeric}>{row.format(a)}</td>
                     <td className={styles.numeric}>{row.format(b)}</td>
-                    <td className={styles.numeric}>{`${sign}${row.format(delta)}`}</td>
+                    <td className={styles.numeric}>{fmtSignedDelta(delta, row.format)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </details>
-      </div>
+      </details>
     );
   }
 
   return (
-    <div data-testid="whatif-controls" className={styles.container}>
-      <span className={styles.title}>Comparar con otro escenario</span>
+    <details data-testid="whatif-controls" className={styles.container} open>
+      <summary className={styles.panelSummary}>
+        <ChevronIcon />
+        <span className={styles.title}>Comparar con otro escenario</span>
+      </summary>
       <div className={styles.form} data-testid="whatif-form">
         <label className={styles.field}>
           <span>Algoritmo</span>
@@ -448,6 +418,6 @@ export function WhatIfControls(): React.ReactElement | null {
           Comparar
         </button>
       </div>
-    </div>
+    </details>
   );
 }

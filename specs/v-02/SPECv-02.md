@@ -45,7 +45,7 @@ El módulo expone **componentes visuales independientes**. Cada uno muestra un a
 - **Diagrama de Gantt (`GanttChart`)** — renderiza la línea temporal mediante una **matriz** (filas: procesos, columnas: ticks) según el historial. Como el historial está **precalculado** (se conoce el número total de ticks), la **tabla aparece desde el principio con su tamaño correcto** (todas las filas y columnas); **no cambia de tamaño al reproducir**. Cada celda indica el estado del proceso en ese tick (en CPU, en espera, en E/S, no llegado, completado). **Al avanzar/retroceder solo cambia el color de las celdas:** las celdas hasta el tick actual están coloreadas y las posteriores quedan vacías (sin revelar el futuro). El diagrama está sincronizado con los controles de reproducción.
 - **Controles del simulador (`PlaybackControls`)** — reproducir/pausar, paso a paso, barra de desplazamiento.
 - **Tabla de métricas (`MetricsTable`)** — métricas por proceso y agregadas.
-- **Formulario de procesos (`ProcessForm`)** — añade, edita y elimina procesos (incluidas sus ráfagas de E/S) y **no se dispara la rederivación hasta pulsar "Simular"**. Es el componente de **edición** e **inyección en vivo**.
+- **Formulario de procesos (`ProcessForm`)** — añade, edita y elimina procesos (incluidas sus ráfagas de E/S) y **rederiva al instante con cada cambio válido** (no hay botón de confirmación separado). Es el componente de **edición** e **inyección en vivo**.
 - **Formulario de parámetros del algoritmo (`AlgorithmParamsForm`)** — control para los parámetros configurables desde la demo: `quantum` (Round Robin y Round Robin Virtual) y `quanta` + `boostInterval` (MLFQ). El valor se edita libremente en el control, pero **no se aplica hasta pulsar "Aplicar"**: solo entonces se valida y se rederiva. Mientras el valor editado no coincide con el aplicado, se señala visualmente como **pendiente de aplicar** (no se simula con el valor a medio escribir). Si el algoritmo seleccionado no tiene parámetros configurables desde la demo, el componente no muestra nada.
 
 Todos los componentes se conectan a través de un **contexto de simulación** (uno por simulación, para no mezclar datos). El proveedor (`SimulationProvider`) ejecuta la simulación y la comparte. Los componentes de visualización solo **leen** del contexto; los de edición (`ProcessForm`, `AlgorithmParamsForm`) pueden **modificar el escenario**, lo que provoca una **rederivación** determinista y la actualización del contexto.
@@ -117,7 +117,7 @@ El determinismo se mantiene **por escenario/rama resuelto**: misma entrada (o mi
 ### Navegación temporal y reproducción 
 En cada instante se visualiza el estado del algoritmo: proceso en CPU, cola de listos, procesos **en E/S (en servicio)** y procesos **esperando dispositivo de E/S**, procesos aún no llegados y procesos completados. La navegación recorre el resultado **de la rama actual** ya calculado; moverse por la línea temporal no recalcula nada. Solo las acciones de edición (*what-if*, inyección) rederivan, y lo hacen creando/actualizando la rama, no al navegar.
 
-- **Automática:** reproducir/pausar, hacia delante y hacia atrás, con velocidad ajustable.
+- **Automática:** reproducir/pausar hacia delante a velocidad fija. (El **control de velocidad ajustable** queda fuera de alcance v-02; previsto para la próxima iteración.)
 - **Manual:** avanzar y retroceder un tick mediante botones, y saltar directamente a un tick concreto (barra de desplazamiento).
 
 ### Métricas 
@@ -125,11 +125,11 @@ En cada instante se visualiza el estado del algoritmo: proceso en CPU, cola de l
  - `waiting` = `turnaround − CPU_total − bloqueado_total`, donde `bloqueado_total` es el tiempo que el proceso pasa en el subsistema de E/S (**esperando dispositivo + en servicio**). Así `waiting` cuenta solo el tiempo en la cola de listos de la CPU. Para procesos sin E/S coincide con la definición de v01; con contención, la espera de dispositivo cuenta como tiempo de E/S, no como espera de CPU.
 - **Agregadas:** espera media (`avgWaiting`), retorno medio (`avgTurnaround`), utilización de la CPU (`cpuUtilization`) y rendimiento (`throughput`). `cpuUtilization` puede ser < 1 aunque haya procesos vivos si todos están en el subsistema de E/S (en servicio o esperando dispositivo).
 - Las métricas las renderiza el componente y se muestran al completar el recorrido de la simulación; son coherentes con el estado visualizado en cada momento.
-- **Configurable:** mediante la configuración del componente se elige qué métricas mostrar, o ninguna.
+- **Configurable (fuera de alcance v-02; previsto para la próxima iteración):** mediante la configuración del componente se podrá elegir qué métricas mostrar, o ninguna. En v-02 se muestran siempre ambas tablas (por proceso y agregadas).
 
 ### Demos (una página por algoritmo)
 
-- Para probar el componente se crea un sitio con una página por algoritmo, cada una con un escenario de ejemplo precargado, con `ProcessForm` que abierta por defecto. Si es Round Robin Virtual y Cola de realimentación (mlfq) añadir debajo `AlgorithmParamsForm` ya mostrando sus parametros con los valores iniciales puestos. 
+- Para probar el componente se crea un sitio con una página por algoritmo, cada una con un escenario de ejemplo precargado, con `ProcessForm` cerrado por defecto (se abre con su control). Si es Round Robin Virtual y Cola de realimentación (mlfq) añadir debajo `AlgorithmParamsForm` ya mostrando sus parametros con los valores iniciales puestos. 
     - La de Round Robin Virtual lleva procesos con E/S, `ProcessForm` añadir los campos de E/S que son editables.
     - La de mlfq (solo CPU) no necesita procesos con E/S. 
   
@@ -145,10 +145,12 @@ En cada instante se visualiza el estado del algoritmo: proceso en CPU, cola de l
 ## Estética de los componentes 
 La estética deja de ser solo "básica": se definen **tokens de diseño** (paleta, tipografía, espaciado, estados) coherentes entre componentes. Lo que sigue es el contrato mínimo de cada componente; el refinamiento visual queda dentro de alcance siempre que respete estos requisitos.
 
+**Paneles colapsables.** Los paneles que se pliegan y despliegan (`ProcessForm`, `MetricsTable` y las secciones del `WhatIfControls`) muestran su estado con un **icono chevron SVG propio**: **apunta hacia abajo cuando está cerrado y hacia arriba cuando está abierto**. Los iconos son componentes React nativos del módulo (carpeta `icons/`); queda prohibido usar caracteres Unicode, emojis o librerías de iconos externas. El indicador del tema de documentación (Starlight) se oculta para no duplicar la flecha.
+
 
 ### ProcessForm — comportamiento observable
 
-- **Panel desplegable**, abierto por defecto. Un control visible en la demo lo abre y lo cierra.
+- **Panel desplegable**, cerrado por defecto. Un control visible en la demo lo abre y lo cierra.
 - Al abrir, muestra **todos los procesos** del escenario con sus campos editables: `id`, `arrival_time`, `burst_time`. Si el algoritmo requiere `priority`, aparece el campo.
 - Si el algoritmo modela E/S (Round Robin Virtual), cada proceso muestra además su **lista de operaciones de E/S**, con los campos `io_entry` e `io_time` por operación:
   - Un control por proceso permite **añadir una operación de E/S** al final de su lista.

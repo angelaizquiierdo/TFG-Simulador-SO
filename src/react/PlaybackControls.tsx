@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useContext } from 'react';
-import { SimulationCtx } from './SimulationContext.js';
+import { SimulationCtx, type SimulationContextValue } from './SimulationContext.js';
 import { FirstIcon } from './icons/FirstIcon.js';
 import { PreviousIcon } from './icons/PreviousIcon.js';
 import { PlayIcon } from './icons/PlayIcon.js';
@@ -11,11 +11,7 @@ import styles from './style/PlaybackControls.module.css';
 /** Velocidad de reproducción: 1 tick por segundo */
 const MS_PER_TICK = 1000;
 
-/**
- * Fuente de reproducción: cursor + límites + acciones de navegación. Permite
- * instanciar varios `PlaybackControls` con líneas de tiempo independientes
- * (p. ej. el simulador principal y la rama what-if) sin duplicar el bucle RAF.
- */
+/** Fuente de reproducción: cursor, límites y acciones de navegación. */
 export interface PlaybackController {
   readonly currentTick: number;
   readonly lastTick: number;
@@ -25,6 +21,21 @@ export interface PlaybackController {
   seekTo: (n: number) => void;
 }
 
+function controllerFromContext(ctx: SimulationContextValue | null): PlaybackController {
+  if (ctx === null) {
+    throw new Error('<PlaybackControls> sin `controller` debe usarse dentro de <SimulationProvider>.');
+  }
+  const totalTicks = ctx.result?.history.length ?? 0;
+  return {
+    currentTick: ctx.currentEvent?.tick ?? 0,
+    lastTick: Math.max(0, totalTicks - 1),
+    hasHistory: totalTicks > 0,
+    stepForward: ctx.stepForward,
+    stepBackward: ctx.stepBackward,
+    seekTo: ctx.seekTo,
+  };
+}
+
 export interface PlaybackControlsProps {
   /** Controlador externo. Si se omite, se deriva del `SimulationProvider` (simulador principal). */
   readonly controller?: PlaybackController;
@@ -32,35 +43,13 @@ export interface PlaybackControlsProps {
   readonly testId?: string;
 }
 
-/**
- * Controles de reproducción. ÚNICO componente con requestAnimationFrame y deltaTime.
- * Sin `controller` usa el contexto (simulador principal); con `controller` reproduce
- * la línea de tiempo que se le pase (rama what-if).
- */
+/** Controles de reproducción. */
 export function PlaybackControls({
   controller,
   testId = 'playback-controls',
 }: PlaybackControlsProps = {}): React.ReactElement {
-  // `useContext` (no `useSimulation`) para no lanzar cuando se usa con `controller`
-  // fuera de un `SimulationProvider`.
   const ctx = useContext(SimulationCtx);
-  let ctrl: PlaybackController;
-  if (controller !== undefined) {
-    ctrl = controller;
-  } else {
-    if (ctx === null) {
-      throw new Error('<PlaybackControls> sin `controller` debe usarse dentro de <SimulationProvider>.');
-    }
-    const totalTicks = ctx.result?.history.length ?? 0;
-    ctrl = {
-      currentTick: ctx.currentEvent?.tick ?? 0,
-      lastTick: Math.max(0, totalTicks - 1),
-      hasHistory: totalTicks > 0,
-      stepForward: ctx.stepForward,
-      stepBackward: ctx.stepBackward,
-      seekTo: ctx.seekTo,
-    };
-  }
+  const ctrl = controller ?? controllerFromContext(ctx);
 
   const { currentTick, lastTick, hasHistory, stepForward, stepBackward, seekTo } = ctrl;
 
@@ -69,20 +58,15 @@ export function PlaybackControls({
 
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Refs para el loop RAF — solo se leen/escriben en effects, nunca en render
   const rafIdRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
   const accumulatedRef = useRef(0);
   const lastTsRef = useRef<number | null>(null);
 
-  // Refs que capturan los valores más recientes para el closure RAF
-  // Se actualizan en useLayoutEffect (no en render)
   const stepFwdRef = useRef(stepForward);
   const currentTickRef = useRef(currentTick);
   const lastTickRef = useRef(lastTick);
   const setPlayingRef = useRef(setIsPlaying);
 
-  // Sync de refs cuando cambian los valores capturados — en layoutEffect, nunca en
-  // render. `setIsPlaying` es estable (setter de useState), por eso no va en las deps.
   useLayoutEffect(() => {
     stepFwdRef.current = stepForward;
     currentTickRef.current = currentTick;
@@ -90,10 +74,8 @@ export function PlaybackControls({
     setPlayingRef.current = setIsPlaying;
   }, [stepForward, currentTick, lastTick]);
 
-  // Ref que almacena la función RAF (evita la referencia circular)
   const loopRef = useRef<FrameRequestCallback | null>(null);
 
-  // Definir el loop en un effect (no en render)
   useEffect(() => {
     loopRef.current = (timestamp: number) => {
       lastTsRef.current ??= timestamp;
@@ -106,7 +88,6 @@ export function PlaybackControls({
         if (currentTickRef.current < lastTickRef.current) {
           stepFwdRef.current();
         } else {
-          // Llegamos al final: pausar
           setPlayingRef.current(false);
           return;
         }
@@ -117,7 +98,6 @@ export function PlaybackControls({
     };
   });
 
-  // Arrancar/detener el loop según isPlaying y atEnd
   useEffect(() => {
     const running = isPlaying && !atEnd;
     if (running) {
@@ -200,7 +180,7 @@ export function PlaybackControls({
         </button>
       </div>
 
-      {/* Barra de desplazamiento que abarca todo el ancho */}
+      {/* Barra de desplazamiento */}
       <input
         type="range"
         className={styles.range}
@@ -213,7 +193,7 @@ export function PlaybackControls({
         data-testid={`${testId}-range`}
       />
 
-      {/* Indicador de tick: formato estricto "Tick: N / Total" */}
+      {/* Indicador de tick */}
       <div className={styles.tickIndicator} data-testid={`${testId}-tick`}>
         {`Tick: ${String(currentTick)} / ${String(lastTick)}`}
       </div>

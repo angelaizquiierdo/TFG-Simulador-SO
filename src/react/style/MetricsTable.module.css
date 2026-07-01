@@ -1,35 +1,60 @@
 /* MetricsTable — tablas de métricas (por proceso y agregadas) */
 
-/* Desplegable que envuelve todas las métricas (inicialmente abierto).
-   Mismo estilo visual que los desplegables de la comparación what-if. */
 .panel {
   margin: 0;
   border: 1px solid var(--scheduler-border);
   border-radius: var(--scheduler-radius-sm);
+  overflow: hidden;
   background: var(--scheduler-bg);
-  padding: 0 var(--scheduler-space-sm) var(--scheduler-space-sm);
-  transition: box-shadow 0.15s;
-}
-
-/* Al pasar por encima del desplegable: línea de acento a la izquierda (antes de la flecha) */
-.panel:hover {
-  box-shadow: inset 3px 0 0 0 var(--scheduler-accent);
 }
 
 .summary {
+  display: flex;
+  align-items: center;
+  gap: var(--scheduler-space-sm);
+  width: 100%;
+  padding: var(--scheduler-space-sm) var(--scheduler-space-md);
+  background: var(--scheduler-surface);
+  border: none;
   cursor: pointer;
-  user-select: none;
-  padding: var(--scheduler-space-sm) 0;
-  font-size: var(--scheduler-font-size-base);
   font-weight: 600;
+  text-align: left;
   color: var(--scheduler-text-primary);
+}
+
+.summary svg {
+  width: var(--scheduler-icon-size-em);
+  height: var(--scheduler-icon-size-em);
+  transition: transform var(--scheduler-transition-fast);
+}
+
+.summary:hover {
+  background: var(--scheduler-surface-elevated);
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--scheduler-focus);
+  outline-offset: -2px;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel[open] > .summary svg {
+  transform: rotate(180deg);
+}
+
+/* Oculta el marcador de Starlight (summary::before); ver TECHNICAL.md */
+.summary::before {
+  display: none;
 }
 
 .wrapper {
   display: flex;
   flex-direction: column;
-  /* Separación entre la tabla por proceso y las métricas agregadas */
   gap: var(--scheduler-space-lg);
+  padding: var(--scheduler-space-md);
 }
 
 .section {
@@ -82,13 +107,8 @@
 /* ─── Métricas agregadas: cuadrícula 2×2 de tarjetas cuadradas ─── */
 .aggregateGrid {
   display: grid;
-  /* minmax(0, 1fr): columnas estrictamente iguales sin importar la longitud del
-     contenido (1fr = minmax(auto, 1fr) dejaba más ancha la tarjeta con texto más
-     largo y, por aspect-ratio, también más alta). */
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--scheduler-space-xs);
-  /* Limita el tamaño de las tarjetas cuadradas para que no crezcan en exceso
-     cuando el contenedor es ancho. */
   max-width: var(--scheduler-size-2xl);
 }
 
@@ -99,7 +119,6 @@
   justify-content: center;
   gap: var(--scheduler-space-xs);
   margin: 0;
-  /* Cuadrado: el alto sigue al ancho de cada celda de la cuadrícula */
   aspect-ratio: 1 / 1;
   padding: var(--scheduler-space-sm);
   background-color: var(--scheduler-surface);

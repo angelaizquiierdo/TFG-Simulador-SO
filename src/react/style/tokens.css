@@ -18,6 +18,9 @@
   --scheduler-gantt-cell-gap: 2px;
 
   --scheduler-icon-size-md: 1.125rem;
+  --scheduler-icon-size-em: 1.1em;
+
+  --scheduler-transition-fast: 0.15s;
 
   /* Escala de tamaños de fuente (única fuente; antes literales en los *.module.css) */
   --scheduler-font-size-5xs: 0.5rem;
@@ -50,7 +53,8 @@
   --scheduler-text-primary: #000000;
   --scheduler-text-secondary: #222325;
   --scheduler-text-third: #c9cfda;
-  --scheduler-border: #cbd5e1;
+  --scheduler-text-fourth: #060707;
+  --scheduler-border: #c1c8cf;
   
   /* Borde de las celdas del Gantt: negro en claro, blanco en oscuro */
   --scheduler-gantt-cell-border: #000000;
@@ -72,15 +76,11 @@
   --scheduler-process-5: #ec4899;
   --scheduler-process-6: #14b8a6;
   --scheduler-process-7: #f97316;
-  --scheduler-process-8: #6b7280; /* Gris - se mantiene igual */
+  --scheduler-process-8: #6b7280;
   --scheduler-process-9: #06b6d4;
 }
 
-/* Paleta semántica (Tema Oscuro por preferencia del sistema).
-   Fallback automático SOLO cuando NO hay tema explícito (`:not([data-theme])`).
-   Starlight siempre fija [data-theme] en <html>, así que este bloque deja de
-   pelear contra el toggle del usuario: con un tema explícito mandan las reglas
-   [data-theme="light"]/[data-theme="dark"] y los colores cambian al instante. */
+/* Tema Oscuro automático (solo sin [data-theme] explícito) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --scheduler-gantt-cell-border: #ffffff;
@@ -90,13 +90,14 @@
 
 /* Paleta semántica (Tema Oscuro forzado) */
 [data-theme="dark"] {
-  --scheduler-bg: #17181c; /* Corregido el doble # */
+  --scheduler-bg: #17181c;
   --scheduler-surface: #1e293b;
   --scheduler-surface-elevated: #334155;
   --scheduler-text-primary: #f8fafc;
   --scheduler-text-secondary: #94a3b8;
   --scheduler-text-third: #c9cfda;
-  --scheduler-border: #475569;
+  --scheduler-text-fourth: #d9dbdd;
+  --scheduler-border: #979da3;
   
   /* Borde de las celdas del Gantt: blanco en oscuro */
   --scheduler-gantt-cell-border: #ffffff;
@@ -109,15 +110,15 @@
   --scheduler-warning: #f59e0b;
   --scheduler-success: #10b981;
 
-  /* Colores de los 10 procesos (incluyendo el gris) mantenidos exactamente igual para no romper la visualización */
+  /* Colores de procesos (Oscuro) */
   --scheduler-process-0: #3b82f6;
   --scheduler-process-1: #ef4444;
   --scheduler-process-2: #10b981;
-  --scheduler-process-3: #f59e0b;
+  --scheduler-process-3: #e4900071;
   --scheduler-process-4: #8b5cf6;
   --scheduler-process-5: #ec4899;
   --scheduler-process-6: #14b8a6;
   --scheduler-process-7: #f97316;
-  --scheduler-process-8: #6b7280; /* Gris - se mantiene igual */
+  --scheduler-process-8: #6b7280;
   --scheduler-process-9: #06b6d4;
 }

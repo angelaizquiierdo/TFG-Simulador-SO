@@ -28,11 +28,7 @@ export interface SimulationAppProps {
   readonly className?: string;
 }
 
-/**
- * Orquestador visual del simulador.
- * Envuelve todo en `<SimulationProvider>` y organiza los subcomponentes
- * según el modo de layout solicitado.
- */
+/** Orquestador visual del simulador. */
 export function SimulationApp({
   algorithm,
   processes,

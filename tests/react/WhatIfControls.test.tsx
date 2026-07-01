@@ -62,9 +62,9 @@ describe('§ WhatIfControls — rama what-if', () => {
     cleanup();
   });
 
-  it('no se renderiza en tick 0', () => {
+  it('SÍ se renderiza en tick 0', () => {
     renderAtTick(0);
-    expect(screen.queryByTestId('whatif-controls')).not.toBeInTheDocument();
+    expect(screen.getByTestId('whatif-controls')).toBeInTheDocument();
   });
 
   it('SÍ se renderiza en el último tick (al finalizar el simulador)', () => {
