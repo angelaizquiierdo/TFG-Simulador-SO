@@ -91,4 +91,23 @@ describe('RoundRobin', () => {
     expect(p2?.completion).toBe(5);
     expect(p1?.completion).toBe(6);
   });
+
+  // § Mensajes ricos — dispatch (cabeza de la cola) y quantum-expiry (motivo de salida)
+  it('mensajes de dispatch y quantum-expiry describen el criterio de la cola RR', () => {
+    const result = run(
+      [
+        { id: 'P1', arrival_time: 0, burst_time: 5 },
+        { id: 'P2', arrival_time: 0, burst_time: 5 },
+      ],
+      { algorithm: 'round-robin', quantum: 2 }
+    );
+    // tick 0: P1 entra por ser la cabeza de la cola Round Robin
+    expect(result.history[0]?.message).toBe(
+      'P1 entra en CPU por ser el primer proceso de la cola Round Robin'
+    );
+    // tick 2: P1 agota su quantum y P2 (siguiente en la cola) toma la CPU
+    expect(result.history[2]?.message).toBe(
+      'P1 agota su quantum y vuelve al final de la cola. A continuación, P2 entra en CPU por ser el primer proceso de la cola Round Robin'
+    );
+  });
 });

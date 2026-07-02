@@ -183,18 +183,23 @@ La estética deja de ser solo "básica": se definen **tokens de diseño** (palet
 
 ### Mensajes ricos — comportamiento observable
 
-- `HistoryEvent.message` (el texto que aparece encima del Gantt) describe la **mecánica
-  interna** del algoritmo activo, no solo una etiqueta genérica.
-- Si el algoritmo no tiene mecánica propia (FCFS, SJF, LJF, Prioridad NP), el mensaje es
-  genérico: "P2 entra en CPU", "P1 finaliza en tick 5", "CPU inactiva".
+- `HistoryEvent.message` (el texto que aparece encima del Gantt) describe **el motivo de
+  la decisión** del planificador, no solo una etiqueta genérica.
+- Todos los algoritmos clásicos explican **por qué** el proceso seleccionado entra en CPU,
+  incluyendo el valor usado por su criterio (orden de llegada, ráfaga, tiempo restante o
+  prioridad). Los eventos de salida (expropiación, agotamiento de quantum) explican su motivo.
 
 **Ejemplos por algoritmo:**
 
 | Algoritmo(s) | Ejemplos de mensaje |
 |---|---|
-| FCFS, SJF, LJF, Prioridad (NP) | "P1 entra en CPU", "P2 completa en tick 5", "CPU inactiva" |
-| SRTF, Prioridad (P) | "P2 expropia a P1: menor tiempo restante" |
-| Round Robin | "P1 agota su quantum y se reencola" |
+| FCFS | "P1 entra en CPU por ser el primer proceso en llegar a la cola de listos" |
+| SJF | "P2 entra en CPU por tener la ráfaga de CPU más corta (3)" |
+| LJF | "P3 entra en CPU por tener la ráfaga de CPU más larga (12)" |
+| Prioridad (NP) | "P4 entra en CPU por ser el de mayor prioridad (0)" |
+| SRTF | "P2 entra en CPU por tener el menor tiempo restante (2)", "P1 es expropiado por un proceso con menor tiempo restante" |
+| Prioridad (P) | "P2 entra en CPU por ser el de mayor prioridad (0)", "P1 es expropiado por un proceso de mayor prioridad" |
+| Round Robin | "P3 entra en CPU por ser el primer proceso de la cola Round Robin", "P3 agota su quantum y vuelve al final de la cola" |
 | **Round Robin Virtual** | "P3 vuelve de E/S y se inserta en la cola auxiliar con sobrante de 2", "P3 entra en CPU desde la cola auxiliar (sobrante 2)", "P2 entra en CPU desde la cola principal" |
 | **MLFQ** | "P1 agota su quantum y se degrada al nivel 1", "P1 expropia a P2: llega al nivel 0", "Priority boost: todos los procesos suben al nivel 0" |
 

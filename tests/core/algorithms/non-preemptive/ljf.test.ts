@@ -61,4 +61,18 @@ describe('LJF', () => {
     expect(result.metrics.aggregate.avgWaiting).toBeCloseTo(1, 0);
     expect(result.metrics.aggregate.avgTurnaround).toBeCloseTo(3.67, 1);
   });
+
+  // § Mensajes ricos — el dispatch describe el criterio (ráfaga más larga)
+  it('mensaje de dispatch describe el criterio (ráfaga más larga)', () => {
+    const result = run(
+      [
+        { id: 'P1', arrival_time: 0, burst_time: 3 },
+        { id: 'P2', arrival_time: 0, burst_time: 5 },
+      ],
+      { algorithm: 'ljf' }
+    );
+    expect(result.history[0]?.message).toBe(
+      'P2 entra en CPU por tener la ráfaga de CPU más larga (5)'
+    );
+  });
 });

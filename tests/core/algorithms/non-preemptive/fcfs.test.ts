@@ -63,6 +63,17 @@ describe('FCFS', () => {
     expect(result.metrics.aggregate.avgTurnaround).toBeCloseTo(3.33, 1);
   });
 
+  // § Mensajes ricos — el dispatch explica el criterio de selección (orden de llegada)
+  it('mensaje de dispatch describe el criterio (primer proceso en llegar)', () => {
+    const result = run(
+      [{ id: 'P1', arrival_time: 0, burst_time: 3 }],
+      { algorithm: 'fcfs' }
+    );
+    expect(result.history[0]?.message).toBe(
+      'P1 entra en CPU por ser el primer proceso en llegar a la cola de listos'
+    );
+  });
+
   // § Algoritmos clásicos — solo CPU: ignorar campo io
   it('ignora el campo io de los procesos', () => {
     const result = run(

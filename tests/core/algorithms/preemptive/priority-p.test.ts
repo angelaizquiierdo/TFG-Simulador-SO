@@ -98,4 +98,23 @@ describe('PriorityP', () => {
       )
     ).not.toThrow();
   });
+
+  // § Mensajes ricos — dispatch (mayor prioridad) y preempted (motivo de salida)
+  it('mensajes de dispatch y preempted describen el criterio (mayor prioridad)', () => {
+    const result = run(
+      [
+        { id: 'P1', arrival_time: 0, burst_time: 5, priority: 2 },
+        { id: 'P2', arrival_time: 2, burst_time: 2, priority: 0 },
+      ],
+      { algorithm: 'priority-p' }
+    );
+    // tick 0: P1 despachado por ser el de mayor prioridad disponible (2)
+    expect(result.history[0]?.message).toBe(
+      'P1 entra en CPU por ser el de mayor prioridad (2)'
+    );
+    // tick 2: llega P2 (prioridad 0) → expropia a P1 y toma la CPU
+    expect(result.history[2]?.message).toBe(
+      'P1 es expropiado por un proceso de mayor prioridad. A continuación, P2 entra en CPU por ser el de mayor prioridad (0)'
+    );
+  });
 });

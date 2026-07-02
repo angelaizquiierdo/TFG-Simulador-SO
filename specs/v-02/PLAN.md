@@ -1420,6 +1420,17 @@ Fase 0 (T-00, T-01)
 
 ---
 
+## Mejora posterior — mensajes descriptivos en algoritmos clásicos
+
+Ampliación sobre T-18/T-27…T-35: FCFS, SJF, LJF, Prioridad (NP y P), SRTF y Round Robin
+implementan `onEvent()` **solo para mensajería** (Round Robin, además, mantiene su cola FIFO),
+memorizando en `select()` el dato de la decisión (ráfaga, tiempo restante, prioridad o cabeza
+de cola) y devolviéndolo en `dispatch` (y en `preempted` / `quantum-expiry` según el algoritmo)
+con la forma `{ text }`, exactamente igual que VRR/MLFQ. El motor, los tipos, los triggers y el
+sistema de eventos **no se tocan**; `select()` es idéntico, por lo que Gantt y métricas no cambian.
+Solo cambia el texto de `HistoryEvent.message`. Verificación: `npm run lint` + `npm run typecheck`
++ `npm test`, con un test de `message` por algoritmo (fixtures en `§ Mensajes ricos`).
+
 ## Hito de cierre
 
 v02 está terminada cuando T-56 y T-57 (lint/build final) pasan: los 9 algoritmos verificados contra sus fixtures, subsistema de E/S con contención, mensajes ricos, edición desde la demo (ProcessForm + AlgorithmParamsForm), rederivación what-if con `WhatIfControls` e inyección en vivo, persistencia por sesión (escenario base + rama what-if), estética con tokens de diseño, arquitectura UI desacoplada mediante `SimulationApp`, y `docs/` con las guías y un ejemplo por algoritmo.

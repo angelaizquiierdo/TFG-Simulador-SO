@@ -20,13 +20,20 @@ export class RoundRobin implements IAlgorithm {
     return first;
   }
 
-  onEvent(e: SchedulerEvent): string | null {
+  // Además de mantener la cola FIFO interna, produce mensajes descriptivos del Gantt:
+  // dispatch explica por qué entra (cabeza de la cola Round Robin) y quantum-expiry el
+  // motivo de salida. El motor antepone el PID a { text } (mismo patrón que VRR/MLFQ).
+  onEvent(e: SchedulerEvent): { text: string } | null {
     if (e.type === 'arrival') {
       this.queue.push(e.id);
+      return null;
+    } else if (e.type === 'dispatch') {
+      return { text: 'entra en CPU por ser el primer proceso de la cola Round Robin' };
     } else if (e.type === 'quantum-expiry') {
       const idx = this.queue.indexOf(e.id);
       if (idx !== -1) this.queue.splice(idx, 1);
       this.queue.push(e.id);
+      return { text: 'agota su quantum y vuelve al final de la cola' };
     } else if (e.type === 'completed') {
       const idx = this.queue.indexOf(e.id);
       if (idx !== -1) this.queue.splice(idx, 1);

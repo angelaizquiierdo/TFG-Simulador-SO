@@ -82,6 +82,20 @@ describe('SJF', () => {
     expect(result.metrics.aggregate.avgTurnaround).toBeCloseTo(5.33, 1);
   });
 
+  // § Mensajes ricos — el dispatch describe el criterio (ráfaga más corta)
+  it('mensaje de dispatch describe el criterio (ráfaga más corta)', () => {
+    const result = run(
+      [
+        { id: 'P1', arrival_time: 0, burst_time: 5 },
+        { id: 'P2', arrival_time: 0, burst_time: 3 },
+      ],
+      { algorithm: 'sjf' }
+    );
+    expect(result.history[0]?.message).toBe(
+      'P2 entra en CPU por tener la ráfaga de CPU más corta (3)'
+    );
+  });
+
   // § Cobertura de ramas defensivas (Tipado estricto)
 describe('Cobertura defensiva', () => {
   it('lanza error si el primer elemento del array es undefined (hueco)', () => {

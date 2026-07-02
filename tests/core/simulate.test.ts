@@ -709,7 +709,7 @@ describe('§ Mensajes ricos — HistoryEvent.message', () => {
   it('onEvent retornando null usa mensaje genérico', () => {
     const processes: Process[] = [{ id: 'P1', arrival_time: 0, burst_time: 1 }];
     const result = run(processes, { algorithm: 'fcfs-test' });
-    expect(result.history[0]?.message).toBe('P1 entra en CPU');
+    expect(result.history[0]?.message).toBe('P1 entra en CPU de la cola de listos');
   });
 
   it('concatenación salida+entrada: quantum-expiry seguido de dispatch', () => {

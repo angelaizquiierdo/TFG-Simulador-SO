@@ -1,9 +1,12 @@
-import type { IAlgorithm, ReadyProcess, PreemptionTrigger } from '../../../core/types/algorithm.js';
+import type { IAlgorithm, ReadyProcess, SchedulerEvent, PreemptionTrigger } from '../../../core/types/algorithm.js';
 
 export class PriorityP implements IAlgorithm {
   readonly name = 'priority-p';
   readonly triggers: ReadonlySet<PreemptionTrigger> = new Set<PreemptionTrigger>(['on-tick']);
   readonly requires = { priority: true  } as const;
+
+  // Prioridad del último proceso seleccionado, para el mensaje de dispatch.
+  private lastPriority: number | undefined = undefined;
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     if (ready.length === 0) throw new Error('Cola de listos vacía');
@@ -21,6 +24,20 @@ export class PriorityP implements IAlgorithm {
         bestPrio = pPrio;
       }
     }
+    this.lastPriority = best.priority;
     return best;
+  }
+
+  // Mensaje descriptivo del Gantt: dispatch explica el criterio (mayor prioridad);
+  // preempted explica el motivo de salida. El motor antepone el PID a { text }.
+  onEvent(e: SchedulerEvent): { text: string } | null {
+    if (e.type === 'dispatch') {
+      const suffix = this.lastPriority !== undefined ? ` (${String(this.lastPriority)})` : '';
+      return { text: `entra en CPU por ser el de mayor prioridad${suffix}` };
+    }
+    if (e.type === 'preempted') {
+      return { text: 'es expropiado por un proceso de mayor prioridad' };
+    }
+    return null;
   }
 }

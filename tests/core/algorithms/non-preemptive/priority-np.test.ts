@@ -95,6 +95,20 @@ describe('PriorityNP', () => {
     expect(result.metrics.aggregate.avgTurnaround).toBeCloseTo(5.33, 1);
   });
 
+  // § Mensajes ricos — el dispatch describe el criterio (mayor prioridad)
+  it('mensaje de dispatch describe el criterio (mayor prioridad)', () => {
+    const result = run(
+      [
+        { id: 'P1', arrival_time: 0, burst_time: 3, priority: 2 },
+        { id: 'P2', arrival_time: 0, burst_time: 3, priority: 0 },
+      ],
+      { algorithm: 'priority-np' }
+    );
+    expect(result.history[0]?.message).toBe(
+      'P2 entra en CPU por ser el de mayor prioridad (0)'
+    );
+  });
+
   it('proceso sin priority no lanza error en simulación', () => {
     expect(() =>
       run(

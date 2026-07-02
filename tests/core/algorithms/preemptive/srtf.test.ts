@@ -71,4 +71,23 @@ describe('SRTF', () => {
     expect(gantt[2]).toMatchObject({ pid: 'P3', start: 5, end: 6 });
     expect(gantt[3]).toMatchObject({ pid: 'P2', start: 6, end: 8 });
   });
+
+  // § Mensajes ricos — dispatch (menor tiempo restante) y preempted (motivo de salida)
+  it('mensajes de dispatch y preempted describen el criterio (menor tiempo restante)', () => {
+    const result = run(
+      [
+        { id: 'P1', arrival_time: 0, burst_time: 5 },
+        { id: 'P2', arrival_time: 2, burst_time: 2 },
+      ],
+      { algorithm: 'srtf' }
+    );
+    // tick 0: P1 despachado con restante 5
+    expect(result.history[0]?.message).toBe(
+      'P1 entra en CPU por tener el menor tiempo restante (5)'
+    );
+    // tick 2: llega P2 (restante 2) < P1 (restante 3) → expropiación + nuevo dispatch
+    expect(result.history[2]?.message).toBe(
+      'P1 es expropiado por un proceso con menor tiempo restante. A continuación, P2 entra en CPU por tener el menor tiempo restante (2)'
+    );
+  });
 });

@@ -198,9 +198,33 @@ ENTONCES no se produce ninguna expropiación y el proceso actual continúa en la
 
 ## § Mensajes ricos — `HistoryEvent.message`
 
-DADO que el algoritmo activo no devuelve motivo en `onEvent` (devuelve `null`)
+DADO que el algoritmo activo no devuelve motivo en `onEvent` para ese evento (devuelve `null`, p. ej. CPU inactiva o completado)
 CUANDO el motor compone el mensaje del tick
-ENTONCES el mensaje es la frase genérica del motor para ese tipo de evento ("P2 entra en CPU", "P2 completa en tick 5", "CPU inactiva")
+ENTONCES el mensaje es la frase genérica del motor para ese tipo de evento ("P2 entra en CPU de la cola de listos", "CPU inactiva")
+
+DADO que FCFS está activo y un proceso entra en CPU (`dispatch`)
+CUANDO el motor compone el mensaje del tick
+ENTONCES el mensaje explica que entra "por ser el primer proceso en llegar a la cola de listos"
+
+DADO que SJF (o LJF) está activo y un proceso entra en CPU (`dispatch`)
+CUANDO el motor compone el mensaje del tick
+ENTONCES el mensaje explica que entra por tener la ráfaga de CPU más corta (SJF) o más larga (LJF), incluyendo el valor numérico de la ráfaga entre paréntesis
+
+DADO que Prioridad no expropiativa está activa y un proceso entra en CPU (`dispatch`)
+CUANDO el motor compone el mensaje del tick
+ENTONCES el mensaje explica que entra "por ser el de mayor prioridad" incluyendo el valor de la prioridad entre paréntesis
+
+DADO que SRTF está activo y un proceso entra en CPU (`dispatch`)
+CUANDO el motor compone el mensaje del tick
+ENTONCES el mensaje explica que entra "por tener el menor tiempo restante" incluyendo el valor restante entre paréntesis; y cuando otro proceso lo expropia (`preempted`), el mensaje de salida indica que "es expropiado por un proceso con menor tiempo restante"
+
+DADO que Prioridad expropiativa está activa
+CUANDO un proceso entra en CPU (`dispatch`) y cuando otro lo expropia (`preempted`)
+ENTONCES el mensaje de entrada explica "por ser el de mayor prioridad (N)" y el de salida "es expropiado por un proceso de mayor prioridad"
+
+DADO que Round Robin está activo
+CUANDO un proceso entra en CPU (`dispatch`) y cuando agota su quantum (`quantum-expiry`)
+ENTONCES el mensaje de entrada indica que entra "por ser el primer proceso de la cola Round Robin" y el de agotamiento indica que "agota su quantum y vuelve al final de la cola"
 
 DADO que Round Robin Virtual está activo y un proceso vuelve de E/S con sobrante > 0
 CUANDO el motor compone el mensaje del tick

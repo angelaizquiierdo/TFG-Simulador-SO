@@ -21,7 +21,7 @@ La dependencia va en **una sola dirección**: **demo → componente → simulado
 
 - **Simulador:** TypeScript puro, sin dependencias de interfaz ni del navegador (agnóstico).
 - **Componente:** React. Consume el simulador, renderiza la interfaz y gestiona el estado local.
-- **Persistencia de sesión:** Implementada en la capa de React. El escenario actual (procesos, algoritmo y parámetros) se guarda en el `sessionStorage` del navegador. Funciona sin servidor y los datos se descartan automáticamente al cerrar la pestaña.
+- **Persistencia de sesión:** Implementada en la capa de React. El escenario actual (procesos, algoritmo y parámetros) se guarda en el `sessionStorage` del navegador. Funciona sin servidor y los datos se desc/rtan automáticamente al cerrar la pestaña.
 - **Build:** se construye y se publica como **librería** (Vite en modo lib o `tsup`). **Astro no interviene en el proyecto principal.**
 - **Vitest** (simulador) y **Testing Library** (componente).
 
@@ -46,6 +46,7 @@ La dependencia va en **una sola dirección**: **demo → componente → simulado
         io.ts                  # IOOperation, DeviceState (solo VRR)       (v2)
         algorithm.ts           # IAlgorithm + ReadyProcess + PreemptionTrigger + SchedulerEvent
         history.ts             # HistoryEvent(+ E/S para VRR), History, Interval
+        scenario.ts            # Scenario, WhatIfBranch
         simulation-result.ts   # SimulationResult, ProcessMetrics, AggregateMetrics
       registry.ts              # registro de algoritmos por name
       simulate.ts              # fachada pública: run(scenario) + runFrom(state) + reexport de derive/
@@ -76,10 +77,15 @@ La dependencia va en **una sola dirección**: **demo → componente → simulado
       PlaybackControls.tsx     # ÚNICO sitio con deltaTime / requestAnimationFrame
       MetricsTable.tsx
       ProcessForm.tsx          # panel desplegable: todos los procesos con campos
-                               # editables, abierto por defecto, rederivar botónn de Simular
+                               # editables, cerrado por defecto, rederivar al instante
       AlgorithmParamsForm.tsx  # editar quantum/quanta/boostInterval + botón Aplicar
-    style/
-      *.module.css             # CSS Modules
+      WhatIfControls.tsx
+      SimulationApp.tsx
+      SimulationContext.ts
+      style/
+        *.module.css             # CSS Modules
+      icons/
+        *.tsx
     index.ts                   # exporta el simulador (headless) y el componente
   tests/
     core/                      # Vitest: deterministas, en Node
@@ -100,7 +106,11 @@ docs/                          # subproyecto Astro + Starlight (documentación)
       srtf.mdx
       prio-p.mdx
       virtual-round-robin.mdx
-      multilevel-feedback.mdx
+      mlfq.mdx
+    guide/
+      01-integracion-del-componente.mdx
+      02-configuracion-y-escenarios.mdx
+      03-crear-nuevo-algoritmo.mdx
   astro.config.mjs
   package.json                 # depende del módulo
   tsconfig.json                # extends astro/tsconfigs/strictest
@@ -179,8 +189,6 @@ export interface ReadyProcess {
 }
 
 // ── Modo de expropiación ───────────────────────────────────────────────────
-// Cada algoritmo declara su conjunto de disparadores. El motor los usa para saber
-// CUÁNDO llamar a select() y si debe expropiar al proceso en CPU.
 
 type PreemptionTrigger =
   | 'on-tick'        // reevalúa select() cada tick; expropia si cambia el elegido (SRTF, Prio-P)
@@ -188,13 +196,9 @@ type PreemptionTrigger =
   | 'on-io-return'   // reevalúa cuando un proceso vuelve de E/S (VRR, MLFQ)
   | 'on-quantum'     // expropia al agotar el slice de quantumFor()/config.quantum (RR, VRR, MLFQ)
   | 'on-boost';      // reevalúa en un priority-boost (MLFQ)
-// Conjunto vacío {} = no expropiativo (FCFS, SJF, LJF, Prioridad NP).
+
 
 // ── Eventos del motor → algoritmo ──────────────────────────────────────────
-// El motor emite estos eventos vía onEvent() para que el algoritmo mantenga
-// su estado interno (colas, niveles, sobrante). El algoritmo los RECIBE,
-// nunca los genera.
-
 type SchedulerEvent =
   | { readonly type: 'arrival';        readonly id: string; readonly tick: number }
   | { readonly type: 'dispatch';       readonly id: string; readonly tick: number;
@@ -213,13 +217,15 @@ type SchedulerEvent =
 
 interface IAlgorithm {
   readonly name: string;
-  readonly triggers: ReadonlySet<PreemptionTrigger>; // disparadores: CUÁNDO reevaluar/expropiar
+  readonly triggers: ReadonlySet<PreemptionTrigger>;
   readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
-  quantumFor?(p: ReadyProcess): number | null;       // quantum variable (sobrante / nivel)
-  onEvent?(e: SchedulerEvent): string | null;
-  levelSnapshot?(): Readonly<Record<string, number>>; // pid → nivel/cola (solo multinivel)
+  quantumFor?(p: ReadyProcess): number | null;
+  onEvent?(e: SchedulerEvent): string | { text: string } | null;
+ 
+  levelSnapshot?(): Readonly<Record<string, number>>;
 }
+
 ```
 ### Qué hace cada campo
 
@@ -233,21 +239,33 @@ interface IAlgorithm {
 | `onEvent()` | no | motor | notificar al algoritmo + obtener el motivo rico |
 
 ### Patrón 1: Algoritmos Sin Estado (Clásicos)
-Algoritmos que toman decisiones basadas puramente en la `readyQueue` actual, sin memoria de eventos pasados. Solo implementan `name`, `triggers`, `requires` y `select()`. Está prohibido implementar métodos opcionales (`quantumFor`, `onEvent`, `levelSnapshot`).
+Algoritmos que toman su decisión basándose puramente en la `readyQueue` actual, sin memoria que afecte a `select()`. Implementan `name`, `triggers`, `requires` y `select()`, y pueden implementar `onEvent()` **únicamente con fines de mensajería descriptiva** (memorizar en `select()` el dato de la decisión y devolverlo en `dispatch`/`preempted`/`quantum-expiry`). Ese `onEvent` no debe alterar la selección ni la mecánica del motor. Sí siguen teniendo prohibido `quantumFor` y `levelSnapshot` salvo que su modelo lo requiera.
 
 ```ts
-// Prioridad expropiativa — idéntico a v01, sin cambios
+// Prioridad expropiativa — select intacto; onEvent solo produce el mensaje
 export class PriorityP implements IAlgorithm {
   readonly name = 'priority-p';
   readonly triggers = new Set<PreemptionTrigger>(['on-tick']);
   readonly requires = { priority: true as const };
+
+  private lastPriority: number | undefined = undefined;
 
   select(ready: readonly ReadyProcess[]): ReadyProcess {
     let best = ready[0]!;
     for (const p of ready) {
       if ((p.priority ?? Infinity) < (best.priority ?? Infinity)) best = p;
     }
+    this.lastPriority = best.priority;   // dato memorizado para el mensaje
     return best;
+  }
+
+  onEvent(e: SchedulerEvent): { text: string } | null {
+    if (e.type === 'dispatch') {
+      const s = this.lastPriority !== undefined ? ` (${String(this.lastPriority)})` : '';
+      return { text: `entra en CPU por ser el de mayor prioridad${s}` };
+    }
+    if (e.type === 'preempted') return { text: 'es expropiado por un proceso de mayor prioridad' };
+    return null;
   }
 }
 ```
@@ -321,7 +339,7 @@ type PreemptionTrigger =
 
 El motor entrega `ready` ya ordenado por el desempate global (`arrival_time`, luego `id`); cada algoritmo solo aplica su criterio principal.
 
-> **Nota:** `on-quantum` solo inicia una cuenta de expiración si hay fuente de quantum (`quantumFor()` o `config.quantum`); en Round Robin Virtual el quantum es opcional, así que sin fuente no se inicia. Añadir un algoritmo con una combinación nueva de disparadores **no exige tocar el motor**: basta declarar su `Set`. La historia de esta decisión (sustitución del antiguo enum `PreemptionMode`) está en los ADR `28-06-2026` de `DECISIONS.md`.
+> **Nota:** `on-quantum` solo inicia una cuenta de expiración si hay fuente de quantum (`quantumFor()` o `config.quantum`); en Round Robin Virtual el quantum es opcional, así que sin fuente no se inicia. 
 
 ### Mensajes ricos — cómo `onEvent` alimenta `HistoryEvent.message`
 
@@ -336,25 +354,24 @@ Ejemplos de lo que devuelve `onEvent` en cada algoritmo:
 
 | Algoritmo | Evento | `onEvent` devuelve |
 |-----------|--------|--------------------|
-| FCFS/SJF/etc. | cualquiera | no implementa `onEvent` → `null` → frase genérica |
-| Round Robin | `quantum-expiry` | `"se reencola"` (o `null`, la frase genérica ya lo dice) |
+| FCFS | `dispatch` | `{ text: 'entra en CPU por ser el primer proceso en llegar a la cola de listos' }` |
+| SJF | `dispatch` | `{ text: 'entra en CPU por tener la ráfaga de CPU más corta (3)' }` |
+| LJF | `dispatch` | `{ text: 'entra en CPU por tener la ráfaga de CPU más larga (12)' }` |
+| Prioridad NP | `dispatch` | `{ text: 'entra en CPU por ser el de mayor prioridad (0)' }` |
+| SRTF | `dispatch` / `preempted` | `{ text: 'entra en CPU por tener el menor tiempo restante (2)' }` / `{ text: 'es expropiado por un proceso con menor tiempo restante' }` |
+| Prioridad P | `dispatch` / `preempted` | `{ text: 'entra en CPU por ser el de mayor prioridad (0)' }` / `{ text: 'es expropiado por un proceso de mayor prioridad' }` |
+| Round Robin | `dispatch` / `quantum-expiry` | `{ text: 'entra en CPU por ser el primer proceso de la cola Round Robin' }` / `{ text: 'agota su quantum y vuelve al final de la cola' }` |
 | VRR | `io-return` | `"entra en la cola auxiliar con sobrante de 2"` |
 | VRR | `dispatch` | `"desde la cola auxiliar (sobrante 2)"` o `"desde la cola principal"` |
 | MLFQ | `quantum-expiry` | `"se degrada al nivel 1"` |
 | MLFQ | `preempted` | `"llega al nivel 0"` |
 | MLFQ | `priority-boost` | `"todos los procesos suben al nivel 0"` |
 
-**Mensaje del proceso que continúa en CPU (multicola).** En un tick sin evento (el
-mismo proceso sigue en CPU), la frase básica del motor era `"A en CPU"`. Para los
-algoritmos multicola que exponen `levelSnapshot()` (MLFQ, VRR), el motor le añade el
-sufijo `" de la cola de prioridad N"` (N = nivel actual del proceso: MLFQ 0/1/2; VRR
-0 = auxiliar, 1 = principal), quedando `"A en CPU de la cola de prioridad 0"`. Los
-algoritmos sin `levelSnapshot()` conservan la frase básica. El motor lo resuelve con un
-helper (`cpuQueueSuffix`) que lee `levelSnapshot()` — el mismo dato que alimenta los
-niveles del Gantt —, sin tocar el contrato `IAlgorithm`.
+**Algoritmos clásicos con mensaje descriptivo.** FCFS, SJF, LJF, Prioridad (NP y P), SRTF y Round Robin implementan `onEvent` **exclusivamente para producir el mensaje** (y, en RR, mantener su cola FIFO interna): guardan en estado privado el dato de la decisión durante `select()` (ráfaga, tiempo restante, prioridad o cabeza de cola) y lo leen en `onEvent('dispatch')`, siguiendo el mismo patrón que VRR/MLFQ. Devuelven la forma `{ text }` para que el motor anteponga el PID de forma centralizada. Esto **no altera la selección** ni el resto de la mecánica: el Gantt y las métricas son idénticos, solo cambia el texto de `HistoryEvent.message`.
 
-El motor entrega `ready` ya ordenado por el desempate global (`arrival_time`, luego `id`);
-cada algoritmo solo aplica su criterio principal.
+**Mensaje del proceso que continúa en CPU (multicola).** En un tick sin evento (el mismo proceso sigue en CPU), la frase básica del motor era `"A en CPU"`. Para los algoritmos multicola que exponen `levelSnapshot()` (MLFQ, VRR), el motor le añade el sufijo `" de la cola de prioridad N"` (N = nivel actual del proceso: MLFQ 0/1/2; VRR 0 = auxiliar, 1 = principal), quedando `"A en CPU de la cola de prioridad 0"`. Los algoritmos sin `levelSnapshot()` conservan la frase básica. El motor lo resuelve con un helper (`cpuQueueSuffix`) que lee `levelSnapshot()` — el mismo dato que alimenta los niveles del Gantt —, sin tocar el contrato `IAlgorithm`.
+
+El motor entrega `ready` ya ordenado por el desempate global (`arrival_time`, luego `id`); cada algoritmo solo aplica su criterio principal.
 
 > No es un `simulate(processes, config): Result`: eso obligaría a cada algoritmo a reimplementar la lógica del simulador y mezclarse con ella. La política lo mantiene desacoplado.
 ---
@@ -503,7 +520,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 - **Fase 8 — Documentación (`docs/`):** guías (integración, configuración, crear
   algoritmo) y una página de demo por algoritmo que embebe el componente.
 - **Fase 9 — Estética:** revisión visual con tokens de diseño, consistencia y contraste. Incluye el rediseño del `GanttChart` como tabla (cabecera de ticks y columna de procesos en superficie elevada, bordes de rejilla, scroll horizontal, etiqueta de CPU con el número de cola integrado en algoritmos multinivel («CPU{n}», MLFQ y VRR), estados de E/S **sin fondo** representados solo con texto («E/S» en servicio, «L(E/S)» en cola de E/S; color por token de tema `--scheduler-gantt-io-text`: negro en claro, blanco en oscuro), tipografía monoespaciada) e iconos SVG nativos en los controles. El motivo de este rediseño está en el ADR correspondiente de `DECISIONS.md`.
-- **Fase 10 — Verificación final:** cobertura de `BEHAVIOURSv-02.md`, typecheck, lint
+- **Fase 10 — Verificación final:** cobertura de `BEHAVIOUSv-02.md`, typecheck, lint
   limpio, build de producción.
 
 
@@ -511,7 +528,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 
 ## Testing
 
-- Cada criterio de `BEHAVIOURS-v01.md` corresponde al menos a un test.
+- Cada criterio de `BEHAVIOUS-v02.md` corresponde al menos a un test.
 - **Simulador (Vitest, en Node):** algoritmos contra Gantt conocidos, métricas a mano, determinismo, y un test que **importa el simulador sin React** para confirmar que no arrastra dependencias de interfaz.
 - **Contrato `IAlgorithm`:** un algoritmo de prueba mínimo se registra y simula **sin modificar el motor**.
 - **Componente (Testing Library, jsdom):** renderizado, validación de configuración, campos según el descriptor y controles de reproducción (límites en 0 y en el último tick).
@@ -541,7 +558,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 
 > Detalle de la **política** de cada algoritmo nuevo. La **mecánica** (tiempo, E/S, history, métricas) la pone el motor; aquí se describe lo que decide la clase del algoritmo.
 
-### Round Robin Virtual (`virtual-round-robin.ts`, `name: 'rrv'`)
+### Round Robin Virtual (`virtual-round-robin.ts`, `name: 'virtual-round-robin'`)
 
 Modela E/S (`requires.io = true`). Mantiene **dos colas FIFO** —principal y auxiliar— y un **sobrante** por proceso; la auxiliar tiene prioridad. **Identificadores de código (inglés):**
 - `mainQueue: FifoQueue<string>` (la principal, round robin, priorida 1 )
