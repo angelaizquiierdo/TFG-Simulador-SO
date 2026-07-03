@@ -241,7 +241,7 @@ function executeSimulationLoop(
           }
 
           const raw = algo.onEvent?.({ type: 'dispatch', id: selected.id, tick }) ?? null;
-          const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} entra en CPU`;
+          const entryMsg = resolveMsg(raw, selected.id) ?? `${selected.id} entra en CPU de la cola de listos`;
           message =
             prevTickMessage !== null
               ? `${prevTickMessage}. A continuación, ${entryMsg}`

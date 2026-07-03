@@ -25,10 +25,10 @@ consúltalos en cada tarea para no asumir.
 
 | Archivo | Qué contiene |
 |---|---|
-| `specs/SPECv-01.md` | Qué debe hacer el producto (funcionalidades, modelo de datos, casos límite) |
+| `specs/v-02/SPECv-02.md` | Qué debe hacer el producto (funcionalidades, modelo de datos, casos límite) |
 | `specs/TECHNICAL.md` | Arquitectura, stack, contratos exactos (`IAlgorithm`, `History`), restricciones |
-| `specs/BEHAVIOURS-v01.md` | Criterios de aceptación — cada uno debe tener un test |
-| `specs/PLAN.MD` | Hoja de ruta: fases y tareas atómicas con su verificación |
+| `specs/v-02/BEHAVIOURS-v02.md` | Criterios de aceptación — cada uno debe tener un test |
+| `specs/v-02/PLAN.MD` | Hoja de ruta: fases y tareas atómicas con su verificación |
 
 ---
 
@@ -92,14 +92,19 @@ Estas tres reglas tienen **prioridad sobre cualquier otra consideración**.
 Sigue este orden en cada tarea. **No saltes pasos.**
 
 ```
-① Lee el enunciado completo de la tarea en specs/PLAN.MD.
+① Lee el enunciado completo de la tarea en specs/PLANv-02.md.
 ① bis Si algo del enunciado es ambiguo, pregunta ANTES de escribir código.
       No asumas — una suposición incorrecta aquí invalida todos los pasos siguientes.
+      Esto aplica en especial a: el orden intra-tick cuando coinciden eventos de E/S,
+      si una regla de un algoritmo afecta al proceso en CPU o solo a las colas de
+      espera, y qué fragmento de texto devuelve onEvent para el mensaje rico.
 ② Identifica exactamente qué archivos menciona la tarea.
-③ Lee las secciones relevantes de SPECv-01.md y TECHNICAL.md.
-④ Lee el criterio de BEHAVIOURS-v01.md que la tarea "Cierra".
+③ Lee las secciones relevantes de SPECv-02.md y TECHNICAL.md.
+④ Lee el criterio de BEHAVIOURSv-02.md que la tarea "Cierra".
 ⑤ Implementa SOLO lo que la tarea describe, en los archivos que menciona.
-⑥ Escribe o verifica el test que la tarea requiere.
+⑥ Escribe o verifica el test que la tarea requiere, con los fixtures numéricos exactos
+   de BEHAVIOURSv-02.md (no inventes valores: si el fixture no cuadra con tu lectura
+   del algoritmo, detente y pregunta antes de "ajustar" el escenario).
 ⑦ Ejecuta: npm run lint → npm run typecheck → npm test
 ⑧ Si algo falla → corrige el código → vuelve al paso ⑦.
    Máximo 2 reintentos; si el error persiste, aplica la regla 3.4 y detente.
@@ -124,16 +129,23 @@ cpu-scheduler-simulator/   ← raíz del proyecto
       SPECv-01.md
       BEHAVIOURSv-01.md
       PLAN.md
+    v-02/
+      SPECv-02.md
+      BEHAVIOURSv-02.md
+      PLAN.md
     TECHNICAL.md
     DECISIONS.md
     CLAUDE.md              ← este archivo
   src/                     ← EL MÓDULO: simulador + componente (ambos aquí)
     core/                  ← Simulador. TypeScript puro. CERO dependencias de React o DOM.
       types/
-        process.ts         ← Process, ReadyProcess
-        algorithm.ts       ← PreemptionMode, IAlgorithm
+        process.ts         ← Process
+        algorithm.ts       ← IAlgorithm, ReadyProcess, PreemptionTrigger, SchedulerEvent, AlgorithmParams
         history.ts         ← HistoryEvent, History, Interval
         simulation-result.ts ← ProcessMetrics, AggregateMetrics, SimulationResult
+        io.ts              ← IOOperation, DeviceState
+        scheduler-state.ts ← SchedulerState
+        scenario.ts        ← Scenario, WhatIfBranch
       registry.ts          ← register() y get()
       simulate.ts          ← fachada pública del motor: run() / runFrom() + reexport de derive/
       engine/              ← mecánica del motor (separada de la fachada)
@@ -146,20 +158,32 @@ cpu-scheduler-simulator/   ← raíz del proyecto
       player.ts            ← Player — cursor sobre History
       algorithms/
         non-preemptive/    ← fcfs.ts, sjf.ts, ljf.ts, priority-np.ts
-        preemptive/        ← srtf.ts, priority-p.ts, round-robin.ts
+        preemptive/        ← srtf.ts, priority-p.ts, round-robin.ts,   virtual-round-robin.ts, multilevel-feedback.ts
+        shared/            ← fifo-queue.ts
     react/                 ← Componentes React. Consume src/core vía contexto; nunca al revés.
+      ProcessForm.tsx      ← modificar valores de procesos 
+      AlgorithmParamsForm.tsx ← modificar parametros de algoritmos
       SimulationContext.ts ← contexto + hook useSimulation()
       SimulationProvider.tsx ← proveedor: llama a run(), expone contexto
+      SimulationApp.tsx     ← todos los componetes en mismo simulador
       ProcessTable.tsx     ← lee procesos del contexto
       GanttChart.tsx       ← matriz sincronizada con el tick actual del Player
       PlaybackControls.tsx ← ÚNICO lugar con requestAnimationFrame y deltaTime
       MetricsTable.tsx     ← lee metrics del contexto
+      WhatIfControls.tsx   ← comparación de simuladores, GanttChart, metricas
       style/               ← CSS Modules, un .module.css por componente visual
-        SimulationProvider.module.css
+        ProcessForm.module.css
+        AlgorithmParamsForm.module.css
+        SimulationApp.module.css
         ProcessTable.module.css
         GanttChart.module.css
         PlaybackControls.module.css
         MetricsTable.module.css
+        WhatIfControls.module.css
+        token.css
+        css-modules.d.ts
+      icons/  ← iconos en svg
+        ChevonIcon.tsx, FirstIcon.tsx, LastIcon.tsx, NextIcon.tsx, PauseIcon.tsx, PlayIcon.tsx, PlusIcon.tsx, PreviousIcon.tsx, TrashIcon.tsx
     index.ts               ← punto de entrada del módulo publicable
 
   tests/                   ← espejo de src/ — un .test.ts por cada .ts
@@ -169,7 +193,7 @@ cpu-scheduler-simulator/   ← raíz del proyecto
       player.test.ts
       algorithms/
         non-preemptive/    ← fcfs.test.ts, sjf.test.ts, ljf.test.ts, priority-np.test.ts
-        preemptive/        ← srtf.test.ts, round-robin.test.ts, priority-p.test.ts
+        preemptive/        ← srtf.test.ts, round-robin.test.ts, priority-p.test.ts, virtual-round-robin.test.ts y multilevel-feedback.test.ts
         contracts.test.ts
     react/                 ← Vitest + Testing Library, entorno jsdom
       SimulationProvider.test.tsx, ProcessTable.test.tsx,
@@ -179,9 +203,16 @@ cpu-scheduler-simulator/   ← raíz del proyecto
 
   docs/                    ← Subproyecto Astro + Starlight. SOLO la demo de visualización.
     src/                   ← No contiene simulador ni componente. Importa el módulo.
-      content/docs/cpu-scheduler/
-        non-preemptive/    ← fcfs.mdx, sjf.mdx, ljf.mdx, prio-n.mdx
-        preemptive/        ← round-robin.mdx, srtf.mdx, prio-p.mdx
+      content/docs/
+        cpu-scheduler/
+          non-preemptive/    ← fcfs.mdx, sjf.mdx, ljf.mdx, prio-n.mdx
+          preemptive/        ← round-robin.mdx, srtf.mdx, prio-p.mdx virtual-round-robin.mdx, mlfq.mdx
+        guide/
+          01-integracion-del-componente.mdx
+          02-configuracion-y-escenarios.mdx
+          03-crear-nuevo-algoritmo.mdx
+        index.mdx
+        env.d.ts
     astro.config.mjs
     package.json           ← depende del módulo como dependencia
     tsconfig.json
@@ -196,7 +227,7 @@ Violarlas hace fallar `npm run lint`. Son innegociables.
 | Desde | Puede importar | NO puede importar |
 |---|---|---|
 | `src/core/**` | Solo otros módulos de `src/core/` | React, DOM, `src/react/**` |
-| `src/core/algorithms/**` | Solo `src/core/types/algorithm.ts` | Cualquier otra cosa de core |
+| `src/core/algorithms/**` | Permite `algorithm.ts` y `type/io.ts` | Cualquier otra cosa de core |
 | `src/react/**` | `src/core/**`, React | — |
 | `docs/**` | El módulo publicado, Astro/Starlight | `src/react/**` directamente |
 
@@ -211,8 +242,6 @@ Estos tipos y firmas están acordados. Si necesitas cambiarlos, actualiza
 
 ```ts
 // src/core/types/algorithm.ts
-type PreemptionMode = 'none' | 'on-better' | 'on-quantum';
-
 interface ReadyProcess {
   readonly id: string;
   readonly arrival_time: number;
@@ -221,30 +250,64 @@ interface ReadyProcess {
   readonly priority?: number;
 }
 
+type PreemptionTrigger =
+  | 'on-tick' 
+  | 'on-arrival' 
+  | 'on-io-return' 
+  | 'on-quantum' 
+  | 'on-boost'; 
+
+type SchedulerEvent =
+  | { readonly type: 'arrival'; readonly id: string; readonly tick: number }
+  | { readonly type: 'dispatch'; readonly id: string; readonly tick: number }
+  | { readonly type: 'quantum-expiry'; readonly id: string; readonly tick: number }
+  | { readonly type: 'preempted'; readonly id: string; readonly tick: number }
+  | { readonly type: 'io-start'; readonly id: string; readonly tick: number }
+  | { readonly type: 'io-return'; readonly id: string; readonly tick: number }
+  | { readonly type: 'completed'; readonly id: string; readonly tick: number }
+  | { readonly type: 'priority-boost'; readonly tick: number };
+
+type AlgorithmParams = Readonly<Record<string, unknown>>;
+
 interface IAlgorithm {
   readonly name: string;
-  readonly preemptionMode: PreemptionMode;
-  readonly requires: { priority?: boolean; quantum?: boolean };
+  readonly triggers: ReadonlySet<PreemptionTrigger>;
+  readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
+  quantumFor?(p: ReadyProcess): number | null;
+  onEvent?(e: SchedulerEvent): string | { text: string } | null;
+  levelSnapshot?(): Readonly<Record<string, number>>;
 }
+
+export type {
+  ReadyProcess,
+  PreemptionTrigger,
+  SchedulerEvent,
+  AlgorithmParams,
+  IAlgorithm,
+};
 ```
 
 ```ts
 // src/core/types/history.ts
 interface HistoryEvent {
-  readonly tick:      number;
-  readonly onCPU:     string | null;   // null = CPU inactiva
-  readonly ready:     readonly string[];
-  readonly pending:   readonly string[];
+  readonly tick: number;
+  readonly onCPU: string | null;
+  readonly ready: readonly string[];
+  readonly pending: readonly string[];
   readonly completed: readonly string[];
-  readonly message:   string;
+  readonly inIO: string | null;
+  readonly waitingIO: readonly string[];
+  readonly message: string;
+  readonly levels?: Readonly<Record<string, number>>;
 }
+
 type History = readonly HistoryEvent[];
 
 interface Interval {
-  readonly pid:   string | null;   // null = hueco de inactividad
+  readonly pid: string | null;
   readonly start: number;
-  readonly end:   number;
+  readonly end: number;
 }
 ```
 
@@ -257,17 +320,118 @@ interface ProcessMetrics {
   readonly waiting: number;
   readonly response: number;
 }
+
 interface AggregateMetrics {
   readonly avgWaiting: number;
   readonly avgTurnaround: number;
   readonly cpuUtilization: number;
   readonly throughput: number;
 }
-// SimulationResult = { history; intervals: Interval[]; metrics }
-// intervals y metrics se DERIVAN del history con funciones puras al final de run().
-// Nunca se acumulan dentro del bucle del motor.
+
+interface SimulationResult {
+  readonly history: History;
+  readonly intervals: readonly Interval[];
+  readonly metrics: {
+    readonly perProcess: readonly ProcessMetrics[];
+    readonly aggregate: AggregateMetrics;
+  };
+}
 ```
 
+```ts
+// src/core/types/io.ts
+interface IOOperation {
+  readonly io_entry: number;
+  readonly io_time: number;
+}
+
+interface DeviceState {
+  readonly serving: string | null;
+  readonly remaining: number;
+  readonly queue: readonly string[];
+}
+```
+
+```ts
+// src/core/types/process.ts
+interface Process {
+  readonly id: string;
+  readonly arrival_time: number;
+  readonly burst_time: number;
+  readonly priority?: number;
+  readonly io?: readonly IOOperation[];
+}
+```
+
+```ts
+// src/core/types/scenario.ts
+interface Scenario {
+  readonly name?: string;
+  readonly processes: readonly Process[];
+  readonly algorithm: string;
+  readonly params: AlgorithmParams;
+}
+
+interface WhatIfBranch {
+  readonly fromTick: number;
+  readonly state: SchedulerState;
+}
+```
+
+```ts
+// src/core/types/scheduler-state.ts
+interface SchedulerState {
+  readonly tick: number;
+  readonly onCPU: string | null;
+  readonly ready: readonly string[];
+  readonly pending: readonly string[];
+  readonly completed: readonly string[];
+  readonly deviceState: DeviceState;
+  // Tiempo de CPU restante por proceso en este punto del historial
+  readonly remaining: readonly { readonly id: string; readonly remaining: number }[];
+}
+
+```
+
+```ts
+// src/core/types/scheduler-state.ts
+interface SchedulerState {
+  readonly tick: number;
+  readonly onCPU: string | null;
+  readonly ready: readonly string[];
+  readonly pending: readonly string[];
+  readonly completed: readonly string[];
+  readonly deviceState: DeviceState;
+  // Tiempo de CPU restante por proceso en este punto del historial
+  readonly remaining: readonly { readonly id: string; readonly remaining: number }[];
+}
+
+```ts
+// src/core/types/simulation-result.ts
+  interface ProcessMetrics {
+    readonly id: string;
+    readonly completion: number;
+    readonly turnaround: number;
+    readonly waiting: number;
+    readonly response: number;
+  }
+
+  interface AggregateMetrics {
+    readonly avgWaiting: number;
+    readonly avgTurnaround: number;
+    readonly cpuUtilization: number;
+    readonly throughput: number;
+  }
+
+  interface SimulationResult {
+    readonly history: History;
+    readonly intervals: readonly Interval[];
+    readonly metrics: {
+      readonly perProcess: readonly ProcessMetrics[];
+      readonly aggregate: AggregateMetrics;
+    };
+  }
+```
 ---
 
 ## 8. Prohibiciones absolutas en `cpu-scheduler-simulator/src/core/`
@@ -378,10 +542,10 @@ npm run build           # build estático del sitio
 
 ## 13. Tests y criterios de aceptación
 
-Cada criterio de `specs/BEHAVIOURS-v01.md` debe tener **al menos dos tests**.
+Cada criterio de `specs/BEHAVIOURS-v02.md` debe tener **al menos dos tests**.
 
 Los tests del motor son los más valiosos: usa fixtures numéricos concretos sacados
-directamente de `BEHAVIOURS-v01.md` (diagramas de Gantt, métricas). Si el fixture
+directamente de `BEHAVIOURS-v02.md` (diagramas de Gantt, métricas). Si el fixture
 pasa, la lógica es correcta.
 
 ### Organización de archivos de test
@@ -400,11 +564,18 @@ tests/core/                                    # espejo de src/core/
       sjf.test.ts                              # ← sjf.ts
       ljf.test.ts                              # ← ljf.ts
       priority-np.test.ts                      # ← priority-np.ts
-    preemptive/                                # espejo de src/core/algorithms/preemptive/
+    preemptive/                                # espejo de src/core/algorithms/
       srtf.test.ts                             # ← srtf.ts
       round-robin.test.ts                      # ← round-robin.ts
       priority-p.test.ts                       # ← priority-p.ts
-    contracts.test.ts                          # T-24: extensibilidad
+      virtual-round-robin.test.ts              # ← virtual-round-robin.ts
+      multilevel-feedback.test.ts              # ← multilevel-feedback.ts
+    share/
+      fifo-queue.test.ts                       # ← fifo-queue.ts
+    io-subsystem.test.ts
+    player.test.ts
+    registry.test.ts
+    simulate.test.ts
 
 tests/react/                                   # espejo de src/react/
   SimulationProvider.test.tsx                  # ← SimulationProvider.tsx
@@ -425,15 +596,9 @@ tests del motor.
 | `src/core/` | 90 % | 90 % | 90 % | 80 % |
 | `src/react/` | 90 % | 90 % | 90 % | 80 % |
 
-Los tests de `BEHAVIOURS-v01.md` cubren prácticamente todas las rutas de `src/core/`
-(7 algoritmos + motor + player + casos límite). Para `src/react/` la cobertura
-proviene de los tests de componente de T-25 a T-29; las ramas de renderizado
-condicional son las más difíciles de alcanzar.
+Los tests de `BEHAVIOURS-v02.md` cubren prácticamente todas las rutas de `src/core/` (9 algoritmos + motor + player + casos límite). Para `src/react/` la cobertura proviene de los tests de componente de T-25 a T-29; las ramas de renderizado condicional son las más difíciles de alcanzar.
 
-**No aumentes la cobertura añadiendo tests triviales** (getters, constantes, paths que
-no ejecuta nadie en producción). Si no llegas al umbral, notifica exactamente qué
-líneas o ramas no están cubiertas e **interrumpe antes de continuar** con la siguiente
-tarea.
+**No aumentes la cobertura añadiendo tests triviales** (getters, constantes, paths que no ejecuta nadie en producción). Si no llegas al umbral, notifica exactamente qué líneas o ramas no están cubiertas e **interrumpe antes de continuar** con la siguiente tarea.
 
 ---
 
@@ -443,7 +608,7 @@ tarea.
 2. Implementar `IAlgorithm`: `name`, `preemptionMode`, `requires`, `select()`.
 3. Registrarlo en el punto de entrada principal (`src/index.ts`) con `register(new NombreAlgoritmo())`, NUNCA directamente dentro de `registry.ts`.
 4. Añadir test en `tests/core/algorithms/(non-preemptive|preemptive)/nombre.test.ts`
-   con el fixture de `BEHAVIOURS-v01.md`.
+   con el fixture de `BEHAVIOURS-v02.md`.
 5. Añadir o actualizar su página en `docs/src/content/docs/cpu-scheduler/`.
 
 **No modificar `simulate.ts`, `engine/` (`loop.ts`, `validate.ts`), `derive/`, `player.ts` ni ningún componente React.**
