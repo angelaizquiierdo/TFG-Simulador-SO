@@ -351,7 +351,7 @@ register((params) => new VirtualRoundRobin(
 const algo = get(config.algorithm, { quantum: config.quantum, boostInterval: config.boostInterval });
 ```
 
-**Cierra:** `Registro de algoritmos` — `tests/core/registry.test.ts`
+**Cierra:** `§ Registro de algoritmos` — `tests/core/registry.test.ts`
 
 ---
 
