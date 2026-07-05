@@ -29,15 +29,13 @@ type AlgorithmParams = Readonly<Record<string, unknown>>;
 
 interface IAlgorithm {
   readonly name: string;
-  // Conjunto declarativo de disparadores: define CUÁNDO el motor reevalúa la selección
-  // y si expropia. Un conjunto vacío equivale a no expropiativo (clásicos).
+  
   readonly triggers: ReadonlySet<PreemptionTrigger>;
   readonly requires: { priority?: boolean; quantum?: boolean; io?: boolean; levels?: boolean };
   select(ready: readonly ReadyProcess[]): ReadyProcess;
   quantumFor?(p: ReadyProcess): number | null;
   onEvent?(e: SchedulerEvent): string | { text: string } | null;
-  // Snapshot opcional pid → nivel/cola para anotar las celdas del Gantt.
-  // El motor lo registra tal cual; algoritmos sin niveles no lo implementan.
+  
   levelSnapshot?(): Readonly<Record<string, number>>;
 }
 
