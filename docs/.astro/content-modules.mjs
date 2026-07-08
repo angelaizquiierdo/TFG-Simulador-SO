@@ -12,5 +12,6 @@ export default new Map([
 ["src/content/docs/guide/01-integracion-del-componente.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguide%2F01-integracion-del-componente.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/guide/02-configuracion-y-escenarios.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguide%2F02-configuracion-y-escenarios.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/guide/03-crear-nuevo-algoritmo.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguide%2F03-crear-nuevo-algoritmo.mdx&astroContentModuleFlag=true")],
+["src/content/docs/guide/interleaved.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fguide%2Finterleaved.mdx&astroContentModuleFlag=true")],
 ["src/content/docs/index.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Findex.mdx&astroContentModuleFlag=true")]]);
 		

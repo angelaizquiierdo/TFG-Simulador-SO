@@ -520,7 +520,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 - **Fase 8 — Documentación (`docs/`):** guías (integración, configuración, crear
   algoritmo) y una página de demo por algoritmo que embebe el componente.
 - **Fase 9 — Estética:** revisión visual con tokens de diseño, consistencia y contraste. Incluye el rediseño del `GanttChart` como tabla (cabecera de ticks y columna de procesos en superficie elevada, bordes de rejilla, scroll horizontal, etiqueta de CPU con el número de cola integrado en algoritmos multinivel («CPU{n}», MLFQ y VRR), estados de E/S **sin fondo** representados solo con texto («E/S» en servicio, «L(E/S)» en cola de E/S; color por token de tema `--scheduler-gantt-io-text`: negro en claro, blanco en oscuro), tipografía monoespaciada) e iconos SVG nativos en los controles. El motivo de este rediseño está en el ADR correspondiente de `DECISIONS.md`.
-- **Fase 10 — Verificación final:** cobertura de `BEHAVIOUSv-02.md`, typecheck, lint
+- **Fase 10 — Verificación final:** cobertura de `BEHAVIOURSv-02.md`, typecheck, lint
   limpio, build de producción.
 
 
@@ -528,7 +528,7 @@ Métricas: `ProcessMetrics` = `{ id, completion, turnaround, waiting, response }
 
 ## Testing
 
-- Cada criterio de `BEHAVIOUS-v02.md` corresponde al menos a un test.
+- Cada criterio de `BEHAVIOURS-v02.md` corresponde al menos a un test.
 - **Simulador (Vitest, en Node):** algoritmos contra Gantt conocidos, métricas a mano, determinismo, y un test que **importa el simulador sin React** para confirmar que no arrastra dependencias de interfaz.
 - **Contrato `IAlgorithm`:** un algoritmo de prueba mínimo se registra y simula **sin modificar el motor**.
 - **Componente (Testing Library, jsdom):** renderizado, validación de configuración, campos según el descriptor y controles de reproducción (límites en 0 y en el último tick).
