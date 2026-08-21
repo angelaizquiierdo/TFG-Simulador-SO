@@ -4,4 +4,4 @@ coverage/
 .env
 *.local
 .claude/
-docs/.astro/
+docs/.astro/*
