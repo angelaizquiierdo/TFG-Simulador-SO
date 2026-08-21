@@ -10,13 +10,20 @@ jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Crucial: SonarCloud necesita el historial completo para evaluar PRs correctamente
-          
+
+      - name: SonarCloud token no configurado
+        if: ${{ env.SONAR_TOKEN == '' }}
+        run: echo "::warning::SONAR_TOKEN no está configurado. Se omite el análisis de SonarCloud."
+
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub proporciona este token automáticamente
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}    # El token que acabas de configurar
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}        # El token configurado como secret
