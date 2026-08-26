@@ -11,14 +11,31 @@ jobs:
     name: SonarCloud
     runs-on: ubuntu-latest
     steps:
-      # En lugar de @v4, usamos el hash SHA del commit exacto de esa versión
+      # 1. Checkout del código
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           
-      # En lugar de @master, usamos el hash SHA de la versión estable
+      # 2. Configurar el entorno de Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: '20' # Ajusta esto a la versión de Node que uses localmente
+
+      # 3. Instalar las dependencias del proyecto
+      - name: Install dependencies
+        run: npm ci # 'npm ci' es más rápido y seguro en entornos de CI/CD que 'npm install'
+
+      # 4. Ejecutar las pruebas para generar el reporte de cobertura
+      - name: Run tests and generate coverage
+        run: npm run test -- --coverage
+          
+      # 5. Escáner de SonarCloud enviando el archivo de cobertura
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@38cf334b4f38f7cc7ce01d842512f43a99264c7f # v3.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
