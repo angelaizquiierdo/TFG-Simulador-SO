@@ -26,7 +26,7 @@ jobs:
 
       # 3. Instalar las dependencias del proyecto
       - name: Install dependencies
-        run: npm ci # 'npm ci' es más rápido y seguro en entornos de CI/CD que 'npm install'
+        run: npm install
 
       # 4. Ejecutar las pruebas para generar el reporte de cobertura
       - name: Run tests and generate coverage
