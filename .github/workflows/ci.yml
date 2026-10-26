@@ -1,0 +1,98 @@
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  # 1. Integración continua: calidad del código en cada push y cada Pull Request
+  calidad:
+    name: Lint, tipos, tests y SonarCloud
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # SonarCloud necesita el historial completo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22' # Astro 7 exige Node >= 22.12
+          cache: npm
+
+      - name: Usar npm 11 (la misma versión que generó el lockfile)
+        run: npm install -g npm@11
+
+      - name: Instalar dependencias (reproducible)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Comprobación de tipos
+        run: npm run typecheck
+
+      - name: Tests con cobertura (falla si baja de los umbrales)
+        run: npm run test:coverage
+
+      - name: Análisis de SonarCloud
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+  # 2. Build: comprueba que el paquete y el sitio de documentación compilan
+  build:
+    name: Build del paquete y de la documentación
+    needs: calidad
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Usar npm 11 
+        run: npm install -g npm@11
+
+      - run: npm ci
+
+      - name: Build del paquete
+        run: npm run build
+
+      - name: Build del sitio Astro
+        run: npm run docs:build
+
+      - name: Guardar el sitio para el despliegue
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist
+
+  # 3. Despliegue continuo: publica la demo en GitHub Pages solo desde main
+  deploy:
+    name: Despliegue en GitHub Pages
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

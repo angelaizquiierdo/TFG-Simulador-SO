@@ -3,7 +3,7 @@
 
 Simulador web interactivo de algoritmos de planificación de CPU, desarrollado como recurso didáctico de apoyo para la asignatura de Sistemas Operativos del Grado en Ingeniería Informática (Universidad de La Laguna). Permite visualizar, tick a tick, cómo decide cada algoritmo de planificación, comparar dos escenarios entre sí (*what-if*) y editar procesos y parámetros sin salir de la página.
 
-Desarrollado siguiendo la metodología **Spec-Driven Development (SDD)**: toda decisión de arquitectura y comportamiento se especificó por escrito antes de implementarse, con un agente de IA (Claude Code) ejecutando el desarrollo bajo ese contrato. La especificación completa vive en los documentos de la raíz del repositorio (`SPECv-02.md`, `TECHNICAL.md`...) y el razonamiento detrás de cada decisión importante en [`DECISIONS.md`](./DECISIONS.md); este README resume el resultado, no lo sustituye.
+Desarrollado siguiendo la metodología **Spec-Driven Development (SDD)**: toda decisión de arquitectura y comportamiento se especificó por escrito antes de implementarse, con un agente de IA (Claude Code) ejecutando el desarrollo bajo ese contrato. La especificación completa vive en los documentos de la raíz del repositorio (`SPECv-02.md`, `TECHNICAL.md`...) y el razonamiento detrás de cada decisión importante en [`DECISIONS.md`](./specs/DECISIONS.md); este README resume el resultado, no lo sustituye.
 
 ## Índice
 
@@ -32,7 +32,7 @@ Tres capas con una única dirección de dependencia: **`docs → react → core`
 - **`src/react`** — consume el núcleo y renderiza los resultados.
 - **`docs/`** — subproyecto Astro + Starlight que embebe el componente como isla, con una página de demo por algoritmo y guías para desarrolladores.
 
-Referencia completa: [`TECHNICAL.md`](./TECHNICAL.md).
+Referencia completa: [`TECHNICAL.md`](./specs/TECHNICAL.md).
 
 ## 2. Metodología y especificación (SDD)
 
@@ -40,11 +40,11 @@ El desarrollo se dividió en dos iteraciones (v-01, prueba de concepto; v-02, ar
 
 | Documento | Contenido |
 |---|---|
-| [`SPECv-01.md`](./SPECv-01.md) / [`SPECv-02.md`](./SPECv-02.md) | Requisitos funcionales, alcance y límites operativos de cada versión |
-| [`BEHAVIOURSv-01.md`](./BEHAVIOURSv-01.md) / [`BEHAVIOURSv-02.md`](./BEHAVIOURSv-02.md) | Criterios de aceptación (Dado/Cuando/Entonces) que cierran cada tarea, y que validan los tests |
-| [`TECHNICAL.md`](./TECHNICAL.md) | Arquitectura, contratos de interfaz y normas estrictas de implementación (aplica a ambas versiones) |
+| [`SPECv-01.md`](./specs/v-01/SPECv-01.md) / [`SPECv-02.md`](./specs/v-02/SPECv-02.md) | Requisitos funcionales, alcance y límites operativos de cada versión |
+| [`BEHAVIOURSv-01.md`](./specs/v-01/BEHAVIOURSv-01.md) / [`BEHAVIOURSv-02.md`](./specs/v-02/BEHAVIOURSv-02.md) | Criterios de aceptación (Dado/Cuando/Entonces) que cierran cada tarea, y que validan los tests |
+| [`TECHNICAL.md`](./specs/TECHNICAL.md) | Arquitectura, contratos de interfaz y normas estrictas de implementación (aplica a ambas versiones) |
 
-El desglose en tareas atómicas que orquestó el desarrollo vive en [`PLAN.md`](./PLAN.md), y el protocolo que siguió el agente de IA para ejecutarlas en [`CLAUDE.md`](./CLAUDE.md).
+El desglose en tareas atómicas que orquestó el desarrollo vive en [`PLAN.md`](./specs/v-01/PLAN.md) de la version 1 y version 2 es [`PLAN.md`](./specs/v-02/PLAN.md), y el protocolo que siguió el agente de IA para ejecutarlas en [`CLAUDE.md`](./CLAUDE.md).
 
 ## 3. Algoritmos soportados
 
@@ -70,7 +70,7 @@ Sitio Astro + Starlight con tres guías para desarrolladores (integración del c
 
 ## 7. Decisiones de diseño relevantes
 
-Registradas como *Architectural Decision Records* en [`DECISIONS.md`](./DECISIONS.md). Algunas de las más relevantes:
+Registradas como *Architectural Decision Records* en [`DECISIONS.md`](./specs/DECISIONS.md). Algunas de las más relevantes:
 
 - Migración de `preemptionMode` (enum) a `triggers` (conjunto de condiciones), al no escalar a algoritmos con expropiación por múltiples motivos.
 - Modularización de `simulate.ts` en fachada + `engine/` + `derive/`.
@@ -123,11 +123,12 @@ Cada `push` a `main` y cada Pull Request dispara un workflow de GitHub Actions q
 ## 13. Capturas
 
 
-*(→ Gantt en ejecución, tema claro/oscuro)*
-
-*(→ edición de procesos con ProcessForm)*
-
-*(→ comparación what-if entre dos algoritmos)*
+El diagrama de Gantt esta en ejecución, tema claro/oscuro
+![Gantt en ejecución, tema claro/oscuro](./assets/gantt-tema-claro-oscuro.gif)
+Edición de procesos(Añadir, eliminar, cambios de tiempo)
+![edición de procesos con ProcessForm](./assets/editar_processForm.gif)
+Comparación de distintos algoritmos o mismos algoritmos con Quantum distinto.
+![edición de procesos con ProcessForm](./assets/comparacion-distintos%20algoritmos.gif)
 
 ## 14. Licencia
 
