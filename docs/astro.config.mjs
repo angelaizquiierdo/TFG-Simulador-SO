@@ -12,7 +12,10 @@ export default defineConfig({
     react(),
     starlight({
       title: 'CPU Scheduler Simulator',
-      // Inyección obligatoria de tokens globales para evitar colisiones en las guías
+      description: 'Un simulador de planificación de CPU para experimentar con diferentes algoritmos.',
+      locales: {
+        root: { label: 'Español', lang: 'es' },
+      },
       customCss: [
         '../src/react/style/tokens.css', 
       ],
