@@ -1,12 +1,46 @@
 ---
 title: CPU Scheduler Simulator
-description: Simulador didáctico de algoritmos de planificación de CPU.
+description: Simulador web interactivo de algoritmos de planificación de CPU, desarrollado como recurso 
+didáctico para la asignatura de Sistemas Operativos (Universidad de La Laguna).
 template: splash
 hero:
-  title: CPU Scheduler Simulator
-  tagline: Visualiza y compara algoritmos de planificación de CPU de forma interactiva.
+  title: Simulador de planificación de CPU
+  tagline: Observa, tick a tick, cómo decide cada algoritmo qué proceso ocupa la CPU, y compara dos escenarios entre sí.
   actions:
-    - text: Example Guide
-      link: guide/01-integracion-del-componente/
+    - text: Probar un algoritmo
+      link: cpu-scheduler/non-preemptive/fcfs/
       icon: right-arrow
+    - text: Guía para desarrolladores
+      link: guide/01-integracion-del-componente/
+      variant: minimal
 ---
+
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+ 
+## Qué puedes hacer
+ 
+<CardGrid>
+  <Card title="Ver la ejecución paso a paso" icon="seti:clock">
+    Reproduce la simulación tick a tick y sigue en el diagrama de Gantt qué proceso está en CPU y cuáles esperan.
+  </Card>
+  <Card title="Editar el escenario" icon="pencil">
+    Cambia los procesos (llegada, ráfaga, prioridad) y los parámetros del algoritmo, como el quantum, sin salir de la página.
+  </Card>
+  <Card title="Comparar dos escenarios" icon="random">
+    Ejecuta otro algoritmo o cambia un parámetro sobre los mismos procesos y compara las métricas de ambos.
+  </Card>
+  <Card title="Consultar las métricas" icon="document">
+    Al terminar la simulación, consulta el tiempo de espera, de retorno y de respuesta de cada proceso, y las medias.
+  </Card>
+</CardGrid>
+## Algoritmos
+ 
+<CardGrid>
+  <LinkCard title="No expropiativos" description="FCFS, SJF, LJF y Prioridad (no expropiativa)" href="cpu-scheduler/non-preemptive/fcfs/" />
+  <LinkCard title="Expropiativos" description="Round Robin, SRTF, Prioridad (expropiativa), Round Robin Virtual y MLFQ" href="cpu-scheduler/preemptive/round-robin/" />
+</CardGrid>
+## Sobre el proyecto
+ 
+Trabajo de Fin de Grado en Ingeniería Informática (Universidad de La Laguna, 2026). El código, la especificación y las decisiones de diseño están en el [repositorio de GitHub](https://github.com/angelaizquiierdo/TFG-Simulador-SO).
+ 
