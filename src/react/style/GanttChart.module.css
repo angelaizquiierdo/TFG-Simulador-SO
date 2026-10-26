@@ -13,11 +13,12 @@
 .message {
   font-size: var(--scheduler-font-size-base);
   color: var(--scheduler-text-secondary);
-  height: var(--scheduler-size-xs);
+  min-height: var(--scheduler-size-xs);
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
   font-family: monospace;
   font-weight: 600;
   border: 1px solid var(--scheduler-border);
