@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url)); 
 export default defineConfig({
   site: 'https://angelaizquiierdo.github.io',
+  base: '/TFG-Simulador-SO',
   integrations: [
     react(),
     starlight({
